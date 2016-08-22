@@ -37,7 +37,8 @@ class Options(object):
 
 
 def test_basic(capsys):
-    ''' Test basic operation with the triple-product example '''
+    ''' Test basic operation with some simple Fortran containing the
+    product of three scalar variables '''
     make_dag.runner(Options(),
                     [os.path.join(BASE_PATH, "triple_product.f90")])
     result, _ = capsys.readouterr()
@@ -47,3 +48,36 @@ def test_basic(capsys):
     assert "2 FLOPs in total." in result
     assert "Did not find any array/memory references" in result
     assert "Schedule contains 2 steps:" in result
+
+
+def test_array_readwrite_no_fma(capsys):
+    ''' Test the analysis of code of the form x(i) = a + x(i) without
+    attempting to spot opportunities for Fused Multiply Adds '''
+    options = Options()
+    options.no_fma = True
+
+    make_dag.runner(options,
+                    [os.path.join(BASE_PATH, "shallow_loop11.f90")])
+    result, _ = capsys.readouterr()
+    print result
+    assert "6 addition operators." in result
+    assert "3 subtraction operators." in result
+    assert "6 multiplication operators." in result
+    assert "15 FLOPs in total." in result
+    assert "9 array references." in result
+    assert "Sum of cost of all nodes = 15" in result
+
+
+def test_array_readwrite_with_fma(capsys):
+    ''' Test the analysis of code of the form x(i) = a + x(i) '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "shallow_loop11.f90")])
+    result, _ = capsys.readouterr()
+    print result
+    assert "6 addition operators." in result
+    assert "3 subtraction operators." in result
+    assert "6 multiplication operators." in result
+    assert "15 FLOPs in total." in result
+    assert "9 array references." in result
+    assert "Sum of cost of all nodes = 15" in result
+
