@@ -250,7 +250,7 @@ class DAGNode(object):
         for child in self._producers:
             fma_count += child.fuse_multiply_adds()
 
-        # If this node is an addition or a multiplication
+        # If this node is an addition
         if self._node_type == "+":
             # Loop over a copy of the list of producers as this loop
             # modifies the original
@@ -261,13 +261,11 @@ class DAGNode(object):
                     # multiplication operation.
                     for grandchild in child.producers:
                         self.add_producer(grandchild)
-                        grandchild.rm_consumer(child)
                         grandchild.add_consumer(self)
                         self._operands.append(grandchild)
 
-                    # Delete the multiplication node
-                    self.rm_producer(child)
-                    child.rm_consumer(self)
+                    # Delete the multiplication node - this automatically
+                    # updates any nodes that have dependencies on it.
                     self._digraph.delete_node(child)
 
                     # Change the type of this node

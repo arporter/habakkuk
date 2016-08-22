@@ -50,6 +50,15 @@ def test_basic(capsys):
     assert "Schedule contains 2 steps:" in result
 
 
+def test_basic_fma(capsys):
+    ''' Test basic operation of tool's ability to spot opportunities for
+    fused multiply-add instructions '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "fma_test.f90")])
+    result, _ = capsys.readouterr()
+    print result
+
+
 def test_array_readwrite_no_fma(capsys):
     ''' Test the analysis of code of the form x(i) = a + x(i) without
     attempting to spot opportunities for Fused Multiply Adds '''
