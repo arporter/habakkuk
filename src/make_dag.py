@@ -138,7 +138,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     return digraph
 
     
-def runner(parser, options, args):
+def runner(options, args):
     ''' Parses the files listed in args and generates a DAG for all of the
     subroutines it finds '''
     from fparser.api import Fortran2003
@@ -299,7 +299,7 @@ def main():
         parser.runner = runner
     options, args = parser.parse_args()
 
-    runner(parser, options, args)
+    runner(options, args)
     return
 
 
