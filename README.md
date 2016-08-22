@@ -6,7 +6,7 @@ Fortran code analysis for performance prediction
 You will need the 'git' revision control system installed. You
 can then clone the repository to your local machine:
 
-git clone https://github.com/arporter/habbakuk.git
+    git clone https://github.com/arporter/habbakuk.git
 
 You will then need to set your python path like so:
 
@@ -63,5 +63,5 @@ test_triple_product.gv in the above example). If you have dot installed
 (part of the graphviz package) then you can process these files to produce
 an image of the DAG, e.g.:
 
-   cat triple_product_test.gv | dot -Tpng > triple.png
+    cat triple_product_test.gv | dot -Tpng > triple.png
 
