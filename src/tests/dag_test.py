@@ -50,6 +50,8 @@ def test_basic(capsys):
     assert "Schedule contains 2 steps:" in result
 
 
+@pytest.mark.xfail(reason="Ivy Bridge has no FMA but is the only "
+                   "architecture currently supported")
 def test_basic_fma(capsys):
     ''' Test basic operation of tool's ability to spot opportunities for
     fused multiply-add instructions '''
@@ -77,6 +79,8 @@ def test_array_readwrite_no_fma(capsys):
     assert "Sum of cost of all nodes = 15" in result
 
 
+@pytest.mark.xfail(reason="Ivy Bridge has no FMA but is the only "
+                   "architecture currently supported")
 def test_array_readwrite_with_fma(capsys):
     ''' Test the analysis of code of the form x(i) = a + x(i) '''
     make_dag.runner(Options(),
