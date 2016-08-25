@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>f2py installation &mdash; Habbakuk 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Habbakuk 0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li><a href="index.html">Habbakuk 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="f2py-installation">
+<span id="sec-f2py-install"></span><h1>f2py installation<a class="headerlink" href="#f2py-installation" title="Permalink to this headline">¶</a></h1>
+<p>Habbakuk requires version 3 of f2py, a library designed to allow
+fortran to be called from python (see
+<a class="reference external" href="http://code.google.com/p/f2py/wiki/F2PYDevelopment">http://code.google.com/p/f2py/wiki/F2PYDevelopment</a> for more
+information). Habbakuk makes use of the fortran parser (fparser)
+contained within.</p>
+<p>The source code of f2py (revision 93) is provided with Habbakuk in the
+sub-directory <tt class="docutils literal"><span class="pre">f2py_93</span></tt>. If you would prefer to install f2py rather
+than simply use it as is (see the previous section) then the rest of
+this section explains how to do this.</p>
+<p>f2py uses the numpy distutils package to install. In version 1.6.1 of
+distutils (currently the default in Ubuntu) distutils supports
+interactive setup. In this case to install f2py using gfortran and gcc
+(for example) you can perform the following (where &#8220;cgcc&#8221;, &#8220;fgfortran&#8221;, &#8220;1&#8221;
+and &#8220;2&#8221; are interactive commands to setup.py)</p>
+<div class="highlight-python"><div class="highlight"><pre>&gt; cd f2py_93
+&gt; sudo ./setup.py
+cgcc
+fgfortran
+1
+&gt; sudo ./setup.py
+cgcc
+fgfortran
+2
+</pre></div>
+</div>
+<p>For later versions of distutils (1.8.0 has been tested) where the
+interactive setup has been disabled you can perform the following
+(using g95 and gcc in this case):</p>
+<div class="highlight-python"><div class="highlight"><pre>&gt; cd f2py_93
+&gt; sudo ./setup.py build -fcompiler=g95 -ccompiler=gcc
+&gt; sudo ./setup.py install
+</pre></div>
+</div>
+<p>For more information about possible build options you can use the
+available help:</p>
+<div class="highlight-python"><div class="highlight"><pre>&gt; ./setup.py --help
+&gt; ./setup.py build --help
+&gt; ./setup.py build --help-fcompiler
+</pre></div>
+</div>
+<p>In particular, if you do not have root access then the python
+modules can be installed in your user account by specifying
+&#8211;user to the install command:</p>
+<div class="highlight-python"><div class="highlight"><pre>&gt; ./setup.py install --user
+</pre></div>
+</div>
+<p>This causes the software to be installed under ${HOME}/.local/</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/f2py_install.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li><a href="index.html">Habbakuk 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2016, Andy Porter.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

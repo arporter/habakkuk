@@ -13,7 +13,7 @@ Contents:
 
   introduction
   getting_going
-
+  f2py_install
 
 Indices and tables
 ==================
