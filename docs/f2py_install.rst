@@ -3,13 +3,13 @@
 f2py installation
 ^^^^^^^^^^^^^^^^^
 
-Habbakuk requires version 3 of f2py, a library designed to allow
+Habakkuk requires version 3 of f2py, a library designed to allow
 fortran to be called from python (see
 http://code.google.com/p/f2py/wiki/F2PYDevelopment for more
-information). Habbakuk makes use of the fortran parser (fparser)
+information). Habakkuk makes use of the fortran parser (fparser)
 contained within.
 
-The source code of f2py (revision 93) is provided with Habbakuk in the
+The source code of f2py (revision 93) is provided with Habakkuk in the
 sub-directory ``f2py_93``. If you would prefer to install f2py rather
 than simply use it as is (see the previous section) then the rest of
 this section explains how to do this.
