@@ -29,9 +29,11 @@
     <div class="container">
       <section id="main_content">
         <h1>
-<a id="habbakuk" class="anchor" href="#habbakuk" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>habbakuk</h1>
+<a id="habakkuk" class="anchor" href="#habakkuk" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>habakkuk</h1>
 
 <p>Fortran code analysis for performance prediction</p>
+
+<img src="images/cont_loop0.png" alt="Example DAG">
 
 <h2>
 <a id="getting-started" class="anchor" href="#getting-started" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Getting started</h2>
@@ -39,12 +41,12 @@
 <p>You will need the 'git' revision control system installed. You
 can then clone the repository to your local machine:</p>
 
-<pre><code>git clone https://github.com/arporter/habbakuk.git
+<pre><code>git clone https://github.com/arporter/habakkuk.git
 </code></pre>
 
 <p>You will then need to set your python path like so:</p>
 
-<pre><code>cd habbakuk
+<pre><code>cd habakkuk
 export PYTHONPATH=${PWD}/f2py_93:${PWD}/src
 </code></pre>
 
@@ -52,7 +54,7 @@ export PYTHONPATH=${PWD}/f2py_93:${PWD}/src
 some Fortran code. There are various examples in src/tests/test_files.
 The tool may be run like so:</p>
 
-<pre><code>cd habbakuk/src
+<pre><code>cd habakkuk/src
 python ./make_dag.py tests/test_files/triple_product.f90
 </code></pre>
 
