@@ -1,4 +1,4 @@
-# habbakuk #
+# Habakkuk #
 Fortran code analysis for performance prediction
 
 ## Getting started ##
@@ -6,18 +6,18 @@ Fortran code analysis for performance prediction
 You will need the 'git' revision control system installed. You
 can then clone the repository to your local machine:
 
-    git clone https://github.com/arporter/habbakuk.git
+    git clone https://github.com/arporter/habakkuk.git
 
 You will then need to set your python path like so:
 
-    cd habbakuk
+    cd habakkuk
     export PYTHONPATH=${PWD}/f2py_93:${PWD}/src
 
 Having done this you should be all set to try the tool on
 some Fortran code. There are various examples in src/tests/test_files.
 The tool may be run like so:
 
-    cd habbakuk/src
+    cd habakkuk/src
     python ./make_dag.py tests/test_files/triple_product.f90
 
 You should then see output similar to the following:
