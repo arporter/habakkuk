@@ -118,11 +118,30 @@ class Variable(object):
         # array
         self._index_exprns = []
 
-    def __str__(self):
-        name = self._name
+    @property
+    def _index_str(self):
+        ''' Returns a string containing the full array-indexing
+        expression part of this variable reference. If it is not an
+        array reference then returns an empty string. '''
+        index_str = ""
         if self._is_array_ref:
-            name += "(" + self.index_expr + ")"
-        return name
+            index_str += "(" + self.index_expr + ")"
+        return index_str
+
+    def __str__(self):
+        return self._name + self._index_str
+
+    @property
+    def full_orig_name(self):
+        ''' Returns a string containing the full original name of this
+        variable - i.e.  including any array indexing '''
+        return self._orig_name + self._index_str
+
+    @property
+    def full_name(self):
+        ''' Returns a string containing the full name of this
+        variable - i.e.  including any array indexing '''
+        return self._name + self._index_str
 
     @property
     def index_expr(self):
@@ -172,7 +191,8 @@ class Variable(object):
         appears on the LHS of an assignment and thus represents a new 
         entity in a DAG. '''
         from fparser.Fortran2003 import Name, Part_Ref, Real_Literal_Constant, \
-            Section_Subscript_List, Int_Literal_Constant, Level_2_Expr
+            Section_Subscript_List, Int_Literal_Constant, Level_2_Expr, \
+            Array_Section
 
         if isinstance(node, Name):
             # This node is simply the name of a variable
@@ -212,7 +232,6 @@ class Variable(object):
             elif isinstance(node.items[1], Level_2_Expr):
                 # Array index expression itself contains an array access - i.e.
                 # this is an indirect access.
-                print "Array index expression = ", str(node.items[1])
                 self._index_exprns.append(''.join([str(item).replace(" ", "")
                                                    for item in node.items[1].items]))
                 array_index_vars = walk(node.items[1].items, Name)
@@ -239,9 +258,16 @@ class Variable(object):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
+
+        elif isinstance(node, Array_Section):
+            self._name = str(node.items[0])
+            self._orig_name = self._name
+            self._is_array_ref = True
+            self._index_exprns = str(node.items[1])
+
         else:
-            raise ParseError("Unrecognised type for variable: {0}".
-                             format(type(node)))
+            raise ParseError("Unrecognised type for variable '{0}': {1}".
+                             format(str(node), type(node)))
 
     @property
     def orig_name(self):
@@ -258,3 +284,8 @@ class Variable(object):
     def name(self, new_name):
         ''' Set or change the name of this variable '''
         self._name = new_name
+
+    @property
+    def is_array_ref(self):
+        ''' Returns True if this Variable is an array access '''
+        return self._is_array_ref
