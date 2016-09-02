@@ -698,8 +698,11 @@ class DirectedAcyclicGraph(object):
             print "  Did not find any array/memory references"
 
         # Execution of the DAG requires that num_cache_ref cache lines
-        # be fetched from (somewhere in) the memory hierarchy...
-        mem_traffic_bytes = num_cache_ref * CACHE_LINE_BYTES
+        # be fetched from (somewhere in) the memory
+        # hierarchy. However, we assume that we only have to do this
+        # fetch once every nwords iterations where nwords is the
+        # number of (double-precision/8-byte) words in one cache line.
+        mem_traffic_bytes = num_cache_ref * 8
 
         # Performance estimate using whole graph. This is a lower bound
         # since it ignores all Instruction-Level Parallelism apart from
