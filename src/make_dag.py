@@ -276,7 +276,7 @@ def main():
                       "operations",
                       action="store_true",
                       dest="no_fma",
-                      default=False)
+                      default=True)
     parser.add_option("--rm-scalar-tmps",
                       help="Remove scalar temporaries from the DAG",
                       action="store_true",
