@@ -105,8 +105,37 @@ def test_array_assign():
 
 
 def test_repeated_assign_array(capsys):
+    ''' Test that we get correctly-named nodes when it is an array reference
+    that is repeatedly assigned to. '''
     make_dag.runner(Options(),
                     [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
     result, _ = capsys.readouterr()
+    fout = open('test_repeated_assign1.gv', 'r')
+    graph = fout.read()
+    fout.close()
+    print graph
     print result
-    assert False
+    node1 = "label=\"aprod(i,j)\", color=\"blue\""
+    node2 = "label=\"aprod(i,j)'\", color=\"blue\""
+    assert node1 in graph
+    assert node2 in graph
+
+
+def test_write_back_array(capsys):
+    ''' Test that we get correctly-named nodes when it is an array reference
+    that is read from and written to in the first statement we encounter it. '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
+    result, _ = capsys.readouterr()
+    fout = open('test_repeated_assign2.gv', 'r')
+    graph = fout.read()
+    fout.close()
+    print graph
+    print result
+    node1 = "label=\"aprod(i,j)\", color=\"blue\""
+    node2 = "label=\"aprod(i,j)'\", color=\"blue\""
+    node3 = "label=\"aprod(i,j)''\", color=\"blue\""
+    assert node1 in graph
+    assert node2 in graph
+    assert node3 in graph
+    assert graph.count("aprod") == 3
