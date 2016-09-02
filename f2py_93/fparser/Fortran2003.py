@@ -1493,9 +1493,12 @@ class Derived_Type_Def(BlockBase): # R429
                  'Type_Bound_Procedure_Part', 'End_Type_Stmt']
     @staticmethod
     def match(reader):
-        return BlockBase.match(Derived_Type_Stmt, [Type_Param_Def_Stmt, Private_Or_Sequence,
-                                                   Component_Part, Type_Bound_Procedure_Part], End_Type_Stmt, reader,
-                               match_names = True, set_unspecified_end_name = True # C431
+        return BlockBase.match(Derived_Type_Stmt,
+                               [Type_Param_Def_Stmt, Private_Or_Sequence,
+                                Component_Part, Type_Bound_Procedure_Part],
+                               End_Type_Stmt, reader,
+                               match_names = True,
+                               set_unspecified_end_name = True # C431
                                )
 
 
@@ -1843,7 +1846,8 @@ class Proc_Component_Attr_Spec(STRINGBase): # R446
                                  | <access-spec>
     """
     subclass_names = ['Access_Spec', 'Proc_Component_PASS_Arg_Name']
-    def match(string): return STRINGBase.match(['POINTER','PASS','NOPASS'], string)
+    def match(string): return STRINGBase.match(['POINTER','PASS','NOPASS'],
+                                               string.upper())
     match = staticmethod(match)
 
 class Private_Components_Stmt(StmtBase): # R447
@@ -1851,7 +1855,7 @@ class Private_Components_Stmt(StmtBase): # R447
     <private-components-stmt> = PRIVATE
     """
     subclass_names = []
-    def match(string): return StringBase.match('PRIVATE', string)
+    def match(string): return StringBase.match('PRIVATE', string.upper())
     match = staticmethod(match)
 
 class Type_Bound_Procedure_Part(BlockBase): # R448
@@ -1865,14 +1869,16 @@ class Type_Bound_Procedure_Part(BlockBase): # R448
     use_names = ['Contains_Stmt', 'Binding_Private_Stmt', 'Proc_Binding_Stmt']
     @staticmethod
     def match(reader):
-        return BlockBase.match(Contains_Stmt, [Binding_Private_Stmt, Proc_Binding_Stmt], None, reader)
+        return BlockBase.match(Contains_Stmt,
+                               [Binding_Private_Stmt, Proc_Binding_Stmt],
+                               None, reader)
 
 class Binding_Private_Stmt(StmtBase, STRINGBase): # R449
     """
     <binding-private-stmt> = PRIVATE
     """
     subclass_names = []
-    def match(string): return StringBase.match('PRIVATE', string)
+    def match(string): return StringBase.match('PRIVATE', string.upper())
     match = staticmethod(match)
 
 class Proc_Binding_Stmt(Base): # R450
