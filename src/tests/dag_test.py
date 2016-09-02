@@ -79,7 +79,10 @@ def test_array_readwrite_no_fma(capsys):
 
 def test_array_readwrite_with_fma(capsys):
     ''' Test the analysis of code of the form x(i) = a + x(i) '''
-    make_dag.runner(Options(),
+    options = Options()
+    options.no_fma = False
+
+    make_dag.runner(options,
                     [os.path.join(BASE_PATH, "shallow_loop11.f90")])
     result, _ = capsys.readouterr()
     print result
@@ -90,3 +93,20 @@ def test_array_readwrite_with_fma(capsys):
     assert "9 array references." in result
     assert "Sum of cost of all nodes = 15" in result
 
+@pytest.mark.xfail(reason="parser fails to generate a "
+                   "Fortran2003.Execution_Part object when first executable "
+                   "statement is an assignment to an array element")
+def test_array_assign():
+    ''' Test that the parser copes if the first executable statement is an
+    array assignment '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "first_line_array_assign.f90")])
+    result, _ = capsys.readouterr()
+
+
+def test_repeated_assign_array(capsys):
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
+    result, _ = capsys.readouterr()
+    print result
+    assert False
