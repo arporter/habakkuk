@@ -32,7 +32,9 @@ def dag_of_assignments(digraph, assignments, mapping):
 
         # First two items of an Assignment_Stmt are the name of
         # the var being assigned to and '=' so skip them
-        digraph.make_dag(tmp_node, assign.items[2:], mapping)
+        rhs_var_list = digraph.make_dag(tmp_node, assign.items[2:], mapping)
+        print "RHS variables: ", rhs_var_list
+        print assign
 
         # Sanity check - the temporary node representing the LHS of
         # the assignment should not (yet) be consumed by anything
@@ -45,30 +47,26 @@ def dag_of_assignments(digraph, assignments, mapping):
         # assignment statement. This is because any references
         # to this variable in that assignment are to the previous
         # version of it, not the one being assigned to.
-        if lhs_var.orig_name in mapping:
-            mapping[lhs_var.orig_name] += "'"
+        if lhs_var.full_orig_name in mapping:
+            mapping[lhs_var.full_orig_name] += "'"
         else:
             # The LHS variable wasn't already in the map
-            mapping[lhs_var.orig_name] = lhs_var.orig_name
+            mapping[lhs_var.full_orig_name] = lhs_var.full_orig_name
 
-            # Get the list of nodes used on the RHS so that we can check
-            # the names of the variables
-            node_list = tmp_node.walk()
-
-            for node in node_list:
-                if node.variable:
-                    if node.variable.orig_name == lhs_var.orig_name:
-                        # If the LHS variable appeared on the RHS of this
-                        # assignment then we must append a ' character to its
-                        # name. This then means we get a new node representing
-                        # the variable being assigned to.
-                        mapping[lhs_var.orig_name] += "'"
-                        # Update the name of the LHS variable to match
-                        lhs_var.name = mapping[lhs_var.orig_name]
-                        break
+            print "LHS orig = ", lhs_var.full_orig_name
+            if lhs_var.full_orig_name in rhs_var_list:
+                # If the LHS variable appeared on the RHS of this
+                # assignment then we must append a ' character to its
+                # name. This then means we get a new node representing
+                # the variable being assigned to.
+                mapping[lhs_var.full_orig_name] += "'"
+                # Update the name of the LHS variable to match
+                lhs_var.name = mapping[lhs_var.full_orig_name]
 
         # Create the LHS node proper now that we've updated the
         # naming map
+        print "lhs var name = ", lhs_var.name
+        print "lhs var full name = ", lhs_var.full_name
         lhs_node = digraph.get_node(parent=None,
                                     mapping=mapping,
                                     variable=lhs_var)
