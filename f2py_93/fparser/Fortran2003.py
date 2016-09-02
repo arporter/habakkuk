@@ -52,7 +52,8 @@ class Base(object):
         #print '__new__:',cls.__name__,`string`
         match = cls.__dict__.get('match', None)
         result = None
-        if isinstance(string, FortranReaderBase) and match is not None and not issubclass(cls, BlockBase):
+        if isinstance(string, FortranReaderBase) and \
+           match is not None and not issubclass(cls, BlockBase):
             reader = string
             item = reader.get_item()
             if item is None: return
@@ -102,7 +103,7 @@ class Base(object):
         errmsg = '%s: %r' % (cls.__name__, string)
         #if isinstance(string, FortranReaderBase) and string.fifo_item:
         #    errmsg += ' while reaching %s' % (string.fifo_item[-1])
-        raise NoMatchError,errmsg
+        raise NoMatchError, errmsg
 
 ##     def restore_reader(self):
 ##         self._item.reader.put_item(self._item)
@@ -112,7 +113,11 @@ class Base(object):
         self.items = items
         return
     def torepr(self):
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(map(repr,self.items)))
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(map(repr,
+                                                                  self.items)))
+    def tostr(self):
+        return self.torepr()
+
     def compare(self, other):
         return cmp(self.items,other.items)
 
