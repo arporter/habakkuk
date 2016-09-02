@@ -40,6 +40,8 @@ class DAGNode(object):
             # relationship
             self.add_consumer(parent)
             parent.add_producer(self)
+        # The type of this node
+        self._node_type = None
         # The name of this node - used to label the node in DOT. This
         # name is not necessarily the same as the name of the variable
         # in the Fortran code: if it has been assigned to then it becomes
@@ -48,8 +50,8 @@ class DAGNode(object):
             self._name = name
         elif variable:
             self._name = str(variable)
-        # The type of this node
-        self._node_type = None
+        if variable and variable.is_array_ref:
+            self._node_type = "array_ref"
         # The variable (if any) that this node represents
         self._variable = variable
         # The inclusive weight (cost) of this node. This is the cost of
