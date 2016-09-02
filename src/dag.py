@@ -396,7 +396,8 @@ class DirectedAcyclicGraph(object):
         return num_fma
 
     def make_dag(self, parent, children, mapping):
-        ''' Makes a DAG from the RHS of a Fortran assignment statement '''
+        ''' Makes a DAG from the RHS of a Fortran assignment statement and
+        returns a list of the variables encountered '''
         from parse2003 import Variable
 
         if DEBUG:
@@ -409,6 +410,7 @@ class DirectedAcyclicGraph(object):
                     print type(child)
             print "--------------"
 
+        var_list = []
         opcount = 0
         is_division = False
         for child in children:
@@ -427,9 +429,11 @@ class DirectedAcyclicGraph(object):
                             "siblings: this is not supported!")
 
         for idx, child in enumerate(children):
+
             if isinstance(child, Name):
                 var = Variable()
                 var.load(child, mapping)
+                var_list.append(var.name)
                 tmpnode = self.get_node(parent, mapping,
                                         variable=var)
                 if is_division and idx == 2:
@@ -458,11 +462,12 @@ class DirectedAcyclicGraph(object):
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Add its dependencies
-                    self.make_dag(tmpnode, child.items[1:], mapping)
+                    var_list += self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
                     # Assume it's an array reference
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
+                    var_list.append(str(arrayvar))
                     tmpnode = self.get_node(parent, mapping,
                                             variable=arrayvar,
                                             node_type="array_ref")
@@ -473,10 +478,12 @@ class DirectedAcyclicGraph(object):
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
-                self.make_dag(parent, child.items, mapping)
+                var_list += self.make_dag(parent, child.items, mapping)
             elif isinstance(child, Section_Subscript_List):
                 # We have a list of arguments
-                self.make_dag(parent, child.items, mapping)
+                var_list += self.make_dag(parent, child.items, mapping)
+
+        return var_list
 
     def calc_critical_path(self):
         ''' Calculate the critical path through the graph '''
