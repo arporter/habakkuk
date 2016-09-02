@@ -172,9 +172,10 @@ class Variable(object):
         appears on the LHS of an assignment and thus represents a new 
         entity in a DAG. '''
         from fparser.Fortran2003 import Name, Part_Ref, Real_Literal_Constant, \
-            Section_Subscript_List, Int_Literal_Constant
+            Section_Subscript_List, Int_Literal_Constant, Level_2_Expr
 
         if isinstance(node, Name):
+            # This node is simply the name of a variable
             name = str(node)
             self._orig_name = name[:]
             if mapping and name in mapping:
@@ -189,6 +190,7 @@ class Variable(object):
             self._is_array_ref = False
 
         elif isinstance(node, Part_Ref):
+            # This node might be an array access or a function call
             self._name = str(node.items[0])
             self._orig_name = self._name
             self._is_array_ref = True
@@ -198,15 +200,22 @@ class Variable(object):
                 for item in node.items[1].items:
                     self._index_exprns.append(str(item).replace(" ", ""))
 
-                    # This recurses down and finds the names of all of
-                    # the *variables* in the array-index expression
-                    # (i.e. ignoring whether they are "+1" etc.)
-                    array_index_vars = walk(node.items[1].items, Name)
+                # This recurses down and finds the names of all of
+                # the *variables* in the array-index expression
+                # (i.e. ignoring whether they are "+1" etc.)
+                array_index_vars = walk(node.items[1].items, Name)
             elif isinstance(node.items[1], Name) or \
                  isinstance(node.items[1], Int_Literal_Constant):
                 # There's only a single array index/argument
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = [node.items[1]]
+            elif isinstance(node.items[1], Level_2_Expr):
+                # Array index expression itself contains an array access - i.e.
+                # this is an indirect access.
+                print "Array index expression = ", str(node.items[1])
+                self._index_exprns.append(''.join([str(item).replace(" ", "")
+                                                   for item in node.items[1].items]))
+                array_index_vars = walk(node.items[1].items, Name)
             else:
                 print type(node.items[1])
                 raise ParseError("Unrecognised array-index expression: {0}".
