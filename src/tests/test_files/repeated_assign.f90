@@ -5,7 +5,7 @@ contains
 
   subroutine test_repeated_assign1(aprod, var1, var2, var3)
     ! Simple routine that contains multiple updates to the
-    ! same variable
+    ! same scalar variable
     implicit none
     real(wp), intent(inout) :: aprod
     real(wp), intent(in) :: var1, var2, var3
@@ -18,7 +18,7 @@ contains
 
   subroutine test_repeated_assign2(aprod, var1, var2, var3)
     ! Simple routine that contains multiple updates to the
-    ! same variable
+    ! same scalar variable
     implicit none
     real(wp), intent(inout) :: aprod
     real(wp), intent(in) :: var1, var2, var3
@@ -31,5 +31,5 @@ contains
     aprod = aprod * aprod
 
   end subroutine test_repeated_assign2
-  
+    
 end module repeated_assign_mod
