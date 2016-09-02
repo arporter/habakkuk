@@ -6449,8 +6449,11 @@ class Use_Stmt(StmtBase): # R1109
         name = Module_Name(name)
         line = line[i+1:].lstrip()
         if not line: return
-        if line[:5].upper()=='ONLY:':
-            line = line[5:].lstrip()
+        if line[:4].upper()=='ONLY':
+            line = line[4:].lstrip()
+            if line[0] != ':':
+                return
+            line = line[1:].lstrip()
             if not line:
                 return nature, name, ', ONLY:', None
             return nature, name, ', ONLY:', Only_List(line)
