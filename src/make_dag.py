@@ -211,8 +211,9 @@ def runner(options, args):
                         myloop = Loop()
                         myloop.load(loop)
 
-                        # Generate a suitable name for this DAG
-                        name = sub_name + "_loop" + str(loop_count)
+                        # Generate a suitable name for this DAG. Since we're
+                        # processing Fortran code we count from 1 rather than 0.
+                        name = sub_name + "_loop" + str(loop_count+1)
                         if unroll_factor > 1:
                             name += "_unroll" + str(unroll_factor)
 
