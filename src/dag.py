@@ -227,8 +227,8 @@ class DirectedAcyclicGraph(object):
         mapping is supplied then it is used to name the node. '''
 
         if not name and not variable:
-            raise Exception("get_node: one of 'name' or 'variable' must "
-                            "be supplied")
+            raise DAGError("get_node: one of 'name' or 'variable' must "
+                           "be supplied")
 
         if unique:
             # Node is unique so we make a new one, no questions asked.

@@ -81,6 +81,15 @@ def test_critical_path_no_input():
     assert "Failed to find input node for critical path" in str(err)
 
 
+def test_dag_get_node_err():
+    ''' Check that we raise expected error when calling get_node() without
+    a name or a variable '''
+    from dag import DirectedAcyclicGraph
+    dag = DirectedAcyclicGraph("Test dag")
+    with pytest.raises(DAGError) as err:
+        dag.get_node()
+
+
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
