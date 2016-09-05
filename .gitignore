@@ -4,3 +4,4 @@
 *.gv
 *.png
 _build/
+htmlcov/
