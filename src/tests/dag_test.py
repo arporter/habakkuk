@@ -5,6 +5,7 @@ import os
 import pytest
 from parse2003 import ParseError
 import make_dag
+from dag_node import DAGError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -40,7 +41,6 @@ def test_is_intrinsic_err():
     ''' Check that the expected exception is raised if we pass an
     incorrect object to the is_intrinsic_fn() function '''
     from fparser import Fortran2003
-    from dag_node import DAGError
     from dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
     # items should be a list with the first element a Name. Make
@@ -69,6 +69,16 @@ def test_is_intrinsic_true():
     fake_parse_obj = Fortran2003.Part_Ref("sin(r)")
     val = is_intrinsic_fn(fake_parse_obj)
     assert val
+
+
+def test_critical_path_no_input():
+    ''' Check that we raise expected error when querying a critical path
+    for the input node when it has none '''
+    from dag import Path
+    path = Path()
+    with pytest.raises(DAGError) as err:
+        path.input_node()
+    assert "Failed to find input node for critical path" in str(err)
 
 
 def test_basic_scalar_dag(capsys):
