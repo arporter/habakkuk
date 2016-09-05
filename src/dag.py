@@ -233,8 +233,6 @@ class DirectedAcyclicGraph(object):
         if not name and not variable:
             raise Exception("get_node: one of 'name' or 'variable' must "
                             "be supplied")
-        if not name:
-            name = str(variable)
 
         if unique:
             # Node is unique so we make a new one, no questions asked.
@@ -247,10 +245,15 @@ class DirectedAcyclicGraph(object):
             # ensures we have a list of all nodes in the graph.
             self._nodes[node.node_id] = node
         else:
-            if mapping and name in mapping:
-                node_name = mapping[name]
+            if name:
+                if mapping and name in mapping:
+                    node_name = mapping[name]
+                else:
+                    node_name = name
             else:
-                node_name = name
+                # Use the supplied variable object to generate the name
+                # of this node
+                node_name = variable.full_name
             # Node is not necessarily unique so check whether we
             # already have one with the supplied name
             if node_name in self._nodes:
@@ -397,7 +400,7 @@ class DirectedAcyclicGraph(object):
 
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement and
-        returns a list of the variables encountered '''
+        returns a list of the nodes that represent the variables involved '''
         from parse2003 import Variable
 
         if DEBUG:
@@ -410,7 +413,7 @@ class DirectedAcyclicGraph(object):
                     print type(child)
             print "--------------"
 
-        var_list = []
+        node_list = []
         opcount = 0
         is_division = False
         for child in children:
@@ -433,17 +436,15 @@ class DirectedAcyclicGraph(object):
             if isinstance(child, Name):
                 var = Variable()
                 var.load(child, mapping)
-                var_list.append(var.name)
-                tmpnode = self.get_node(parent, mapping,
-                                        variable=var)
+                tmpnode = self.get_node(parent, variable=var)
+                node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
             elif isinstance(child, Real_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
-                tmpnode = self.get_node(parent, mapping,
-                                        variable=const_var,
+                tmpnode = self.get_node(parent, variable=const_var,
                                         unique=True,
                                         node_type="constant")
                 if is_division and idx == 2:
@@ -462,15 +463,15 @@ class DirectedAcyclicGraph(object):
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Add its dependencies
-                    var_list += self.make_dag(tmpnode, child.items[1:], mapping)
+                    node_list += self.make_dag(tmpnode,
+                                               child.items[1:], mapping)
                 else:
                     # Assume it's an array reference
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
-                    var_list.append(str(arrayvar))
-                    tmpnode = self.get_node(parent, mapping,
-                                            variable=arrayvar,
+                    tmpnode = self.get_node(parent, variable=arrayvar,
                                             node_type="array_ref")
+                    node_list.append(tmpnode)
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Include the array index expression in the DAG
@@ -478,12 +479,12 @@ class DirectedAcyclicGraph(object):
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
-                var_list += self.make_dag(parent, child.items, mapping)
+                node_list += self.make_dag(parent, child.items, mapping)
             elif isinstance(child, Section_Subscript_List):
                 # We have a list of arguments
-                var_list += self.make_dag(parent, child.items, mapping)
+                node_list += self.make_dag(parent, child.items, mapping)
 
-        return var_list
+        return node_list
 
     def calc_critical_path(self):
         ''' Calculate the critical path through the graph '''
