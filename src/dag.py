@@ -29,7 +29,7 @@ def is_intrinsic_fn(obj):
     ''' Checks whether the supplied object is a call to a Fortran
         intrinsic '''
     if not isinstance(obj.items[0], Name):
-        raise Exception("is_intrinsic_fn: expects first item to be Name")
+        raise DAGError("is_intrinsic_fn: expects first item to be Name")
     if str(obj.items[0]) in FORTRAN_INTRINSICS:
         return True
     return False

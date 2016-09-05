@@ -36,7 +36,21 @@ class Options(object):
         self.mode = 'auto'
 
 
-def test_basic(capsys):
+def test_is_intrinsic():
+    from dag_node import DAGError
+    from dag import is_intrinsic_fn
+    # Create a fake parsed object so that we can trip the
+    # exception...
+    fake_parse_obj = Options()
+    # items should be a list with the first element a Name. Make
+    # it a str instead...
+    fake_parse_obj.items = ["a_string"]
+    with pytest.raises(DAGError) as excinfo:
+        is_intrinsic_fn(fake_parse_obj)
+    assert "expects first item to be Name" in str(excinfo)
+
+
+def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
     make_dag.runner(Options(),
