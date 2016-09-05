@@ -158,10 +158,6 @@ class Path(object):
         ''' Populate this object using the supplied list of nodes '''
         self._nodes = obj_list
 
-    def add_node(self, obj):
-        ''' Add a node to this path '''
-        self._nodes.append(obj)
-
     def cycles(self):
         ''' The length of the path in cycles '''
         cost = 0
