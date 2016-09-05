@@ -424,8 +424,8 @@ class DirectedAcyclicGraph(object):
                     is_division = (child == "/")
                     opcount += 1
         if opcount > 1:
-            raise Exception("Found more than one operator amongst list of "
-                            "siblings: this is not supported!")
+            raise DAGError("Found more than one operator amongst list of "
+                           "siblings: this is not supported!")
 
         for idx, child in enumerate(children):
 

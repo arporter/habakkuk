@@ -159,6 +159,27 @@ def test_del_sub_graph():
     assert "node_c" not in dag._nodes
 
 
+def test_multi_op_err():
+    ''' Check that we raise the expected error if we encounter a node
+    that has >1 operator as a child '''
+    from fparser import Fortran2003
+    from dag import DirectedAcyclicGraph
+    assign = Fortran2003.Assignment_Stmt("a = b + c + d")
+    dag = DirectedAcyclicGraph("Test dag")
+    mapping = {}
+    tmp_node = dag.get_node(parent=None,
+                            name="tmp_node",
+                            unique=True)
+    # items is a tuple and tuples are immutable. We therefore have
+    # to create a new tuple with the last element replaced by a second
+    # addition operator
+    item2 = assign.items[2]
+    item2.items = (item2.items[0], item2.items[1], "+")
+    with pytest.raises(DAGError) as err:
+        dag.make_dag(tmp_node, assign.items[2:], mapping)
+    assert "Found more than one operator amongst list of siblings" in str(err)
+
+
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
