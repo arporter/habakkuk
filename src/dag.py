@@ -510,20 +510,6 @@ class DirectedAcyclicGraph(object):
 
         self._critical_path = crit_path
 
-    def nodelist_by_type(self, ntype):
-        ''' Returns a list of all nodes in this DAG that have the
-        specified type '''
-        from dag_node import VALID_NODE_TYPES
-        if ntype not in VALID_NODE_TYPES:
-            raise DAGError("Got a node type of {0} but expected one of {1}".
-                           format(ntype, VALID_NODE_TYPES))
-        op_list = []
-        # _nodes is a dictionary - we want the values, not the keys
-        for node in self._nodes.itervalues():
-            if node.node_type == ntype:
-                op_list.append(node)
-        return op_list
-
     def rm_scalar_temporaries(self):
         ''' Remove any nodes that represent scalar temporaries. These are
         identified as any node that is not an operator and has just
