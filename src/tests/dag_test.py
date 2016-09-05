@@ -29,7 +29,7 @@ class Options(object):
 
     def __init__(self):
         self.no_prune = False
-        self.no_fma = False
+        self.no_fma = True
         self.rm_scalar_tmps = False
         self.show_weights = False
         self.unroll_factor = 1
@@ -50,10 +50,14 @@ def test_basic(capsys):
     assert "Schedule contains 2 steps:" in result
 
 
+@pytest.mark.xfail(reason="Currently only Intel Ivybridge microarchitecture "
+                   "is supported and that doesn't have an FMA")
 def test_basic_fma(capsys):
     ''' Test basic operation of tool's ability to spot opportunities for
     fused multiply-add instructions '''
-    make_dag.runner(Options(),
+    options = Options()
+    options.no_fma = False
+    make_dag.runner(options,
                     [os.path.join(BASE_PATH, "fma_test.f90")])
     result, _ = capsys.readouterr()
     print result
@@ -77,6 +81,8 @@ def test_array_readwrite_no_fma(capsys):
     assert "Sum of cost of all nodes = 15" in result
 
 
+@pytest.mark.xfail(reason="Currently only Intel Ivybridge microarchitecture "
+                   "is supported and that doesn't have an FMA")
 def test_array_readwrite_with_fma(capsys):
     ''' Test the analysis of code of the form x(i) = a + x(i) '''
     options = Options()
@@ -92,6 +98,7 @@ def test_array_readwrite_with_fma(capsys):
     assert "15 FLOPs in total." in result
     assert "9 array references." in result
     assert "Sum of cost of all nodes = 15" in result
+
 
 @pytest.mark.xfail(reason="parser fails to generate a "
                    "Fortran2003.Execution_Part object when first executable "
@@ -116,7 +123,7 @@ def test_repeated_assign_array(capsys):
     print graph
     print result
     node1 = "label=\"aprod(i,j)\", color=\"blue\""
-    node2 = "label=\"aprod(i,j)'\", color=\"blue\""
+    node2 = "label=\"aprod'(i,j)\", color=\"blue\""
     assert node1 in graph
     assert node2 in graph
 
@@ -133,8 +140,8 @@ def test_write_back_array(capsys):
     print graph
     print result
     node1 = "label=\"aprod(i,j)\", color=\"blue\""
-    node2 = "label=\"aprod(i,j)'\", color=\"blue\""
-    node3 = "label=\"aprod(i,j)''\", color=\"blue\""
+    node2 = "label=\"aprod'(i,j)\", color=\"blue\""
+    node3 = "label=\"aprod''(i,j)\", color=\"blue\""
     assert node1 in graph
     assert node2 in graph
     assert node3 in graph
