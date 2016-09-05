@@ -213,7 +213,10 @@ class Variable(object):
             # This node might be an array access or a function call
             self._name = str(node.items[0])
             self._orig_name = self._name
+            self._full_orig_name = str(node).replace(" ", "")
             self._is_array_ref = True
+            if mapping and self._full_orig_name in mapping:
+                self._name = mapping[self._full_orig_name]
 
             if isinstance(node.items[1], Section_Subscript_List):
                 # Obtain the expression for each index of the array ref
@@ -232,8 +235,9 @@ class Variable(object):
             elif isinstance(node.items[1], Level_2_Expr):
                 # Array index expression itself contains an array access - i.e.
                 # this is an indirect access.
-                self._index_exprns.append(''.join([str(item).replace(" ", "")
-                                                   for item in node.items[1].items]))
+                self._index_exprns.append(
+                    ''.join([str(item).replace(" ", "")
+                             for item in node.items[1].items]))
                 array_index_vars = walk(node.items[1].items, Name)
             else:
                 print type(node.items[1])
