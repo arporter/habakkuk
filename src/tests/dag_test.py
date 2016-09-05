@@ -6,6 +6,7 @@ import pytest
 from parse2003 import ParseError
 import make_dag
 from dag_node import DAGError
+from fparser import Fortran2003
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -40,7 +41,6 @@ class Options(object):
 def test_is_intrinsic_err():
     ''' Check that the expected exception is raised if we pass an
     incorrect object to the is_intrinsic_fn() function '''
-    from fparser import Fortran2003
     from dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
     # items should be a list with the first element a Name. Make
@@ -54,7 +54,6 @@ def test_is_intrinsic_err():
 def test_is_intrinsic_false():
     ''' Check that is_intrinsic_fn() returns False if passed something
     that is not a Fortran intrinsic '''
-    from fparser import Fortran2003
     from dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
     val = is_intrinsic_fn(fake_parse_obj)
@@ -64,7 +63,6 @@ def test_is_intrinsic_false():
 def test_is_intrinsic_true():
     ''' Check that is_intrinsic_fn() returns False if passed something
     that is not a Fortran intrinsic '''
-    from fparser import Fortran2003
     from dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("sin(r)")
     val = is_intrinsic_fn(fake_parse_obj)
@@ -128,7 +126,7 @@ def test_dag_del_wrong_node():
     from dag import DirectedAcyclicGraph
     dag1 = DirectedAcyclicGraph("Test dag")
     dag2 = DirectedAcyclicGraph("Another dag")
-    map = {"my_node":"my_node'"}
+    map = {"my_node": "my_node'"}
     # Create a node in the second dag
     dnode = dag2.get_node(name="my_node", mapping=map)
     # Attempt to delete it from the first dag
@@ -162,7 +160,6 @@ def test_del_sub_graph():
 def test_multi_op_err():
     ''' Check that we raise the expected error if we encounter a node
     that has >1 operator as a child '''
-    from fparser import Fortran2003
     from dag import DirectedAcyclicGraph
     assign = Fortran2003.Assignment_Stmt("a = b + c + d")
     dag = DirectedAcyclicGraph("Test dag")
@@ -178,6 +175,26 @@ def test_multi_op_err():
     with pytest.raises(DAGError) as err:
         dag.make_dag(tmp_node, assign.items[2:], mapping)
     assert "Found more than one operator amongst list of siblings" in str(err)
+
+
+def test_intrinsic_call():
+    ''' Test that the correct DAG is created from an assignment involving
+    a call to an intrinsic. '''
+    from dag import DirectedAcyclicGraph
+    assign = Fortran2003.Assignment_Stmt("a = sin(b)")
+    dag = DirectedAcyclicGraph("Sin dag")
+    mapping = {}
+    tmp_node = dag.get_node(parent=None,
+                            name="tmp_node",
+                            unique=True)
+    dag.make_dag(tmp_node, assign.items[2:], mapping)
+    node_names = []
+    for key, node in dag._nodes.iteritems():
+        node_names.append(node.name)
+        if node.name == "sin":
+            assert node.node_type == "intrinsic"
+    assert "sin" in node_names
+    assert "b" in node_names
 
 
 def test_basic_scalar_dag(capsys):
