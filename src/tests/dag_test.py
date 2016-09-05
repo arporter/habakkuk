@@ -197,6 +197,38 @@ def test_intrinsic_call():
     assert "b" in node_names
 
 
+def test_rm_scalar_tmps():
+    ''' Test the code that removes nodes that represent scalar tempories
+    from the DAG '''
+    from dag import DirectedAcyclicGraph
+    from parse2003 import Variable
+    assigns = []
+    assigns.append(Fortran2003.Assignment_Stmt("a = 2.0 * b"))
+    assigns.append(Fortran2003.Assignment_Stmt("c = 2.0 * a"))
+    mapping = {}
+    dag = DirectedAcyclicGraph("Test dag")
+    for assign in assigns:
+        lhs_var = Variable()
+        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+        lhs_node = dag.get_node(parent=None,
+                                variable=lhs_var)
+        mapping[assign.items[0]] = assign.items[0]
+        dag.make_dag(lhs_node, assign.items[2:], mapping)
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    # Check that the resulting dag has the right nodes
+    assert node_names.count("a") == 1
+    assert node_names.count("b") == 1
+    assert node_names.count("c") == 1
+    assert node_names.count("*") == 2
+    # Now delete any scalar temporaries - this should remove node 'a'
+    dag.rm_scalar_temporaries()
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "a" not in node_names
+    assert node_names.count("b") == 1
+    assert node_names.count("c") == 1
+    assert node_names.count("*") == 2
+
+
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
