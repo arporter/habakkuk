@@ -109,6 +109,35 @@ def test_dag_get_node_with_name_and_mapping():
     assert dnode.name == "my_node'"
 
 
+def test_dag_del_node():
+    ''' Check that we can delete a node from the DAG when it was
+    created by supplying a name. '''
+    from dag import DirectedAcyclicGraph
+    dag = DirectedAcyclicGraph("Test dag")
+    map = {"my_node":"my_node'"}
+    dnode = dag.get_node(name="my_node", mapping=map)
+    dag.delete_node(dnode)
+    assert dag.total_cost() == 0
+    # Dictionary of nodes should now be empty
+    assert not dag._nodes
+
+
+def test_dag_del_wrong_node():
+    ''' Check that we raise an appropriate error if we attempt to
+    delete a node that is not part of the DAG. '''
+    from dag import DirectedAcyclicGraph
+    dag1 = DirectedAcyclicGraph("Test dag")
+    dag2 = DirectedAcyclicGraph("Another dag")
+    map = {"my_node":"my_node'"}
+    # Create a node in the second dag
+    dnode = dag2.get_node(name="my_node", mapping=map)
+    # Attempt to delete it from the first dag
+    with pytest.raises(DAGError) as err:
+        dag1.delete_node(dnode)
+    assert "Object 'my_node'' (" in str(err)
+    assert "not in list of nodes in graph!" in str(err)
+
+
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''

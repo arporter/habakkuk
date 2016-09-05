@@ -286,8 +286,8 @@ class DirectedAcyclicGraph(object):
         elif node.node_id in self._nodes and self._nodes[node.node_id] == node:
             self._nodes.pop(node.node_id)
         else:
-            raise Exception("Object '{0}' (id={1}) not in list of nodes in "
-                            "graph!".format(str(node), node.node_id))
+            raise DAGError("Object '{0}' (id={1}) not in list of nodes in "
+                           "graph!".format(str(node), node.node_id))
         # Remove this node from any node that has it as a producer (dependency)
         for pnode in node.consumers[:]:
             pnode.rm_producer(node)
