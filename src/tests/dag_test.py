@@ -146,3 +146,21 @@ def test_write_back_array(capsys):
     assert node2 in graph
     assert node3 in graph
     assert graph.count("aprod") == 3
+
+
+def test_repeated_assign_diff_elements(capsys):
+    ''' Test that we get correctly-named nodes when different elements of
+    the same array are accessed in a code fragment '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH,
+                                  "repeated_array_assign_diff_elements.f90")])
+    result, _ = capsys.readouterr()
+    fout = open('test_repeated_assign_diff_elems.gv', 'r')
+    graph = fout.read()
+    fout.close()
+    print graph
+    assert "label=\"aprod(i,j)\", color=\"blue\"" in graph
+    assert "label=\"aprod(i+1,j)\", color=\"blue\"" in graph
+    assert "label=\"aprod'(i,j)\", color=\"blue\"" in graph
+    assert graph.count("aprod") == 3
+
