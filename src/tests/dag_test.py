@@ -90,6 +90,25 @@ def test_dag_get_node_err():
         dag.get_node()
 
 
+def test_dag_get_node_with_name():
+    ''' Check that we get a valid node when calling get_node() with a
+    name specified '''
+    from dag import DirectedAcyclicGraph
+    dag = DirectedAcyclicGraph("Test dag")
+    dnode = dag.get_node(name="my_node")
+    assert dnode.name == "my_node"
+
+
+def test_dag_get_node_with_name_and_mapping():
+    ''' Check that we get a valid node when calling get_node() with a
+    name and a mapping specified '''
+    from dag import DirectedAcyclicGraph
+    dag = DirectedAcyclicGraph("Test dag")
+    map = {"my_node":"my_node'"}
+    dnode = dag.get_node(name="my_node", mapping=map)
+    assert dnode.name == "my_node'"
+
+
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
