@@ -138,6 +138,27 @@ def test_dag_del_wrong_node():
     assert "not in list of nodes in graph!" in str(err)
 
 
+def test_del_sub_graph():
+    ''' Check that we can delete a sub-graph from a DAG '''
+    from dag import DirectedAcyclicGraph
+    dag = DirectedAcyclicGraph("Test dag")
+    dnode1 = dag.get_node(name="node_a")
+    dnode2 = dag.get_node(name="node_b", parent=dnode1)
+    dnode3 = dag.get_node(name="node_c", parent=dnode1)
+    dnode4 = dag.get_node(name="node_d", parent=dnode3)
+    dnode5 = dag.get_node(name="node_e", parent=dnode3)
+    assert len(dag._nodes) == 5
+    # Disconnect the sub-graph from the rest of the DAG
+    dnode1.rm_producer(dnode3)
+    dnode3.rm_consumer(dnode1)
+    # Delete the sub graph. This should remove 3 nodes.
+    dag.delete_sub_graph(dnode3)
+    assert len(dag._nodes) == 2
+    assert "node_e" not in dag._nodes
+    assert "node_d" not in dag._nodes
+    assert "node_c" not in dag._nodes
+
+
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
