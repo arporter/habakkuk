@@ -49,7 +49,7 @@ class DAGNode(object):
         if name:
             self._name = name
         elif variable:
-            self._name = str(variable)
+            self._name = variable.full_name
         if variable and variable.is_array_ref:
             self._node_type = "array_ref"
         # The variable (if any) that this node represents
