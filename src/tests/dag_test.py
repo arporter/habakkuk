@@ -36,18 +36,39 @@ class Options(object):
         self.mode = 'auto'
 
 
-def test_is_intrinsic():
+def test_is_intrinsic_err():
+    ''' Check that the expected exception is raised if we pass an
+    incorrect object to the is_intrinsic_fn() function '''
+    from fparser import Fortran2003
     from dag_node import DAGError
     from dag import is_intrinsic_fn
-    # Create a fake parsed object so that we can trip the
-    # exception...
-    fake_parse_obj = Options()
+    fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
     # items should be a list with the first element a Name. Make
-    # it a str instead...
+    # it a str instead by over-writing the items component.
     fake_parse_obj.items = ["a_string"]
     with pytest.raises(DAGError) as excinfo:
         is_intrinsic_fn(fake_parse_obj)
     assert "expects first item to be Name" in str(excinfo)
+
+
+def test_is_intrinsic_false():
+    ''' Check that is_intrinsic_fn() returns False if passed something
+    that is not a Fortran intrinsic '''
+    from fparser import Fortran2003
+    from dag import is_intrinsic_fn
+    fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert not val
+
+
+def test_is_intrinsic_true():
+    ''' Check that is_intrinsic_fn() returns False if passed something
+    that is not a Fortran intrinsic '''
+    from fparser import Fortran2003
+    from dag import is_intrinsic_fn
+    fake_parse_obj = Fortran2003.Part_Ref("sin(r)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
 
 
 def test_basic_scalar_dag(capsys):

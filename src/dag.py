@@ -30,7 +30,7 @@ def is_intrinsic_fn(obj):
         intrinsic '''
     if not isinstance(obj.items[0], Name):
         raise DAGError("is_intrinsic_fn: expects first item to be Name")
-    if str(obj.items[0]) in FORTRAN_INTRINSICS:
+    if str(obj.items[0]).upper() in FORTRAN_INTRINSICS:
         return True
     return False
 
