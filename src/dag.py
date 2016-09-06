@@ -15,8 +15,6 @@ from config_ivy_bridge import OPERATORS, CACHE_LINE_BYTES, EXAMPLE_CLOCK_GHZ, \
 # Maximum length of schedule we expect to handle.
 MAX_SCHEDULE_LENGTH = 500
 
-DEBUG = False
-
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
@@ -235,8 +233,6 @@ class DirectedAcyclicGraph(object):
 
         if unique:
             # Node is unique so we make a new one, no questions asked.
-            if DEBUG:
-                print "Creating a unique node labelled '{0}'".format(name)
             node = DAGNode(parent=parent, name=name, digraph=self,
                            variable=variable)
             # Store this node in our list using its unique ID in place of a
@@ -256,8 +252,6 @@ class DirectedAcyclicGraph(object):
             # Node is not necessarily unique so check whether we
             # already have one with the supplied name
             if node_name in self._nodes:
-                if DEBUG:
-                    print "Matched node with name: ", node_name
                 node = self._nodes[node_name]
                 # Record the fact that the parent now has a dependence
                 # on this node and that this node is consumed by the parent
@@ -265,8 +259,6 @@ class DirectedAcyclicGraph(object):
                     parent.add_producer(node)
                     node.add_consumer(parent)
             else:
-                if DEBUG:
-                    print "No existing node with name: ", node_name
                 # Create a new node and store it in our list so we
                 # can refer back to it in future if needed
                 node = DAGNode(parent=parent, name=node_name,
@@ -297,8 +289,6 @@ class DirectedAcyclicGraph(object):
         # Remove this node from any node that has it listed as a consumer
         for pnode in node.producers[:]:
             pnode.rm_consumer(node)
-        if DEBUG:
-            print "Deleting node {0} ({1})".format(str(node), node.node_id)
         # Finally, delete it altogether
         del node
 
@@ -313,12 +303,6 @@ class DirectedAcyclicGraph(object):
             # dependency (child)
             if not child.has_consumer:
                 self.delete_node(child)
-            else:
-                if DEBUG:
-                    print "Not deleting child {0}. Has consumers:".\
-                        format(str(child))
-                    for dep in child.consumers:
-                        print str(dep)
 
     def output_nodes(self):
         ''' Returns a list of all nodes that do not have a node
@@ -402,16 +386,6 @@ class DirectedAcyclicGraph(object):
         returns a list of the nodes that represent the variables involved '''
         from parse2003 import Variable
 
-        if DEBUG:
-            for child in children:
-                if isinstance(child, str):
-                    print "String: ", child
-                elif isinstance(child, Part_Ref):
-                    print "Part ref", str(child)
-                else:
-                    print type(child)
-            print "--------------"
-
         node_list = []
         opcount = 0
         is_division = False
@@ -451,9 +425,6 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
-                    if DEBUG:
-                        print "found intrinsic: {0}".\
-                            format(str(child.items[0]))
                     # Create a unique node to represent the intrinsic call
                     tmpnode = self.get_node(parent, mapping,
                                             name=str(child.items[0]),
@@ -561,12 +532,6 @@ class DirectedAcyclicGraph(object):
 
         while found_duplicate:
 
-            if DEBUG:
-                print "Found {0} nodes with multiple consumers".format(
-                    len(multiple_consumers))
-                for node in multiple_consumers:
-                    print "Node: ", str(node), node.node_id
-
             # Each node with > 1 consumer represents a possible duplication
             for multi_node in multiple_consumers[:]:
 
@@ -623,7 +588,6 @@ class DirectedAcyclicGraph(object):
 
                 # Update list of nodes with > 1 consumer
                 multiple_consumers = self.nodes_with_multiple_consumers()
-                self.to_dot(name="debug{0}.gv".format(self._sub_exp_count))
                 break
 
     @property
