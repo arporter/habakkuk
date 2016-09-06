@@ -12,6 +12,9 @@ from dag_node import DAGNode, DAGError
 from config_ivy_bridge import OPERATORS, CACHE_LINE_BYTES, EXAMPLE_CLOCK_GHZ, \
     FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
 
+# Maximum length of schedule we expect to handle.
+MAX_SCHEDULE_LENGTH = 500
+
 DEBUG = False
 
 
@@ -647,7 +650,7 @@ class DirectedAcyclicGraph(object):
             node.to_dot(outfile, show_weights)
 
         # Write the critical path
-        if self._critical_path:
+        if self.critical_path:
             self._critical_path.to_dot(outfile)
 
         outfile.write("}\n")
@@ -798,11 +801,9 @@ class DirectedAcyclicGraph(object):
                 max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
 
-    def generate_schedule(self):
+    def generate_schedule(self, sched_to_dot=True):
         ''' Create a schedule describing how the nodes/operations in the DAG
         map onto the available hardware '''
-
-        output_dot_schedule = True
 
         # Flag all input nodes as being ready
         input_nodes = self.input_nodes()
@@ -810,7 +811,7 @@ class DirectedAcyclicGraph(object):
             node.mark_ready()
 
         # Output this initial graph
-        if output_dot_schedule:
+        if sched_to_dot:
             self.to_dot(name=self._name+"_step0.gv")
 
         # Construct a schedule
@@ -844,7 +845,7 @@ class DirectedAcyclicGraph(object):
                 # Prepare the next slot in the schedule on this port
                 slot[port].append(None)
 
-            if output_dot_schedule:
+            if sched_to_dot:
                 self.to_dot(name=self._name+"_step{0}.gv".format(step+1))
 
             # Update our list of operations that are now ready to be
@@ -855,9 +856,10 @@ class DirectedAcyclicGraph(object):
             # constructing
             step += 1
 
-            if step > 500:
-                raise DAGError("Unexpectedly long schedule - this is "
-                                "probably a bug.")
+            if step > MAX_SCHEDULE_LENGTH:
+                raise DAGError(
+                    "Unexpectedly long schedule ({0} steps) - this is "
+                    "probably a bug.".format(step))
         return step, slot
 
     def operations_ready(self):
