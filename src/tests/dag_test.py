@@ -53,7 +53,10 @@ def dag_from_strings(lines):
         lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
         lhs_node = dag.get_node(parent=None,
                                 variable=lhs_var)
-        mapping[assign.items[0]] = assign.items[0]
+        if assign.items[0] in mapping:
+            mapping[assign.items[0]] += "'"
+        else:
+            mapping[assign.items[0]] = assign.items[0]
         dag.make_dag(lhs_node, assign.items[2:], mapping)
     return dag
 
@@ -386,3 +389,42 @@ def test_prune_duplicates():
     assert node_names.count("+") == 1
 
 
+def test_no_flops(capsys):
+    ''' Check that we handle a DAG that contains 0 FLOPs '''
+    dag = dag_from_strings(["aprod = var1",
+                            "bprod = var2"])
+    dag.report()
+    result, _ = capsys.readouterr()
+    print result
+    assert "DAG contains no FLOPs so skipping performance estimate" in result
+
+
+def test_schedule_too_long():
+    ''' Check that we raise the expected error if the computed schedule
+    is too long '''
+    import dag
+    old_max_length = dag.MAX_SCHEDULE_LENGTH
+    dag.MAX_SCHEDULE_LENGTH = 5
+    fortran_text = "".join(
+        ["  prod{0} = b{0} + a{0}\n".format(i,i,i) for i in range(6)])
+    # For some reason the parser fails without the initial b0 = 1.0
+    # assignment.
+    fortran_text = ("program long_sched_test\n"
+                    "  b0 = 1.0\n" + fortran_text +
+                    "end program long_sched_test\n")
+    tmp_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_long_sched.f90")
+    with open(tmp_file, 'w') as fout:
+        fout.write(fortran_text)
+    with pytest.raises(DAGError) as err:
+        make_dag.runner(Options(), [tmp_file])
+    # Restore the original value
+    dag.MAX_SCHEDULE_LENGTH = old_max_length
+    # Delete the files generated during this test
+    os.remove(tmp_file)
+    os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "long_sched_test.gv"))
+    for i in range(6):
+        os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "long_sched_test_step{0}.gv".format(i)))
+    assert "Unexpectedly long schedule" in str(err)
