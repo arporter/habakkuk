@@ -38,6 +38,28 @@ class Options(object):
         self.mode = 'auto'
 
 
+def dag_from_strings(lines):
+    ''' Function that takes a list of strings (containing Fortran
+    assignment statements) and generates a DAG '''
+    from dag import DirectedAcyclicGraph
+    from parse2003 import Variable
+    assigns = []
+    for line in lines:
+        assigns.append(Fortran2003.Assignment_Stmt(line))
+    mapping = {}
+    dag = DirectedAcyclicGraph("Test dag")
+    for assign in assigns:
+        lhs_var = Variable()
+        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+        lhs_node = dag.get_node(parent=None,
+                                variable=lhs_var)
+        mapping[assign.items[0]] = assign.items[0]
+        dag.make_dag(lhs_node, assign.items[2:], mapping)
+    return dag
+
+# The tests themselves...
+
+
 def test_is_intrinsic_err():
     ''' Check that the expected exception is raised if we pass an
     incorrect object to the is_intrinsic_fn() function '''
@@ -202,18 +224,7 @@ def test_rm_scalar_tmps():
     from the DAG '''
     from dag import DirectedAcyclicGraph
     from parse2003 import Variable
-    assigns = []
-    assigns.append(Fortran2003.Assignment_Stmt("a = 2.0 * b"))
-    assigns.append(Fortran2003.Assignment_Stmt("c = 2.0 * a"))
-    mapping = {}
-    dag = DirectedAcyclicGraph("Test dag")
-    for assign in assigns:
-        lhs_var = Variable()
-        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
-        lhs_node = dag.get_node(parent=None,
-                                variable=lhs_var)
-        mapping[assign.items[0]] = assign.items[0]
-        dag.make_dag(lhs_node, assign.items[2:], mapping)
+    dag = dag_from_strings(["a = 2.0 * b", "c = 2.0 * a"])
     node_names = [node.name for node in dag._nodes.itervalues()]
     # Check that the resulting dag has the right nodes
     assert node_names.count("a") == 1
@@ -356,4 +367,22 @@ def test_repeated_assign_diff_elements(capsys):
     assert "label=\"aprod(i+1,j)\", color=\"blue\"" in graph
     assert "label=\"aprod'(i,j)\", color=\"blue\"" in graph
     assert graph.count("aprod") == 3
+
+
+def test_prune_duplicates():
+    ''' Test that we are able to identify and remove nodes representing
+    duplicate computation '''
+    dag = dag_from_strings(["aprod = var1 * var2 * var3",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert node_names.count("*") == 4
+    assert node_names.count("/") == 1
+    assert node_names.count("+") == 1
+    dag.prune_duplicate_nodes()
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert node_names.count("*") == 2
+    assert node_names.count("/") == 1
+    assert node_names.count("+") == 1
+
 
