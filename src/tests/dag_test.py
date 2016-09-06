@@ -372,6 +372,65 @@ def test_repeated_assign_diff_elements(capsys):
     assert graph.count("aprod") == 3
 
 
+def test_node_display(capsys):
+    ''' Test the display method of DAGNode '''
+    dag = dag_from_strings(["aprod = var1 * var2 * var3",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    node = dag._nodes["aprod"]
+    assert node.name == "aprod"
+    node.display()
+    result, _ = capsys.readouterr()
+    print result
+    expected = (
+        " aprod\n"
+        "      *\n"
+        "           *\n"
+        "                var1\n"
+        "                var2\n"
+        "           var3\n")
+    assert expected in result
+
+
+def test_node_name():
+    ''' Test the setter method for node name '''
+    dag = dag_from_strings(["aprod = var1 * var2 * var3",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    node = dag._nodes["bprod"]
+    assert node.name == "bprod"
+    node.name = "bprod_renamed"
+    assert node.name == "bprod_renamed"
+
+
+def test_node_rm_producer():
+    ''' Test the rm_producer method of DAGNode '''
+    dag = dag_from_strings(["aprod = var1 * var2 * var3",
+                            "bprod = var1 * var2",
+                            "cprod = var1 * var2 + var3"])
+    # bprod does not depend on var3 so we should get an
+    # error when we attempt to remove it.
+    bnode = dag._nodes["bprod"]
+    var3node = dag._nodes["var3"]
+    with pytest.raises(DAGError) as err:
+        bnode.rm_producer(var3node)
+    assert "is not a producer (dependency) for this node" in str(err)
+
+
+def test_node_rm_consumer():
+    ''' Test the rm_consumer method of DAGNode '''
+    dag = dag_from_strings(["aprod = var1 * var2",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    # aprod does not depend on var3 so we should get an error when
+    # we attempt to remove it.
+    anode = dag._nodes["aprod"]
+    var3node = dag._nodes["var3"]
+    with pytest.raises(DAGError) as err:
+        var3node.rm_consumer(anode)
+    assert " as a consumer!" in str(err)
+
+
 def test_prune_duplicates():
     ''' Test that we are able to identify and remove nodes representing
     duplicate computation '''
