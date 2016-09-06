@@ -431,6 +431,17 @@ def test_node_rm_consumer():
     assert " as a consumer!" in str(err)
 
 
+def test_node_type_setter():
+    dag = dag_from_strings(["aprod = var1 * var2",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    anode = dag._nodes["aprod"]
+    with pytest.raises(DAGError) as err:
+        anode.node_type = "not-a-type"
+    assert ("node_type must be one of ['+', '*', '-', '/', 'intrinsic', "
+            "'constant', 'array_ref'] but got 'not-a-type'" in str(err))
+
+
 def test_prune_duplicates():
     ''' Test that we are able to identify and remove nodes representing
     duplicate computation '''

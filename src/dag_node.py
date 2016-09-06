@@ -183,8 +183,8 @@ class DAGNode(object):
     def node_type(self, mytype):
         ''' Set the type of this node '''
         if mytype not in VALID_NODE_TYPES:
-            raise Exception("node_type must be one of {0} but "
-                            "got '{1}'".format(VALID_NODE_TYPES, mytype))
+            raise DAGError("node_type must be one of {0} but "
+                           "got '{1}'".format(VALID_NODE_TYPES, mytype))
         self._node_type = mytype
 
     @property
