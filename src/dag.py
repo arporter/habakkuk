@@ -425,9 +425,10 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
-                    # Create a unique node to represent the intrinsic call
+                    # Create a unique node to represent the intrinsic call.
+                    # Names of intrinics are stored in upper case.
                     tmpnode = self.get_node(parent, mapping,
-                                            name=str(child.items[0]),
+                                            name=str(child.items[0]).upper(),
                                             unique=True,
                                             node_type="intrinsic")
                     if is_division and idx == 2:
