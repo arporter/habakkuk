@@ -38,7 +38,7 @@ class Options(object):
         self.mode = 'auto'
 
 
-def dag_from_strings(lines):
+def dag_from_strings(lines, name=None):
     ''' Function that takes a list of strings (containing Fortran
     assignment statements) and generates a DAG '''
     from dag import DirectedAcyclicGraph
@@ -47,7 +47,13 @@ def dag_from_strings(lines):
     for line in lines:
         assigns.append(Fortran2003.Assignment_Stmt(line))
     mapping = {}
-    dag = DirectedAcyclicGraph("Test dag")
+    if name:
+        dag_name = name
+    else:
+        dag_name = "Test dag"
+
+    dag = DirectedAcyclicGraph(dag_name)
+
     for assign in assigns:
         lhs_var = Variable()
         lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
@@ -486,6 +492,26 @@ def test_node_weight_intrinsic():
     # Currently we only support the Ivy Bridge architecture
     from config_ivy_bridge import FORTRAN_INTRINSICS
     assert node.weight == FORTRAN_INTRINSICS["SIN"]
+
+
+def test_node_dot_colours():
+    ''' Check that the dot output has nodes coloured correctly '''
+    dag = dag_from_strings(["var1 = sin(2.0)",
+                            "aprod = var1 * var2",
+                            "bprod = var1 * var2 / aprod",
+                            "cprod = var1 * var2 + bprod"],
+                           name="dot_test")
+    outnodes = dag.output_nodes()
+    dag.to_dot()
+    dot_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "dot_test.gv")
+    with open(dot_file, 'r') as graph_file:
+        graph = graph_file.read()
+    print graph
+    assert "label=\"SIN (w=0)\", color=\"gold\"" in graph
+    assert "label=\"var1 (w=0)\", color=\"black\"" in graph
+    assert "label=\"* (w=0)\", color=\"red\", shape=\"box\"" in graph
+    os.remove(dot_file)
 
 
 def test_prune_duplicates():
