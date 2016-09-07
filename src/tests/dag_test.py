@@ -216,9 +216,9 @@ def test_intrinsic_call():
     node_names = []
     for key, node in dag._nodes.iteritems():
         node_names.append(node.name)
-        if node.name == "sin":
+        if node.name == "SIN":
             assert node.node_type == "intrinsic"
-    assert "sin" in node_names
+    assert "SIN" in node_names
     assert "b" in node_names
 
 
@@ -471,6 +471,21 @@ def test_node_walk_too_deep():
         cnode.walk()
     dag_node.MAX_RECURSION_DEPTH = old_recursion_depth
     assert "Max recursion depth (2) exceeded when walking tree" in str(err)
+
+
+def test_node_weight_intrinsic():
+    ''' Check that node.weight() works for an intrinsic '''
+    dag = dag_from_strings(["var1 = sin(2.0)",
+                            "aprod = var1 * var2",
+                            "bprod = var1 * var2 / aprod",
+                            "cprod = var1 * var2 + bprod"])
+    for node in dag._nodes.itervalues():
+        if node.name.lower() == "sin":
+            break
+    assert node.node_type == "intrinsic"
+    # Currently we only support the Ivy Bridge architecture
+    from config_ivy_bridge import FORTRAN_INTRINSICS
+    assert node.weight == FORTRAN_INTRINSICS["SIN"]
 
 
 def test_prune_duplicates():
