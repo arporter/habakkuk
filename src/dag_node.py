@@ -316,7 +316,7 @@ class DAGNode(object):
             nodestr += " (w={0})".format(str(self._incl_weight))
         nodestr += "\""
 
-        # Default node is a black elipse
+        # Default node style is a black elipse
         node_colour = "black"
         node_shape = "ellipse"
         node_size = None
@@ -335,9 +335,6 @@ class DAGNode(object):
             elif self._node_type == "intrinsic":
                 node_colour = "gold"
                 node_shape = "ellipse"
-            else:
-                # Use default node style
-                pass
 
         nodestr += ", color=\"{0}\", shape=\"{1}\"".format(node_colour,
                                                            node_shape)
