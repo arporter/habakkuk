@@ -207,7 +207,9 @@ class DAGNode(object):
             print "Producers:"
             for idx, node in enumerate(self._producers):
                 print idx, str(node), type(node)
-            raise DAGError("Max recursion depth exceeded when walking tree")
+            raise DAGError(
+                "Max recursion depth ({0}) exceeded when walking tree".
+                format(MAX_RECURSION_DEPTH))
         local_list = []
         if top_down:
             # Add the children of this node before recursing down

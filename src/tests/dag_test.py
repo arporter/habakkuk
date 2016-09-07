@@ -442,6 +442,37 @@ def test_node_type_setter():
             "'constant', 'array_ref'] but got 'not-a-type'" in str(err))
 
 
+def test_node_is_op():
+    ''' Check that the is_operator method works as expected '''
+    dag = dag_from_strings(["aprod = var1 * var2",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    anode = dag._nodes["aprod"]
+    assert not anode.is_operator
+    for node in dag._nodes.itervalues():
+        if node.name == "*":
+            break
+    assert node.is_operator
+
+
+def test_node_walk_too_deep():
+    ''' Check that the walk() method aborts correctly if the recursion
+    depth is too great '''
+    import dag_node
+    dag = dag_from_strings(["xprod = 1.0",
+                            "var1 = 2.0",
+                            "aprod = var1 * var2 * xprod",
+                            "bprod = var1 * var2 / aprod",
+                            "cprod = var1 * var2 + bprod"])
+    cnode = dag._nodes["cprod"]
+    old_recursion_depth = dag_node.MAX_RECURSION_DEPTH
+    dag_node.MAX_RECURSION_DEPTH = 2
+    with pytest.raises(DAGError) as err:
+        cnode.walk()
+    dag_node.MAX_RECURSION_DEPTH = old_recursion_depth
+    assert "Max recursion depth (2) exceeded when walking tree" in str(err)
+
+
 def test_prune_duplicates():
     ''' Test that we are able to identify and remove nodes representing
     duplicate computation '''
