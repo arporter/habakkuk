@@ -51,4 +51,22 @@ def test_variable_index_exprn_minus1():
     var = anode.variable
     var._index_exprns[0] += "-1-1+1"
     assert var.indices[0] == "i-1"
-    
+
+
+def test_variable_load_lhs_mapping():
+    ''' Test that we generate the correct name for a scalar variable that
+    appears on the LHS of an assignment when its name is already
+    in the naming map '''
+    dag = dag_from_strings(["a = 2.0 * b(i)", "a = a * b(i)"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "a'" in node_names
+
+
+def test_array_variable_load_lhs_mapping():
+    ''' Test that we generate the correct name for an array ref that
+    appears on the LHS of an assignment when its name is already
+    in the naming map '''
+    dag = dag_from_strings(["a(i) = 2.0 * b(i)", "a(i) = a(i) * b(i)"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "a'(i)" in node_names
+
