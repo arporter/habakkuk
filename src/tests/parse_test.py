@@ -101,3 +101,25 @@ def test_load_unrecognised_array_access():
     with pytest.raises(ParseError) as err:
         lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
     assert "Unrecognised array-index expression" in str(err)
+
+
+def test_load_array_section():
+    ''' Check that we successfully create a Variable for an array
+    section '''
+    from parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
+    mapping = {}
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert "a(:)" in lhs_var.full_name
+
+
+def test_load_unrecognised_type():
+    ''' Check that Variable.load() raises the expected exception when we
+    don't recognise the type of the node that is supplied '''
+    from parse2003 import Variable
+    mapping = {}
+    lhs_var = Variable()
+    with pytest.raises(ParseError) as err:
+        lhs_var.load("Not a node", mapping=mapping, lhs=True)
+    assert "Unrecognised type for variable " in str(err)
