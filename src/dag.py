@@ -80,6 +80,7 @@ def ready_ops_from_list(nodes):
             op_list.append(node)
     return op_list
 
+
 def schedule_cost(nsteps, schedule):
     ''' Calculate the cost (in cycles) of the supplied schedule '''
     cost = 0
@@ -132,6 +133,7 @@ def schedule_cost(nsteps, schedule):
         print sched_str
     return cost
 
+
 def dag_from_strings(lines, name=None):
     ''' Function that takes a list of strings (containing Fortran
     assignment statements) and generates a DAG.
@@ -155,10 +157,10 @@ def dag_from_strings(lines, name=None):
         lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
         lhs_node = dag.get_node(parent=None,
                                 variable=lhs_var)
-        if assign.items[0] in mapping:
-            mapping[assign.items[0]] += "'"
+        if lhs_var.full_orig_name in mapping:
+            mapping[lhs_var.full_orig_name] += "'"
         else:
-            mapping[assign.items[0]] = assign.items[0]
+            mapping[lhs_var.full_orig_name] = lhs_var.orig_name
         dag.make_dag(lhs_node, assign.items[2:], mapping)
     return dag
 
