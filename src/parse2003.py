@@ -42,13 +42,12 @@ def walk(children, my_type, indent=0, debug=False):
             
         # Depending on their level in the tree produced by fparser2003,
         # some nodes have children listed in .content and some have them
-        # listed under .items...
+        # listed under .items. If a node has neither then it has no
+        # children.
         if hasattr(child, "content"):
             local_list += walk(child.content, my_type, indent+1, debug)
         elif hasattr(child, "items"):
             local_list += walk(child.items, my_type, indent+1, debug)
-        else:
-            pass
 
     return local_list
 
@@ -82,18 +81,10 @@ class Loop(object):
         ''' Takes the supplied loop object produced by the f2003 parser
         and extracts relevant information from it to populate this object '''
         from fparser.Fortran2003 import Nonlabel_Do_Stmt, Loop_Control, Name
-        #print type(parsed_loop)
         for node in parsed_loop.content:
-            #print "  "+str(type(node))
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk(node.items, Name)
                 self._var_name = str(var_name[0])
-                #for item in node.items:
-                #    print "    "+str(type(item))
-                #    if isinstance(item, Loop_Control):
-                #        for lcitem in item.items:
-                #            print "      "+str(type(lcitem))
-                #            print "      "+str(lcitem)
 
     @property
     def var_name(self):
@@ -149,7 +140,7 @@ class Variable(object):
         array reference. '''
         if not self._is_array_ref:
             return ""
-
+        # TODO replace this with join
         index_str = self.indices[0]
         for tok in self.indices[1:]:
             index_str += "," + tok
@@ -166,6 +157,8 @@ class Variable(object):
             num_plus = tok.count("+1")
             num_minus = tok.count("-1")
             if num_plus > 0 or num_minus > 0:
+                # We only manipulate this index expression if it contains
+                # one or more '+1's or '-1's
                 basic_expr = tok.replace("+1","")
                 basic_expr = basic_expr.replace("-1","")
 
@@ -179,10 +172,6 @@ class Variable(object):
                     pass
                 # Store the simplified expression for this array index
                 self._index_exprns[idx] = basic_expr
-            else:
-                # This part of the index expression contains no "+1"s and
-                # no "-1"s so we leave it unchanged
-                pass
         return self._index_exprns
 
     def load(self, node, mapping=None, lhs=False):
