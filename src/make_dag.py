@@ -34,13 +34,6 @@ def dag_of_assignments(digraph, assignments, mapping):
         # the var being assigned to and '=' so skip them
         rhs_node_list = digraph.make_dag(tmp_node, assign.items[2:], mapping)
 
-        # Sanity check - the temporary node representing the LHS of
-        # the assignment should not (yet) be consumed by anything
-        # because it is a unique node and only receives the output of
-        # the RHS.
-        if tmp_node.consumers:
-            raise Exception("Temporary node should not have any consumers!")
-
         # Only update the map once we've created a DAG of the
         # assignment statement. This is because any references
         # to this variable in that assignment are to the previous
@@ -105,7 +98,9 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     # Find all of the assignment statements in the code block
     if hasattr(parent_node, "items"):
         assignments = walk(parent_node.items, Assignment_Stmt)
-    else:
+        if isinstance(parent_node, Assignment_Stmt):
+            assignments.append(parent_node)
+    elif hasattr(parent_node, "content"):
         assignments = walk(parent_node.content, Assignment_Stmt)
 
     if not assignments:
