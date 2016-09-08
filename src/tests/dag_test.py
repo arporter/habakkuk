@@ -7,7 +7,7 @@ from parse2003 import ParseError
 import make_dag
 from dag_node import DAGError
 from fparser import Fortran2003
-from dag import dag_from_strings
+from dag import dag_from_strings, DirectedAcyclicGraph
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -85,7 +85,6 @@ def test_critical_path_no_input():
 def test_dag_get_node_err():
     ''' Check that we raise expected error when calling get_node() without
     a name or a variable '''
-    from dag import DirectedAcyclicGraph
     dag = DirectedAcyclicGraph("Test dag")
     with pytest.raises(DAGError) as err:
         dag.get_node()
@@ -94,7 +93,6 @@ def test_dag_get_node_err():
 def test_dag_get_node_with_name():
     ''' Check that we get a valid node when calling get_node() with a
     name specified '''
-    from dag import DirectedAcyclicGraph
     dag = DirectedAcyclicGraph("Test dag")
     dnode = dag.get_node(name="my_node")
     assert dnode.name == "my_node"
@@ -103,17 +101,25 @@ def test_dag_get_node_with_name():
 def test_dag_get_node_with_name_and_mapping():
     ''' Check that we get a valid node when calling get_node() with a
     name and a mapping specified '''
-    from dag import DirectedAcyclicGraph
     dag = DirectedAcyclicGraph("Test dag")
     map = {"my_node":"my_node'"}
     dnode = dag.get_node(name="my_node", mapping=map)
     assert dnode.name == "my_node'"
 
 
+def test_dag_get_node_unique():
+    ''' Check that we get a valid node when requesting a new, unique
+    node in the DAG '''
+    dag = DirectedAcyclicGraph("Test dag")
+    dnode = dag.get_node(parent=None, name="my_node", unique=True)
+    assert not dnode.consumers
+    assert not dnode.producers
+    assert dnode.name == "my_node"
+
+
 def test_dag_del_node():
     ''' Check that we can delete a node from the DAG when it was
     created by supplying a name. '''
-    from dag import DirectedAcyclicGraph
     dag = DirectedAcyclicGraph("Test dag")
     map = {"my_node":"my_node'"}
     dnode = dag.get_node(name="my_node", mapping=map)
@@ -126,7 +132,6 @@ def test_dag_del_node():
 def test_dag_del_wrong_node():
     ''' Check that we raise an appropriate error if we attempt to
     delete a node that is not part of the DAG. '''
-    from dag import DirectedAcyclicGraph
     dag1 = DirectedAcyclicGraph("Test dag")
     dag2 = DirectedAcyclicGraph("Another dag")
     map = {"my_node": "my_node'"}
@@ -141,7 +146,6 @@ def test_dag_del_wrong_node():
 
 def test_del_sub_graph():
     ''' Check that we can delete a sub-graph from a DAG '''
-    from dag import DirectedAcyclicGraph
     dag = DirectedAcyclicGraph("Test dag")
     dnode1 = dag.get_node(name="node_a")
     dnode2 = dag.get_node(name="node_b", parent=dnode1)
@@ -163,7 +167,6 @@ def test_del_sub_graph():
 def test_multi_op_err():
     ''' Check that we raise the expected error if we encounter a node
     that has >1 operator as a child '''
-    from dag import DirectedAcyclicGraph
     assign = Fortran2003.Assignment_Stmt("a = b + c + d")
     dag = DirectedAcyclicGraph("Test dag")
     mapping = {}
@@ -183,7 +186,6 @@ def test_multi_op_err():
 def test_intrinsic_call():
     ''' Test that the correct DAG is created from an assignment involving
     a call to an intrinsic. '''
-    from dag import DirectedAcyclicGraph
     assign = Fortran2003.Assignment_Stmt("a = sin(b)")
     dag = DirectedAcyclicGraph("Sin dag")
     mapping = {}
@@ -203,7 +205,6 @@ def test_intrinsic_call():
 def test_rm_scalar_tmps():
     ''' Test the code that removes nodes that represent scalar tempories
     from the DAG '''
-    from dag import DirectedAcyclicGraph
     from parse2003 import Variable
     dag = dag_from_strings(["a = 2.0 * b", "c = 2.0 * a"])
     node_names = [node.name for node in dag._nodes.itervalues()]
