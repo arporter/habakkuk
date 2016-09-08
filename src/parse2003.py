@@ -227,14 +227,29 @@ class Variable(object):
                 self._index_exprns.append(
                     ''.join([str(item).replace(" ", "")
                              for item in node.items[1].items]))
+                # TODO currently if we get an array access of the form
+                # a(map(i)) then we will store 'map' and 'i' as the
+                # array-index variables. This needs to be extended to
+                # properly support indirect array accesses.
                 array_index_vars = walk(node.items[1].items, Name)
+            elif isinstance(node.items[1], Part_Ref):
+                # Array index expression is itself an array access
+                print dir(node.items[1])
+                print node.items[1].items
+                # TODO don't flatten the array expression into a string
+                # so that we can handle loop-unrolling for such cases
+                self._index_exprns.append(str(node.items[1]).replace(" ", ""))
+                array_index_vars = self._index_exprns[-1]
             else:
                 print type(node.items[1])
                 raise ParseError("Unrecognised array-index expression: {0}".
                                  format(str(node)))
 
             for var in array_index_vars:
-                name = var.string
+                if isinstance(var, str):
+                    name = var
+                else:
+                    name = var.string
                 if mapping and name in mapping:
                     self._index_vars.append(mapping[name])
                     # Replace any references to this variable in the index

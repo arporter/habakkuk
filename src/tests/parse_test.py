@@ -5,6 +5,7 @@ import os
 import pytest
 from fparser import Fortran2003
 from dag import dag_from_strings
+from parse2003 import ParseError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -70,3 +71,33 @@ def test_array_variable_load_lhs_mapping():
     node_names = [node.name for node in dag._nodes.itervalues()]
     assert "a'(i)" in node_names
 
+
+def test_indirect_array_access1():
+    ''' Test the creation of a Variable object representing an indirect
+    array reference (i.e. when an array-index expression is itself an
+    array access) '''
+    dag = dag_from_strings(["a(i) = 2.0 * b(map(i))"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    print node_names
+    assert "b(map(i))" in node_names
+
+
+def test_indirect_array_access2():
+    ''' Test the creation of a Variable object representing an indirect
+    array reference (i.e. when an array-index expression involves an
+    array access within a larger expression) '''
+    dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j)"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    print node_names
+    assert "b(map(i)+j)" in node_names
+
+def test_load_unrecognised_array_access():
+    ''' Check that we raise the expected exception when we don't recognise
+    the form of an array access. '''
+    from parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt("a(i**2) = 2.0*b(i)")
+    mapping = {}
+    lhs_var = Variable()
+    with pytest.raises(ParseError) as err:
+        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert "Unrecognised array-index expression" in str(err)
