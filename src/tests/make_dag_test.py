@@ -1,7 +1,13 @@
 
 ''' Contains pytest tests for make_dag.py '''
 
-from dag import dag_from_strings
+import os
+from test_utilities import dag_from_strings, Options
+import make_dag
+
+# constants
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files")
 
 
 def test_dag_of_code_block_items():
@@ -17,3 +23,12 @@ def test_dag_of_code_block_items():
     assert "a(:)" in node_names
     assert "b(:)" in node_names
 
+
+def test_empty_routine(capsys):
+    ''' Test that we do not generate a DAG if we find no assignment
+    statements '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "empty_routine.f90")])
+    result, _ = capsys.readouterr()
+    assert ("Code empty_routine contains no assignment statements - "
+            "skipping" in result)
