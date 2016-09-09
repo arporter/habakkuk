@@ -191,10 +191,10 @@ def runner(options, args):
                             print "No opportunities to fuse multiply-adds"
 
         except Fortran2003.NoMatchError:
-            print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
-            print 'started at %s' % (reader.fifo_item[0])
-            print 'Quitting'
-            return
+            raise ParseError(
+                "Parsing '{0}' (starting at {1}) failed at {2}. "
+                "Is the file valid Fortran?".
+                format(filename, reader.fifo_item[0], reader.fifo_item[-1]))
 
 
 def main(argv):
@@ -245,7 +245,6 @@ def main(argv):
                       .format(args[0]))
 
     runner(options, args)
-    return
 
 
 if __name__=="__main__":
