@@ -1,10 +1,10 @@
 ''' Module containing utilities used by the test suite '''
 
+
 def dag_from_strings(lines, name=None):
     ''' Function that takes a list of strings (containing Fortran
     assignment statements) and generates a DAG. '''
     from fparser import Fortran2003
-    from parse2003 import Variable
     from dag import DirectedAcyclicGraph
 
     assigns = []
@@ -36,4 +36,3 @@ class Options(object):
         self.show_weights = False
         self.unroll_factor = 1
         self.mode = 'auto'
-

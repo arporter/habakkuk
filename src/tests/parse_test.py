@@ -11,6 +11,7 @@ from parse2003 import ParseError
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
+
 def test_walk_debug(capsys):
     ''' Test the walk method with debug=True '''
     from fparser.readfortran import FortranFileReader
@@ -89,6 +90,7 @@ def test_indirect_array_access2():
     node_names = [node.name for node in dag._nodes.itervalues()]
     print node_names
     assert "b(map(i)+j)" in node_names
+
 
 def test_load_unrecognised_array_access():
     ''' Check that we raise the expected exception when we don't recognise
