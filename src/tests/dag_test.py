@@ -314,7 +314,7 @@ def test_repeated_assign_array(capsys):
     assert node2 in graph
 
 
-def test_repeated_assing_1darray_slice():
+def test_repeated_assign_1darray_slice():
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
     make_dag.runner(Options(),
@@ -326,7 +326,7 @@ def test_repeated_assing_1darray_slice():
     assert "label=\"aprod'(:)\", color=\"blue\"" in graph
 
 
-def test_repeated_assing_1darray_slice_from_string():
+def test_repeated_assign_1darray_slice_from_string():
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to and we generate the dag from strings. '''
     dag = dag_from_strings(["a(:) = 2.0 * a(:)"])
