@@ -4,7 +4,7 @@
 import os
 import pytest
 from fparser import Fortran2003
-from dag import dag_from_strings
+from test_utilities import dag_from_strings
 from parse2003 import ParseError
 
 # constants
@@ -27,7 +27,6 @@ def test_walk_debug(capsys):
 
 def test_variable_str():
     ''' Test the __str__ method of Variable '''
-    from dag import dag_from_strings
     dag = dag_from_strings(["a(i) = 2.0 * b(i) * c"])
     anode = dag._nodes["a(i)"]
     print anode

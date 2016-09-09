@@ -3,42 +3,16 @@
 
 import os
 import pytest
+from test_utilities import dag_from_strings, Options
 from parse2003 import ParseError
 import make_dag
 from dag_node import DAGError
 from fparser import Fortran2003
-from dag import dag_from_strings, DirectedAcyclicGraph
+from dag import DirectedAcyclicGraph
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
-
-CODE = '''
-module test_dag
-contains
-  subroutine testkern_qr_code(a,b,c,d)
-    integer, intent(inout) :: a, b, c, d, e
-
-    a = b + c
-    d = a + e
-
-  end subroutine testkern_qr_code
-end module test_dag
-'''
-
-class Options(object):
-    ''' Class used to store what would be command-line options when
-    running the tool outwith the test suite '''
-
-    def __init__(self):
-        self.no_prune = False
-        self.no_fma = True
-        self.rm_scalar_tmps = False
-        self.show_weights = False
-        self.unroll_factor = 1
-        self.mode = 'auto'
-
-# The tests themselves...
 
 
 def test_is_intrinsic_err():
