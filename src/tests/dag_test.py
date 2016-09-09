@@ -326,13 +326,18 @@ def test_repeated_assing_1darray_slice():
     assert "label=\"aprod'(:)\", color=\"blue\"" in graph
 
 
+def test_repeated_assing_1darray_slice_from_string():
+    ''' Test that we get correctly-named nodes when it is an array slice
+    that is repeatedly assigned to and we generate the dag from strings. '''
+    dag = dag_from_strings(["a(:) = 2.0 * a(:)"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "a'(:)" in node_names
+    assert "a(:)" in node_names
+
+
 def test_repeated_assign_2darray_slice():
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
-    #dag = dag_from_strings(["a(:) = 2.0 * a(:)"])
-    #node_names = [node.name for node in dag._nodes.itervalues()]
-    #assert "a'(:)" in node_names
-    #assert "a(:)" in node_names
     make_dag.runner(Options(),
                     [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
     with open('test_repeated_assign3.gv', 'r') as fout:
