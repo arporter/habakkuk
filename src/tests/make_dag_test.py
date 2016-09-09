@@ -2,12 +2,13 @@
 ''' Contains pytest tests for make_dag.py '''
 
 import os
+import pytest
 from test_utilities import dag_from_strings, Options
 import make_dag
 
 # constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files")
+PWD = os.path.dirname(os.path.abspath(__file__))
+BASE_PATH = os.path.join(PWD, "test_files")
 
 
 def test_dag_of_code_block_items():
@@ -32,3 +33,59 @@ def test_empty_routine(capsys):
     result, _ = capsys.readouterr()
     assert ("Code empty_routine contains no assignment statements - "
             "skipping" in result)
+
+
+def test_basic_loop():
+    ''' Check that we correctly generate a DAG for a subroutine containing
+    a simple loop '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH, "basic_loop.f90")])
+    graph_file = os.path.join(PWD, "basic_loop_routine_loop1.gv")
+    assert os.path.isfile(graph_file)
+    with open(graph_file, "r") as fout:
+        loop_graph = fout.read()
+    assert "label=\"2.0\", color=\"green\"" in loop_graph
+    assert "label=\"i\", color=\"black\"" in loop_graph
+    assert "label=\"*\", color=\"red\", shape=\"box\"" in loop_graph
+    assert "label=\"aprod(i)\", color=\"blue\"" in loop_graph
+
+
+def test_basic_loop_unroll():
+    ''' Check that we correctly generate a DAG for a subroutine containing
+    a simple loop that we unroll once '''
+    options = Options()
+    options.unroll_factor = 2
+    make_dag.runner(options,
+                    [os.path.join(BASE_PATH, "basic_loop.f90")])
+    graph_file = os.path.join(PWD, "basic_loop_routine_loop1_unroll2.gv")
+    assert os.path.isfile(graph_file)
+    with open(graph_file, "r") as fout:
+        loop_graph = fout.read()
+    # TODO need to find some way of testing the connectivity of the nodes,
+    # not just their existence
+    assert "label=\"2.0\", color=\"green\"" in loop_graph
+    assert "label=\"i\", color=\"black\"" in loop_graph
+    assert "label=\"i+1\", color=\"black\"" in loop_graph
+    assert "label=\"*\", color=\"red\", shape=\"box\"" in loop_graph
+    assert "label=\"aprod(i)\", color=\"blue\"" in loop_graph
+    assert "label=\"aprod(i+1)\", color=\"blue\"" in loop_graph
+
+
+def test_main_routine_no_file_err():
+    ''' Test that we raise expected error if the user doesn't supply the name
+    of a Fortran file to process '''
+    args = []
+    with pytest.raises(IOError) as err:
+        make_dag.main(args)
+    assert "The name of a Fortran source file must be provided" in str(err)
+
+
+def test_main_routine_file_not_present_err():
+    ''' Test that we raise expected error if the file specified by the user
+    doesn't exist '''
+    args = ["not_a_file"]
+    with pytest.raises(IOError) as err:
+        make_dag.main(args)
+    assert (
+        "The specified source file ('not_a_file') does not exist" in str(err))
+
