@@ -7,19 +7,15 @@ from dag import DirectedAcyclicGraph
 from parse2003 import walk
 
 # TODO swap to using argparse since optparse is deprecated
-try:
-    from iocbio.optparse_gui import OptionParser
-except ImportError:
-    from optparse import OptionParser
+from optparse import OptionParser
 from fparser.script_options import set_f2003_options
-import io
 import sys
+
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
-    from fparser.Fortran2003 import Assignment_Stmt, Name
-    from parse2003 import Variable
+    from fparser.Fortran2003 import Assignment_Stmt
 
     # Create a new DAG object
     digraph = DirectedAcyclicGraph(name)
@@ -47,7 +43,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
         print "Code {0} contains no assignment statements - skipping".\
             format(name)
         return None
- 
+
     if loop:
         # Put the loop variable in our mapping
         mapping[loop.var_name] = loop.var_name
@@ -55,7 +51,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     digraph.add_assignments(assignments, mapping)
 
     if loop:
-        for repeat in range(1, unroll_factor):
+        for _ in range(1, unroll_factor):
             # Increment the loop counter and then add to the DAG again
             mapping[loop.var_name] += "+1"
             digraph.add_assignments(assignments, mapping)
@@ -64,6 +60,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     # in our name-mapping dictionary then something has gone wrong.
     for name in mapping:
         if "'" in name:
+            from parse2003 import ParseError
             raise ParseError(
                 "Found {0} in name map but names with ' characters "
                 "appended should only appear in the value part of "
@@ -71,15 +68,15 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 
     return digraph
 
-    
+
 def runner(options, args):
     ''' Parses the files listed in args and generates a DAG for all of the
     subroutines it finds '''
     from fparser.api import Fortran2003
     from fparser.readfortran import FortranFileReader
-    from fparser.Fortran2003 import Program, Main_Program, Program_Stmt, \
-        Subroutine_Subprogram, Assignment_Stmt, \
-        Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
+    from fparser.Fortran2003 import Main_Program, Program_Stmt, \
+        Subroutine_Subprogram, \
+        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part
     from parse2003 import Loop, get_child, ParseError
 
     apply_fma_transformation = not options.no_fma
@@ -100,12 +97,12 @@ def runner(options, args):
             # here as the Fortran source file might not contain a
             # main program (might just be a subroutine in a module)
             try:
-                main = get_child(program, Main_Program)
+                main_prog = get_child(program, Main_Program)
             except ParseError:
-                main = None
-            if main:
-                routines.append(main)
-            
+                main_prog = None
+            if main_prog:
+                routines.append(main_prog)
+
             # Create a DAG for each (sub)routine
             for subroutine in routines:
                 # Get the name of this (sub)routine
@@ -122,7 +119,7 @@ def runner(options, args):
                 # Make a list of all Do loops in the routine
                 loops = walk(exe_part.content, Block_Nonlabel_Do_Construct)
                 digraphs = []
-                
+
                 if not loops:
                     # There are no Do loops in this subroutine so just
                     # generate a DAG for the body of the routine...
@@ -145,8 +142,9 @@ def runner(options, args):
                         myloop = Loop()
                         myloop.load(loop)
 
-                        # Generate a suitable name for this DAG. Since we're
-                        # processing Fortran code we count from 1 rather than 0.
+                        # Generate a suitable name for this DAG. Since
+                        # we're processing Fortran code we count from
+                        # 1 rather than 0.
                         name = sub_name + "_loop" + str(loop_count+1)
                         if unroll_factor > 1:
                             name += "_unroll" + str(unroll_factor)
@@ -161,7 +159,6 @@ def runner(options, args):
 
                         # Increment count of (inner) loops found
                         loop_count += 1
-
 
                 for digraph in digraphs:
 
@@ -247,5 +244,5 @@ def main(argv):
     runner(options, args)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main(sys.argv[1:])

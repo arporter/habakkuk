@@ -190,7 +190,7 @@ class DAGNode(object):
     @property
     def is_operator(self):
         ''' Returns true if this node represents a floating point operation '''
-        return (self._node_type in OPERATORS)
+        return self._node_type in OPERATORS
 
     @property
     def variable(self):
@@ -237,6 +237,12 @@ class DAGNode(object):
                 return FORTRAN_INTRINSICS[self._name]
             else:
                 return 0
+
+    @property
+    def incl_weight(self):
+        ''' Getter for the inclusive weight of this node. This must have
+        previously been calculated by a call to ``calc_weight()`` '''
+        return self._incl_weight
 
     def calc_weight(self):
         ''' Calculate the inclusive weight of this node by recursing
@@ -298,8 +304,8 @@ class DAGNode(object):
         max_weight = -0.01
         node = None
         for child in self._producers:
-            if child._incl_weight > max_weight:
-                max_weight = child._incl_weight
+            if child.incl_weight > max_weight:
+                max_weight = child.incl_weight
                 node = child
         # Move down to that child
         if node:

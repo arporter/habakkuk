@@ -12,7 +12,7 @@ def walk(children, my_type, indent=0, debug=False):
             print indent*"  " + "child type = ", type(child)
         if isinstance(child, my_type):
             local_list.append(child)
-            
+
         # Depending on their level in the tree produced by fparser2003,
         # some nodes have children listed in .content and some have them
         # listed under .items. If a node has neither then it has no
@@ -37,6 +37,7 @@ def get_child(root_node, node_type):
 
 
 class ParseError(Exception):
+    ''' Class for parse-error exceptions '''
     def __init__(self, value):
         self.value = "Parse Error: " + value
 
@@ -53,7 +54,7 @@ class Loop(object):
     def load(self, parsed_loop):
         ''' Takes the supplied loop object produced by the f2003 parser
         and extracts relevant information from it to populate this object '''
-        from fparser.Fortran2003 import Nonlabel_Do_Stmt, Loop_Control, Name
+        from fparser.Fortran2003 import Nonlabel_Do_Stmt, Name
         for node in parsed_loop.content:
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk(node.items, Name)
@@ -73,8 +74,12 @@ class Variable(object):
         # Name of this quantity in the DAG (may not be the same as
         # _orig_name because of assignment)
         self._name = None
-        # Name of the variable as used in the raw Fortran code
+        # Base name of the variable as used in the raw Fortran code
+        # (i.e. excluding any array indexing if present)
         self._orig_name = None
+        # Full name of the variable (including indices if it is an
+        # array reference) as it appears in the raw Fortran
+        self._full_orig_name = None
         self._is_array_ref = False
         # List of the variables used to index into the array
         self._index_vars = []
@@ -113,11 +118,7 @@ class Variable(object):
         array reference. '''
         if not self._is_array_ref:
             return ""
-        # TODO replace this with join
-        index_str = self.indices[0]
-        for tok in self.indices[1:]:
-            index_str += "," + tok
-        return index_str
+        return ",".join(self.indices)
 
     @property
     def indices(self):
@@ -125,15 +126,15 @@ class Variable(object):
         array index in this array reference '''
         for idx, tok in enumerate(self._index_exprns):
             # This is a very simplistic piece of code intended to
-            # process array index expressions of the form 
+            # process array index expressions of the form
             # ji+1-1+1. It ignores anything other than '+1' and '-1'.
             num_plus = tok.count("+1")
             num_minus = tok.count("-1")
             if num_plus > 0 or num_minus > 0:
                 # We only manipulate this index expression if it contains
                 # one or more '+1's or '-1's
-                basic_expr = tok.replace("+1","")
-                basic_expr = basic_expr.replace("-1","")
+                basic_expr = tok.replace("+1", "")
+                basic_expr = basic_expr.replace("-1", "")
 
                 net_incr = num_plus - num_minus
                 if net_incr < 0:
@@ -150,11 +151,11 @@ class Variable(object):
     def load(self, node, mapping=None, lhs=False):
         ''' Populate the state of this Variable object using the supplied
         output of the f2003 parser. If lhs is True then this variable
-        appears on the LHS of an assignment and thus represents a new 
+        appears on the LHS of an assignment and thus represents a new
         entity in a DAG. '''
-        from fparser.Fortran2003 import Name, Part_Ref, Real_Literal_Constant, \
-            Section_Subscript_List, Int_Literal_Constant, Level_2_Expr, \
-            Array_Section
+        from fparser.Fortran2003 import Name, Part_Ref, \
+            Real_Literal_Constant, Section_Subscript_List, \
+            Int_Literal_Constant, Level_2_Expr, Array_Section
 
         if isinstance(node, Name):
             # This node is simply the name of a variable
@@ -189,8 +190,8 @@ class Variable(object):
                 # the *variables* in the array-index expression
                 # (i.e. ignoring whether they are "+1" etc.)
                 array_index_vars = walk(node.items[1].items, Name)
-            elif isinstance(node.items[1], Name) or \
-                 isinstance(node.items[1], Int_Literal_Constant):
+            elif (isinstance(node.items[1], Name) or
+                  isinstance(node.items[1], Int_Literal_Constant)):
                 # There's only a single array index/argument
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = [node.items[1]]
@@ -235,8 +236,8 @@ class Variable(object):
                     # use it as it is
                     self._index_vars.append(name)
 
-        elif isinstance(node, Real_Literal_Constant) or \
-             isinstance(node, Int_Literal_Constant):
+        elif (isinstance(node, Real_Literal_Constant) or
+              isinstance(node, Int_Literal_Constant)):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False

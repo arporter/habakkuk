@@ -10,7 +10,7 @@ from fparser.Fortran2003 import \
 from dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
-from config_ivy_bridge import OPERATORS, CACHE_LINE_BYTES, EXAMPLE_CLOCK_GHZ, \
+from config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
     FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
 
 # Maximum length of schedule we expect to handle.
@@ -84,9 +84,9 @@ def ready_ops_from_list(nodes):
 
 def schedule_cost(nsteps, schedule):
     ''' Calculate the cost (in cycles) of the supplied schedule '''
-    cost = 0
-    
+
     print "Schedule contains {0} steps:".format(nsteps)
+    cost = 0
     for step in range(0, nsteps):
 
         sched_str = str(step)
@@ -120,8 +120,8 @@ def schedule_cost(nsteps, schedule):
                             # This operation is the same as the previous
                             # one on this port so assume pipelined
                             latency = 0
-                        elif OPERATORS[operator] in ["+", "-"] and \
-                             OPERATORS[previous_op] in ["+", "-"]:
+                        elif (OPERATORS[operator] in ["+", "-"] and
+                              OPERATORS[previous_op] in ["+", "-"]):
                             # Assume '+' and '-' are treated as the same
                             # and thus we pay no latency
                             latency = 0
@@ -483,8 +483,8 @@ class DirectedAcyclicGraph(object):
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif isinstance(child, Real_Literal_Constant) or \
-                 isinstance(child, Int_Literal_Constant):
+            elif (isinstance(child, Real_Literal_Constant) or
+                  isinstance(child, Int_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
@@ -750,7 +750,7 @@ class DirectedAcyclicGraph(object):
         if not total_cycles > 0:
             print "  DAG contains no FLOPs so skipping performance estimate."
             return
-        
+
         min_flops_per_hz = float(total_flops)/float(total_cycles)
         print "  Whole DAG in serial:"
         print "    Sum of cost of all nodes = {0} (cycles)".\
@@ -803,20 +803,24 @@ class DirectedAcyclicGraph(object):
             print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
                    "bytes/s".format(sched_mem_bw))
 
-        # Given that each execution port can run in parallel with the others,
-        # the time taken to do the graph will be the time taken by the port
-        # that takes longest (i.e. has the most work to do)
-        # Use a dictionary to hold the cost for each port in case the port numbers
-        # aren't contiguous.
+        # Given that each execution port can run in parallel with the
+        # others, the time taken to do the graph will be the time
+        # taken by the port that takes longest (i.e. has the most work
+        # to do). Use a dictionary to hold the cost for each port in
+        # case the port numbers aren't contiguous.
         port_cost = {}
         for port in CPU_EXECUTION_PORTS.itervalues():
             # Zero the cost for each port
             port_cost[str(port)] = 0
 
-        port_cost[str(CPU_EXECUTION_PORTS["/"])] += num_div * OPERATORS["/"]["cost"]
-        port_cost[str(CPU_EXECUTION_PORTS["*"])] += num_mult * OPERATORS["*"]["cost"]
-        port_cost[str(CPU_EXECUTION_PORTS["+"])] += num_plus * OPERATORS["+"]["cost"]
-        port_cost[str(CPU_EXECUTION_PORTS["-"])] += num_minus * OPERATORS["-"]["cost"]
+        port_cost[str(CPU_EXECUTION_PORTS["/"])] += (
+            num_div * OPERATORS["/"]["cost"])
+        port_cost[str(CPU_EXECUTION_PORTS["*"])] += (
+            num_mult * OPERATORS["*"]["cost"])
+        port_cost[str(CPU_EXECUTION_PORTS["+"])] += (
+            num_plus * OPERATORS["+"]["cost"])
+        port_cost[str(CPU_EXECUTION_PORTS["-"])] += (
+            num_minus * OPERATORS["-"]["cost"])
 
         net_cost = 0
         for port in port_cost:
@@ -827,30 +831,40 @@ class DirectedAcyclicGraph(object):
             perfect_sched_mem_bw = float(mem_traffic_bytes) / float(net_cost)
 
         print "  Estimate using perfect schedule:"
-        print ("    Cost if all ops on different execution ports are perfectly "
-               "overlapped = {0} cycles".format(net_cost))
+        print ("    Cost if all ops on different execution ports are "
+               "perfectly overlapped = {0} cycles".format(net_cost))
 
         # Print out example performance figures using the clock speed
         # in EXAMPLE_CLOCK_GHZ
-        print "  e.g. at {0} GHz, these different estimates give (GFLOPS): ".format(EXAMPLE_CLOCK_GHZ)
-        print "  No ILP  |  Computed Schedule  |  Perfect Schedule | Critical path"
-        print "  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       |   {3:5.2f}".\
-                     format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            max_flops_per_hz*EXAMPLE_CLOCK_GHZ)
+        print ("  e.g. at {0} GHz, these different estimates give (GFLOPS): ".
+               format(EXAMPLE_CLOCK_GHZ))
+        print (
+            "  No ILP  |  Computed Schedule  |  Perfect Schedule | "
+            "Critical path")
+        print ("  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       "
+               "|   {3:5.2f}".
+               format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
         if num_cache_ref:
             print (" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
-                          "GB/s".format(
-                min_mem_bw*EXAMPLE_CLOCK_GHZ,
-                sched_mem_bw*EXAMPLE_CLOCK_GHZ,
-                perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
-                max_mem_bw*EXAMPLE_CLOCK_GHZ))
-
+                   "GB/s".format(
+                       min_mem_bw*EXAMPLE_CLOCK_GHZ,
+                       sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                       perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                       max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
     def generate_schedule(self, sched_to_dot=True):
-        ''' Create a schedule describing how the nodes/operations in the DAG
-        map onto the available hardware '''
+        '''Create a schedule mapping operations to hardware
+
+        Creates a schedule describing how the nodes/operations in the DAG
+        map onto the available hardware (execution ports on an Intel CPU)
+
+        Keyword arguments:
+        sched_to_dot - Whether or not to output each step in the schedule to
+                       a separate dot file to enable visualisation.
+        '''
 
         # Flag all input nodes as being ready
         input_nodes = self.input_nodes()
@@ -863,7 +877,7 @@ class DirectedAcyclicGraph(object):
 
         # Construct a schedule
         step = 0
-        
+
         # We have one slot per execution port at each step in the schedule.
         # Each port then has its own schedule (list) with each entry being the
         # DAGNode representing the operation to be performed or None
@@ -917,7 +931,8 @@ class DirectedAcyclicGraph(object):
         # Check nodes on critical path first so as to prioritise them
         # when generating schedule
         if self._critical_path:
-            available_ops.extend(ready_ops_from_list(self._critical_path.nodes))
+            available_ops.extend(
+                ready_ops_from_list(self._critical_path.nodes))
 
             # Next we check the dependencies of the next un-computed node
             # on the critical path
