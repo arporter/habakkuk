@@ -135,31 +135,6 @@ def schedule_cost(nsteps, schedule):
     return cost
 
 
-def dag_from_strings(lines, name=None):
-    ''' Function that takes a list of strings (containing Fortran
-    assignment statements) and generates a DAG.
-
-    Currently only used for testing. '''
-    from fparser import Fortran2003
-    from parse2003 import Variable
-    assigns = []
-    for line in lines:
-        assigns.append(Fortran2003.Assignment_Stmt(line))
-    mapping = {}
-    if name:
-        dag_name = name
-    else:
-        dag_name = "Test dag"
-
-    # Create the DAG object
-    dag = DirectedAcyclicGraph(dag_name)
-
-    # Populate it from the Assignment statements
-    dag.add_assignments(assigns, mapping)
-
-    return dag
-
-
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
