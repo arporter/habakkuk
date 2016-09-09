@@ -6,12 +6,14 @@
 from dag import DirectedAcyclicGraph
 from parse2003 import walk
 
+# TODO swap to using argparse since optparse is deprecated
 try:
     from iocbio.optparse_gui import OptionParser
 except ImportError:
     from optparse import OptionParser
 from fparser.script_options import set_f2003_options
-
+import io
+import sys
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     ''' Creates and returns a DAG for the code that is a child of the
@@ -195,7 +197,10 @@ def runner(options, args):
             return
 
 
-def main():
+def main(argv):
+    ''' The top-level routine that runs Habakkuk. Parses the command-line
+    arguments passed in to this routine. '''
+    import os
     parser = OptionParser()
     set_f2003_options(parser)
     parser.add_option("--no-prune",
@@ -228,13 +233,20 @@ def main():
                       type="int",
                       dest="unroll_factor",
                       default=1)
-    if hasattr(parser, 'runner'):
-        parser.runner = runner
-    options, args = parser.parse_args()
+
+    # Use the parser object to parse the command-line arguments
+    options, args = parser.parse_args(argv)
+
+    # Check that we've been passed the name of an existing file
+    if not args:
+        raise IOError("The name of a Fortran source file must be provided.")
+    if not os.path.isfile(args[0]):
+        raise IOError("The specified source file ('{0}') does not exist"
+                      .format(args[0]))
 
     runner(options, args)
     return
 
 
 if __name__=="__main__":
-    main()
+    main(sys.argv[1:])
