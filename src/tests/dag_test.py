@@ -4,7 +4,6 @@
 import os
 import pytest
 from test_utilities import dag_from_strings, Options
-from parse2003 import ParseError
 import make_dag
 from dag_node import DAGError
 from fparser import Fortran2003
@@ -62,6 +61,7 @@ def test_dag_get_node_err():
     dag = DirectedAcyclicGraph("Test dag")
     with pytest.raises(DAGError) as err:
         dag.get_node()
+    assert "get_node: one of 'name' or 'variable' must be supplied" in str(err)
 
 
 def test_dag_get_node_with_name():
@@ -76,8 +76,8 @@ def test_dag_get_node_with_name_and_mapping():
     ''' Check that we get a valid node when calling get_node() with a
     name and a mapping specified '''
     dag = DirectedAcyclicGraph("Test dag")
-    map = {"my_node":"my_node'"}
-    dnode = dag.get_node(name="my_node", mapping=map)
+    name_map = {"my_node": "my_node'"}
+    dnode = dag.get_node(name="my_node", mapping=name_map)
     assert dnode.name == "my_node'"
 
 
@@ -95,8 +95,8 @@ def test_dag_del_node():
     ''' Check that we can delete a node from the DAG when it was
     created by supplying a name. '''
     dag = DirectedAcyclicGraph("Test dag")
-    map = {"my_node":"my_node'"}
-    dnode = dag.get_node(name="my_node", mapping=map)
+    name_map = {"my_node": "my_node'"}
+    dnode = dag.get_node(name="my_node", mapping=name_map)
     dag.delete_node(dnode)
     assert dag.total_cost() == 0
     # Dictionary of nodes should now be empty
@@ -108,9 +108,9 @@ def test_dag_del_wrong_node():
     delete a node that is not part of the DAG. '''
     dag1 = DirectedAcyclicGraph("Test dag")
     dag2 = DirectedAcyclicGraph("Another dag")
-    map = {"my_node": "my_node'"}
+    name_map = {"my_node": "my_node'"}
     # Create a node in the second dag
-    dnode = dag2.get_node(name="my_node", mapping=map)
+    dnode = dag2.get_node(name="my_node", mapping=name_map)
     # Attempt to delete it from the first dag
     with pytest.raises(DAGError) as err:
         dag1.delete_node(dnode)
@@ -122,10 +122,10 @@ def test_del_sub_graph():
     ''' Check that we can delete a sub-graph from a DAG '''
     dag = DirectedAcyclicGraph("Test dag")
     dnode1 = dag.get_node(name="node_a")
-    dnode2 = dag.get_node(name="node_b", parent=dnode1)
+    _ = dag.get_node(name="node_b", parent=dnode1)
     dnode3 = dag.get_node(name="node_c", parent=dnode1)
-    dnode4 = dag.get_node(name="node_d", parent=dnode3)
-    dnode5 = dag.get_node(name="node_e", parent=dnode3)
+    _ = dag.get_node(name="node_d", parent=dnode3)
+    _ = dag.get_node(name="node_e", parent=dnode3)
     assert len(dag._nodes) == 5
     # Disconnect the sub-graph from the rest of the DAG
     dnode1.rm_producer(dnode3)
@@ -168,7 +168,7 @@ def test_intrinsic_call():
                             unique=True)
     dag.make_dag(tmp_node, assign.items[2:], mapping)
     node_names = []
-    for key, node in dag._nodes.iteritems():
+    for node in dag._nodes.itervalues():
         node_names.append(node.name)
         if node.name == "SIN":
             assert node.node_type == "intrinsic"
@@ -179,7 +179,6 @@ def test_intrinsic_call():
 def test_rm_scalar_tmps():
     ''' Test the code that removes nodes that represent scalar tempories
     from the DAG '''
-    from parse2003 import Variable
     dag = dag_from_strings(["a = 2.0 * b", "c = 2.0 * a"])
     node_names = [node.name for node in dag._nodes.itervalues()]
     # Check that the resulting dag has the right nodes
@@ -263,12 +262,12 @@ def test_array_readwrite_with_fma(capsys):
 @pytest.mark.xfail(reason="parser fails to generate a "
                    "Fortran2003.Execution_Part object when first executable "
                    "statement is an assignment to an array element")
-def test_array_assign():
+def test_array_assign(capsys):
     ''' Test that the parser copes if the first executable statement is an
     array assignment '''
     make_dag.runner(Options(),
                     [os.path.join(BASE_PATH, "first_line_array_assign.f90")])
-    result, _ = capsys.readouterr()
+    _, _ = capsys.readouterr()
 
 
 def test_repeated_assign_array(capsys):
@@ -323,7 +322,8 @@ def test_repeated_assign_2darray_slice():
 
 def test_write_back_array(capsys):
     ''' Test that we get correctly-named nodes when it is an array reference
-    that is read from and written to in the first statement we encounter it. '''
+    that is read from and written to in the first statement we encounter
+    it. '''
     make_dag.runner(Options(),
                     [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
     result, _ = capsys.readouterr()
@@ -341,16 +341,14 @@ def test_write_back_array(capsys):
     assert graph.count("aprod") == 3
 
 
-def test_repeated_assign_diff_elements(capsys):
+def test_repeated_assign_diff_elements():
     ''' Test that we get correctly-named nodes when different elements of
     the same array are accessed in a code fragment '''
     make_dag.runner(Options(),
                     [os.path.join(BASE_PATH,
                                   "repeated_array_assign_diff_elements.f90")])
-    result, _ = capsys.readouterr()
-    fout = open('test_repeated_assign_diff_elems.gv', 'r')
-    graph = fout.read()
-    fout.close()
+    with open('test_repeated_assign_diff_elems.gv', 'r') as fout:
+        graph = fout.read()
     print graph
     assert "label=\"aprod(i,j)\", color=\"blue\"" in graph
     assert "label=\"aprod(i+1,j)\", color=\"blue\"" in graph
@@ -418,6 +416,7 @@ def test_node_rm_consumer():
 
 
 def test_node_type_setter():
+    ''' Test the node-type setter method of DAGNode '''
     dag = dag_from_strings(["aprod = var1 * var2",
                             "bprod = var1 * var2 / var3",
                             "cprod = var1 * var2 + var3"])
@@ -435,10 +434,13 @@ def test_node_is_op():
                             "cprod = var1 * var2 + var3"])
     anode = dag._nodes["aprod"]
     assert not anode.is_operator
+    op_node = None
     for node in dag._nodes.itervalues():
         if node.name == "*":
+            op_node = node
             break
-    assert node.is_operator
+    assert op_node
+    assert op_node.is_operator
 
 
 def test_node_walk_too_deep():
@@ -465,13 +467,16 @@ def test_node_weight_intrinsic():
                             "aprod = var1 * var2",
                             "bprod = var1 * var2 / aprod",
                             "cprod = var1 * var2 + bprod"])
+    sin_node = None
     for node in dag._nodes.itervalues():
         if node.name.lower() == "sin":
+            sin_node = node
             break
-    assert node.node_type == "intrinsic"
+    assert sin_node
+    assert sin_node.node_type == "intrinsic"
     # Currently we only support the Ivy Bridge architecture
     from config_ivy_bridge import FORTRAN_INTRINSICS
-    assert node.weight == FORTRAN_INTRINSICS["SIN"]
+    assert sin_node.weight == FORTRAN_INTRINSICS["SIN"]
 
 
 def test_node_dot_colours():
@@ -481,7 +486,6 @@ def test_node_dot_colours():
                             "bprod = var1 * var2 / aprod",
                             "cprod = var1 * var2 + bprod"],
                            name="dot_test")
-    outnodes = dag.output_nodes()
     dag.to_dot()
     dot_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "dot_test.gv")
@@ -528,7 +532,7 @@ def test_schedule_too_long():
     old_max_length = dag.MAX_SCHEDULE_LENGTH
     dag.MAX_SCHEDULE_LENGTH = 5
     fortran_text = "".join(
-        ["  prod{0} = b{0} + a{0}\n".format(i,i,i) for i in range(6)])
+        ["  prod{0} = b{0} + a{0}\n".format(i, i, i) for i in range(6)])
     # For some reason the parser fails without the initial b0 = 1.0
     # assignment.
     fortran_text = ("program long_sched_test\n"
