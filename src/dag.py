@@ -19,12 +19,10 @@ MAX_SCHEDULE_LENGTH = 500
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
-    if isinstance(expr, Add_Operand) or \
-       isinstance(expr, Level_2_Expr) or \
-       isinstance(expr, Level_2_Unary_Expr) or \
-       isinstance(expr, Parenthesis):
-        return True
-    return False
+    return (isinstance(expr, Add_Operand) or
+            isinstance(expr, Level_2_Expr) or
+            isinstance(expr, Level_2_Unary_Expr) or
+            isinstance(expr, Parenthesis))
 
 
 def is_intrinsic_fn(obj):
@@ -32,9 +30,7 @@ def is_intrinsic_fn(obj):
         intrinsic '''
     if not isinstance(obj.items[0], Name):
         raise DAGError("is_intrinsic_fn: expects first item to be Name")
-    if str(obj.items[0]).upper() in FORTRAN_INTRINSICS:
-        return True
-    return False
+    return str(obj.items[0]).upper() in FORTRAN_INTRINSICS
 
 
 def subgraph_matches(node1, node2):
