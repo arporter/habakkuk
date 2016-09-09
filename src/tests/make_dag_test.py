@@ -3,7 +3,7 @@
 
 import os
 import pytest
-from test_utilities import dag_from_strings, Options
+from test_utilities import Options
 import make_dag
 
 # constants
