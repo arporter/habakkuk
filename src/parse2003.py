@@ -235,7 +235,8 @@ class Variable(object):
                     # use it as it is
                     self._index_vars.append(name)
 
-        elif isinstance(node, Real_Literal_Constant):
+        elif isinstance(node, Real_Literal_Constant) or \
+             isinstance(node, Int_Literal_Constant):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
