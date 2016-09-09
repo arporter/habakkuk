@@ -4,7 +4,8 @@
 
 from fparser.Fortran2003 import \
     Add_Operand, Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
-    Name, Section_Subscript_List, Parenthesis, Part_Ref
+    Int_Literal_Constant, Name, Section_Subscript_List, Parenthesis, \
+    Part_Ref, Array_Section
 
 from dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
@@ -150,18 +151,12 @@ def dag_from_strings(lines, name=None):
     else:
         dag_name = "Test dag"
 
+    # Create the DAG object
     dag = DirectedAcyclicGraph(dag_name)
 
-    for assign in assigns:
-        lhs_var = Variable()
-        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
-        lhs_node = dag.get_node(parent=None,
-                                variable=lhs_var)
-        if lhs_var.full_orig_name in mapping:
-            mapping[lhs_var.full_orig_name] += "'"
-        else:
-            mapping[lhs_var.full_orig_name] = lhs_var.orig_name
-        dag.make_dag(lhs_node, assign.items[2:], mapping)
+    # Populate it from the Assignment statements
+    dag.add_assignments(assigns, mapping)
+
     return dag
 
 
@@ -252,6 +247,73 @@ class DirectedAcyclicGraph(object):
     def name(self, new_name):
         ''' Set the name of this DAG '''
         self._name = new_name
+
+    def add_assignments(self, assignments, mapping):
+        ''' Add to the existing DAG using the supplied list of
+        assignments. Each assignment is an instance of a
+        fparser.Fortran2003.Assignment_Stmt '''
+        from parse2003 import Variable
+
+        for assign in assignments:
+
+            # Create a Variable to represent the LHS of the assignment
+            lhs_var = Variable()
+            lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+
+            # Create a *temporary* node to store the result of the RHS of
+            # this assignment (in case it references the variable on the
+            # LHS)
+            tmp_node = self.get_node(parent=None,
+                                     name="tmp_node",
+                                     unique=True)
+
+            # First two items of an Assignment_Stmt are the name of
+            # the var being assigned to and '=' so skip them
+            rhs_node_list = self.make_dag(tmp_node, assign.items[2:], mapping)
+
+            # Only update the map once we've created a DAG of the
+            # assignment statement. This is because any references
+            # to this variable in that assignment are to the previous
+            # version of it, not the one being assigned to.
+            if lhs_var.full_orig_name in mapping:
+                mapping[lhs_var.full_orig_name] += "'"
+            else:
+                # The LHS variable wasn't already in the map - we use the full
+                # variable expression (including any array indices) as the
+                # dictionary key. We only store the base of the variable name
+                # as the dictionary entry (so that when we assign to array
+                # elements, the resulting node is named eg. array'(i,j)).
+                mapping[lhs_var.full_orig_name] = lhs_var.orig_name
+
+                for node in rhs_node_list:
+                    if node.variable:
+                        if node.variable.full_orig_name == \
+                           lhs_var.full_orig_name:
+                            # If the LHS variable appeared on the RHS
+                            # of this assignment then we must append a
+                            # ' character to its name. This then means
+                            # we get a new node representing the
+                            # variable being assigned to.
+                            mapping[lhs_var.full_orig_name] += "'"
+                            break
+
+            # Update the base name of the LHS variable to match that in the map
+            lhs_var.name = mapping[lhs_var.full_orig_name]
+
+            # Create the LHS node proper now that we've updated the
+            # naming map
+            lhs_node = self.get_node(parent=None,
+                                     mapping=mapping,
+                                     variable=lhs_var)
+
+            # Copy over the dependencies from the temporary node
+            for node in tmp_node.producers:
+                lhs_node.add_producer(node)
+                node.add_consumer(lhs_node)
+
+            # Delete the temporary node (this also removes it from any
+            # nodes that have it listed as a producer/consumer)
+            self.delete_node(tmp_node)
 
     def get_node(self, parent=None, mapping=None, name=None, unique=False,
                  node_type=None, variable=None):
@@ -446,7 +508,8 @@ class DirectedAcyclicGraph(object):
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif isinstance(child, Real_Literal_Constant):
+            elif isinstance(child, Real_Literal_Constant) or \
+                 isinstance(child, Int_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
@@ -480,6 +543,12 @@ class DirectedAcyclicGraph(object):
                         parent.operands.append(tmpnode)
                     # Include the array index expression in the DAG
                     # self.make_dag(tmpnode, child.items, mapping)
+            elif isinstance(child, Array_Section):
+                arrayvar = Variable()
+                arrayvar.load(child, mapping)
+                tmpnode = self.get_node(parent, variable=arrayvar,
+                                        node_type="array_ref")
+                node_list.append(tmpnode)
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
@@ -487,7 +556,12 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Section_Subscript_List):
                 # We have a list of arguments
                 node_list += self.make_dag(parent, child.items, mapping)
-
+            elif isinstance(child, str):
+                # This is the operator node which we've already dealt with
+                pass
+            else:
+                raise DAGError("Unrecognised child type: {0}, {1}".
+                               format(type(child), str(child)))
         return node_list
 
     def calc_critical_path(self):

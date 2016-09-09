@@ -12,70 +12,6 @@ except ImportError:
     from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 
-def dag_of_assignments(digraph, assignments, mapping):
-    ''' Add to the existing DAG using the supplied list of assignments. Each
-    assignment is an instance of a fparser.Fortran2003.Assignment_Stmt '''
-    from parse2003 import Variable
-
-    for assign in assignments:
-
-        # Create a Variable to represent the LHS of the assignment
-        lhs_var = Variable()
-        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
-
-        # Create a *temporary* node to store the result of the RHS of
-        # this assignment (in case it references the variable on the
-        # LHS)
-        tmp_node = digraph.get_node(parent=None,
-                                    name="tmp_node",
-                                    unique=True)
-
-        # First two items of an Assignment_Stmt are the name of
-        # the var being assigned to and '=' so skip them
-        rhs_node_list = digraph.make_dag(tmp_node, assign.items[2:], mapping)
-
-        # Only update the map once we've created a DAG of the
-        # assignment statement. This is because any references
-        # to this variable in that assignment are to the previous
-        # version of it, not the one being assigned to.
-        if lhs_var.full_orig_name in mapping:
-            mapping[lhs_var.full_orig_name] += "'"
-        else:
-            # The LHS variable wasn't already in the map - we use the full
-            # variable expression (including any array indices) as the
-            # dictionary key. We only store the base of the variable name
-            # as the dictionary entry (so that when we assign to array
-            # elements, the resulting node is named eg. array'(i,j)).
-            mapping[lhs_var.full_orig_name] = lhs_var.orig_name
-
-            for node in rhs_node_list:
-                if node.variable:
-                    if node.variable.full_orig_name == lhs_var.full_orig_name:
-                        # If the LHS variable appeared on the RHS of this
-                        # assignment then we must append a ' character to its
-                        # name. This then means we get a new node representing
-                        # the variable being assigned to.
-                        mapping[lhs_var.full_orig_name] += "'"
-                        break
-
-        # Update the base name of the LHS variable to match that in the map
-        lhs_var.name = mapping[lhs_var.full_orig_name]
-
-        # Create the LHS node proper now that we've updated the
-        # naming map
-        lhs_node = digraph.get_node(parent=None,
-                                    mapping=mapping,
-                                    variable=lhs_var)
-
-        # Copy over the dependencies from the temporary node
-        for node in tmp_node.producers:
-            lhs_node.add_producer(node)
-            node.add_consumer(lhs_node)
-
-        # Delete the temporary node (this also removes it from any
-        # nodes that have it listed as a producer/consumer)
-        digraph.delete_node(tmp_node)
-
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     ''' Creates and returns a DAG for the code that is a child of the
@@ -114,13 +50,13 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
         # Put the loop variable in our mapping
         mapping[loop.var_name] = loop.var_name
 
-    dag_of_assignments(digraph, assignments, mapping)
+    digraph.add_assignments(assignments, mapping)
 
     if loop:
         for repeat in range(1, unroll_factor):
             # Increment the loop counter and then add to the DAG again
             mapping[loop.var_name] += "+1"
-            dag_of_assignments(digraph, assignments, mapping)
+            digraph.add_assignments(assignments, mapping)
 
     # Correctness check - if we've ended up with e.g. my_var' as a key
     # in our name-mapping dictionary then something has gone wrong.
