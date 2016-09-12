@@ -2,11 +2,7 @@
 ''' This module provides support for the construction of a Directed
     Acyclic Graph. '''
 
-from fparser.Fortran2003 import \
-    Add_Operand, Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
-    Int_Literal_Constant, Name, Section_Subscript_List, Parenthesis, \
-    Part_Ref, Array_Section
-
+from fparser import Fortran2003
 from dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
@@ -19,16 +15,16 @@ MAX_SCHEDULE_LENGTH = 500
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
-    return (isinstance(expr, Add_Operand) or
-            isinstance(expr, Level_2_Expr) or
-            isinstance(expr, Level_2_Unary_Expr) or
-            isinstance(expr, Parenthesis))
+    return (isinstance(expr, Fortran2003.Add_Operand) or
+            isinstance(expr, Fortran2003.Level_2_Expr) or
+            isinstance(expr, Fortran2003.Level_2_Unary_Expr) or
+            isinstance(expr, Fortran2003.Parenthesis))
 
 
 def is_intrinsic_fn(obj):
     ''' Checks whether the supplied object is a call to a Fortran
         intrinsic '''
-    if not isinstance(obj.items[0], Name):
+    if not isinstance(obj.items[0], Fortran2003.Name):
         raise DAGError("is_intrinsic_fn: expects first item to be Name")
     return str(obj.items[0]).upper() in FORTRAN_INTRINSICS
 
@@ -472,15 +468,15 @@ class DirectedAcyclicGraph(object):
 
         for idx, child in enumerate(children):
 
-            if isinstance(child, Name):
+            if isinstance(child, Fortran2003.Name):
                 var = Variable()
                 var.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=var)
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif (isinstance(child, Real_Literal_Constant) or
-                  isinstance(child, Int_Literal_Constant)):
+            elif (isinstance(child, Fortran2003.Real_Literal_Constant) or
+                  isinstance(child, Fortran2003.Int_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
@@ -489,7 +485,7 @@ class DirectedAcyclicGraph(object):
                                         node_type="constant")
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif isinstance(child, Part_Ref):
+            elif isinstance(child, Fortran2003.Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
                     # Create a unique node to represent the intrinsic call.
@@ -514,7 +510,7 @@ class DirectedAcyclicGraph(object):
                         parent.operands.append(tmpnode)
                     # Include the array index expression in the DAG
                     # self.make_dag(tmpnode, child.items, mapping)
-            elif isinstance(child, Array_Section):
+            elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=arrayvar,
@@ -524,8 +520,12 @@ class DirectedAcyclicGraph(object):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
                 node_list += self.make_dag(parent, child.items, mapping)
-            elif isinstance(child, Section_Subscript_List):
+            elif isinstance(child, Fortran2003.Section_Subscript_List):
                 # We have a list of arguments
+                node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.Mult_Operand):
+                # We have an expression that is something like (a * b) ** c
+                # and can just carry-on down to the children
                 node_list += self.make_dag(parent, child.items, mapping)
             elif isinstance(child, str):
                 # This is the operator node which we've already dealt with
