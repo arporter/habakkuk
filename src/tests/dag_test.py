@@ -554,3 +554,16 @@ def test_schedule_too_long():
         os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "long_sched_test_step{0}.gv".format(i)))
     assert "Unexpectedly long schedule" in str(err)
+
+
+def test_mult_operand():
+    ''' Test that we handle the case where the Fortran parser generates
+    a Mult_Operand object '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH,
+                                  "pert_pressure_gradient_kernel_mod.F90")])
+    out_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "pert_pressure_gradient_code_loop6.gv")
+    assert os.path.isfile(out_file)
+    with open(out_file, 'w') as fout:
+        graph = fout.read()
