@@ -570,3 +570,16 @@ def test_mult_operand():
     print graph
     # Check that we have power operation in the graph as an intrinsic
     assert "label=\"**\", color=\"gold\", shape=\"ellipse\"" in graph
+
+
+def test_unrecognised_child():
+    ''' Check that we raise the expected exception if we encounter an
+    unrecognised object in the tree produced by the parser. '''
+    dag = dag_from_strings(["aprod = var1 * var2 * var3",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    anode = dag._nodes["aprod"]
+    children = [anode]
+    with pytest.raises(DAGError) as err:
+        dag.make_dag(anode, children, {})
+    assert "Unrecognised child type:" in str(err)
