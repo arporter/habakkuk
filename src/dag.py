@@ -4,35 +4,33 @@
 
 from fparser.Fortran2003 import \
     Add_Operand, Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
-    Name, Section_Subscript_List, Parenthesis, Part_Ref
+    Int_Literal_Constant, Name, Section_Subscript_List, Parenthesis, \
+    Part_Ref, Array_Section
 
 from dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
-from config_ivy_bridge import OPERATORS, CACHE_LINE_BYTES, EXAMPLE_CLOCK_GHZ, \
+from config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
     FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
 
-DEBUG = False
+# Maximum length of schedule we expect to handle.
+MAX_SCHEDULE_LENGTH = 500
 
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
-    if isinstance(expr, Add_Operand) or \
-       isinstance(expr, Level_2_Expr) or \
-       isinstance(expr, Level_2_Unary_Expr) or \
-       isinstance(expr, Parenthesis):
-        return True
-    return False
+    return (isinstance(expr, Add_Operand) or
+            isinstance(expr, Level_2_Expr) or
+            isinstance(expr, Level_2_Unary_Expr) or
+            isinstance(expr, Parenthesis))
 
 
 def is_intrinsic_fn(obj):
     ''' Checks whether the supplied object is a call to a Fortran
         intrinsic '''
     if not isinstance(obj.items[0], Name):
-        raise Exception("is_intrinsic_fn: expects first item to be Name")
-    if str(obj.items[0]) in FORTRAN_INTRINSICS:
-        return True
-    return False
+        raise DAGError("is_intrinsic_fn: expects first item to be Name")
+    return str(obj.items[0]).upper() in FORTRAN_INTRINSICS
 
 
 def subgraph_matches(node1, node2):
@@ -79,11 +77,12 @@ def ready_ops_from_list(nodes):
             op_list.append(node)
     return op_list
 
+
 def schedule_cost(nsteps, schedule):
     ''' Calculate the cost (in cycles) of the supplied schedule '''
-    cost = 0
-    
+
     print "Schedule contains {0} steps:".format(nsteps)
+    cost = 0
     for step in range(0, nsteps):
 
         sched_str = str(step)
@@ -117,8 +116,8 @@ def schedule_cost(nsteps, schedule):
                             # This operation is the same as the previous
                             # one on this port so assume pipelined
                             latency = 0
-                        elif OPERATORS[operator] in ["+", "-"] and \
-                             OPERATORS[previous_op] in ["+", "-"]:
+                        elif (OPERATORS[operator] in ["+", "-"] and
+                              OPERATORS[previous_op] in ["+", "-"]):
                             # Assume '+' and '-' are treated as the same
                             # and thus we pay no latency
                             latency = 0
@@ -130,7 +129,8 @@ def schedule_cost(nsteps, schedule):
         cost += max_cost
         print sched_str
     return cost
-    
+
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -157,10 +157,6 @@ class Path(object):
     def load(self, obj_list):
         ''' Populate this object using the supplied list of nodes '''
         self._nodes = obj_list
-
-    def add_node(self, obj):
-        ''' Add a node to this path '''
-        self._nodes.append(obj)
 
     def cycles(self):
         ''' The length of the path in cycles '''
@@ -223,6 +219,73 @@ class DirectedAcyclicGraph(object):
         ''' Set the name of this DAG '''
         self._name = new_name
 
+    def add_assignments(self, assignments, mapping):
+        ''' Add to the existing DAG using the supplied list of
+        assignments. Each assignment is an instance of a
+        fparser.Fortran2003.Assignment_Stmt '''
+        from parse2003 import Variable
+
+        for assign in assignments:
+
+            # Create a Variable to represent the LHS of the assignment
+            lhs_var = Variable()
+            lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+
+            # Create a *temporary* node to store the result of the RHS of
+            # this assignment (in case it references the variable on the
+            # LHS)
+            tmp_node = self.get_node(parent=None,
+                                     name="tmp_node",
+                                     unique=True)
+
+            # First two items of an Assignment_Stmt are the name of
+            # the var being assigned to and '=' so skip them
+            rhs_node_list = self.make_dag(tmp_node, assign.items[2:], mapping)
+
+            # Only update the map once we've created a DAG of the
+            # assignment statement. This is because any references
+            # to this variable in that assignment are to the previous
+            # version of it, not the one being assigned to.
+            if lhs_var.full_orig_name in mapping:
+                mapping[lhs_var.full_orig_name] += "'"
+            else:
+                # The LHS variable wasn't already in the map - we use the full
+                # variable expression (including any array indices) as the
+                # dictionary key. We only store the base of the variable name
+                # as the dictionary entry (so that when we assign to array
+                # elements, the resulting node is named eg. array'(i,j)).
+                mapping[lhs_var.full_orig_name] = lhs_var.orig_name
+
+                for node in rhs_node_list:
+                    if node.variable:
+                        if node.variable.full_orig_name == \
+                           lhs_var.full_orig_name:
+                            # If the LHS variable appeared on the RHS
+                            # of this assignment then we must append a
+                            # ' character to its name. This then means
+                            # we get a new node representing the
+                            # variable being assigned to.
+                            mapping[lhs_var.full_orig_name] += "'"
+                            break
+
+            # Update the base name of the LHS variable to match that in the map
+            lhs_var.name = mapping[lhs_var.full_orig_name]
+
+            # Create the LHS node proper now that we've updated the
+            # naming map
+            lhs_node = self.get_node(parent=None,
+                                     mapping=mapping,
+                                     variable=lhs_var)
+
+            # Copy over the dependencies from the temporary node
+            for node in tmp_node.producers:
+                lhs_node.add_producer(node)
+                node.add_consumer(lhs_node)
+
+            # Delete the temporary node (this also removes it from any
+            # nodes that have it listed as a producer/consumer)
+            self.delete_node(tmp_node)
+
     def get_node(self, parent=None, mapping=None, name=None, unique=False,
                  node_type=None, variable=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
@@ -231,13 +294,11 @@ class DirectedAcyclicGraph(object):
         mapping is supplied then it is used to name the node. '''
 
         if not name and not variable:
-            raise Exception("get_node: one of 'name' or 'variable' must "
-                            "be supplied")
+            raise DAGError("get_node: one of 'name' or 'variable' must "
+                           "be supplied")
 
         if unique:
             # Node is unique so we make a new one, no questions asked.
-            if DEBUG:
-                print "Creating a unique node labelled '{0}'".format(name)
             node = DAGNode(parent=parent, name=name, digraph=self,
                            variable=variable)
             # Store this node in our list using its unique ID in place of a
@@ -257,8 +318,6 @@ class DirectedAcyclicGraph(object):
             # Node is not necessarily unique so check whether we
             # already have one with the supplied name
             if node_name in self._nodes:
-                if DEBUG:
-                    print "Matched node with name: ", node_name
                 node = self._nodes[node_name]
                 # Record the fact that the parent now has a dependence
                 # on this node and that this node is consumed by the parent
@@ -266,8 +325,6 @@ class DirectedAcyclicGraph(object):
                     parent.add_producer(node)
                     node.add_consumer(parent)
             else:
-                if DEBUG:
-                    print "No existing node with name: ", node_name
                 # Create a new node and store it in our list so we
                 # can refer back to it in future if needed
                 node = DAGNode(parent=parent, name=node_name,
@@ -290,16 +347,14 @@ class DirectedAcyclicGraph(object):
         elif node.node_id in self._nodes and self._nodes[node.node_id] == node:
             self._nodes.pop(node.node_id)
         else:
-            raise Exception("Object '{0}' (id={1}) not in list of nodes in "
-                            "graph!".format(str(node), node.node_id))
+            raise DAGError("Object '{0}' (id={1}) not in list of nodes in "
+                           "graph!".format(str(node), node.node_id))
         # Remove this node from any node that has it as a producer (dependency)
         for pnode in node.consumers[:]:
             pnode.rm_producer(node)
         # Remove this node from any node that has it listed as a consumer
         for pnode in node.producers[:]:
             pnode.rm_consumer(node)
-        if DEBUG:
-            print "Deleting node {0} ({1})".format(str(node), node.node_id)
         # Finally, delete it altogether
         del node
 
@@ -314,12 +369,6 @@ class DirectedAcyclicGraph(object):
             # dependency (child)
             if not child.has_consumer:
                 self.delete_node(child)
-            else:
-                if DEBUG:
-                    print "Not deleting child {0}. Has consumers:".\
-                        format(str(child))
-                    for dep in child.consumers:
-                        print str(dep)
 
     def output_nodes(self):
         ''' Returns a list of all nodes that do not have a node
@@ -403,16 +452,6 @@ class DirectedAcyclicGraph(object):
         returns a list of the nodes that represent the variables involved '''
         from parse2003 import Variable
 
-        if DEBUG:
-            for child in children:
-                if isinstance(child, str):
-                    print "String: ", child
-                elif isinstance(child, Part_Ref):
-                    print "Part ref", str(child)
-                else:
-                    print type(child)
-            print "--------------"
-
         node_list = []
         opcount = 0
         is_division = False
@@ -428,8 +467,8 @@ class DirectedAcyclicGraph(object):
                     is_division = (child == "/")
                     opcount += 1
         if opcount > 1:
-            raise Exception("Found more than one operator amongst list of "
-                            "siblings: this is not supported!")
+            raise DAGError("Found more than one operator amongst list of "
+                           "siblings: this is not supported!")
 
         for idx, child in enumerate(children):
 
@@ -440,7 +479,8 @@ class DirectedAcyclicGraph(object):
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif isinstance(child, Real_Literal_Constant):
+            elif (isinstance(child, Real_Literal_Constant) or
+                  isinstance(child, Int_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
@@ -452,12 +492,10 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
-                    if DEBUG:
-                        print "found intrinsic: {0}".\
-                            format(str(child.items[0]))
-                    # Create a unique node to represent the intrinsic call
+                    # Create a unique node to represent the intrinsic call.
+                    # Names of intrinics are stored in upper case.
                     tmpnode = self.get_node(parent, mapping,
-                                            name=str(child.items[0]),
+                                            name=str(child.items[0]).upper(),
                                             unique=True,
                                             node_type="intrinsic")
                     if is_division and idx == 2:
@@ -476,6 +514,12 @@ class DirectedAcyclicGraph(object):
                         parent.operands.append(tmpnode)
                     # Include the array index expression in the DAG
                     # self.make_dag(tmpnode, child.items, mapping)
+            elif isinstance(child, Array_Section):
+                arrayvar = Variable()
+                arrayvar.load(child, mapping)
+                tmpnode = self.get_node(parent, variable=arrayvar,
+                                        node_type="array_ref")
+                node_list.append(tmpnode)
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
@@ -483,7 +527,12 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Section_Subscript_List):
                 # We have a list of arguments
                 node_list += self.make_dag(parent, child.items, mapping)
-
+            elif isinstance(child, str):
+                # This is the operator node which we've already dealt with
+                pass
+            else:
+                raise DAGError("Unrecognised child type: {0}, {1}".
+                               format(type(child), str(child)))
         return node_list
 
     def calc_critical_path(self):
@@ -513,20 +562,6 @@ class DirectedAcyclicGraph(object):
                 crit_path = path
 
         self._critical_path = crit_path
-
-    def nodelist_by_type(self, ntype):
-        ''' Returns a list of all nodes in this DAG that have the
-        specified type '''
-        from dag_node import VALID_NODE_TYPES
-        if ntype not in VALID_NODE_TYPES:
-            raise DAGError("Got a node type of {0} but expected one of {1}".
-                           format(ntype, VALID_NODE_TYPES))
-        op_list = []
-        # _nodes is a dictionary - we want the values, not the keys
-        for node in self._nodes.itervalues():
-            if node.node_type == ntype:
-                op_list.append(node)
-        return op_list
 
     def rm_scalar_temporaries(self):
         ''' Remove any nodes that represent scalar temporaries. These are
@@ -575,12 +610,6 @@ class DirectedAcyclicGraph(object):
         found_duplicate = (len(multiple_consumers) > 0)
 
         while found_duplicate:
-
-            if DEBUG:
-                print "Found {0} nodes with multiple consumers".format(
-                    len(multiple_consumers))
-                for node in multiple_consumers:
-                    print "Node: ", str(node), node.node_id
 
             # Each node with > 1 consumer represents a possible duplication
             for multi_node in multiple_consumers[:]:
@@ -638,7 +667,6 @@ class DirectedAcyclicGraph(object):
 
                 # Update list of nodes with > 1 consumer
                 multiple_consumers = self.nodes_with_multiple_consumers()
-                self.to_dot(name="debug{0}.gv".format(self._sub_exp_count))
                 break
 
     @property
@@ -665,7 +693,7 @@ class DirectedAcyclicGraph(object):
             node.to_dot(outfile, show_weights)
 
         # Write the critical path
-        if self._critical_path:
+        if self.critical_path:
             self._critical_path.to_dot(outfile)
 
         outfile.write("}\n")
@@ -718,7 +746,7 @@ class DirectedAcyclicGraph(object):
         if not total_cycles > 0:
             print "  DAG contains no FLOPs so skipping performance estimate."
             return
-        
+
         min_flops_per_hz = float(total_flops)/float(total_cycles)
         print "  Whole DAG in serial:"
         print "    Sum of cost of all nodes = {0} (cycles)".\
@@ -771,20 +799,24 @@ class DirectedAcyclicGraph(object):
             print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
                    "bytes/s".format(sched_mem_bw))
 
-        # Given that each execution port can run in parallel with the others,
-        # the time taken to do the graph will be the time taken by the port
-        # that takes longest (i.e. has the most work to do)
-        # Use a dictionary to hold the cost for each port in case the port numbers
-        # aren't contiguous.
+        # Given that each execution port can run in parallel with the
+        # others, the time taken to do the graph will be the time
+        # taken by the port that takes longest (i.e. has the most work
+        # to do). Use a dictionary to hold the cost for each port in
+        # case the port numbers aren't contiguous.
         port_cost = {}
         for port in CPU_EXECUTION_PORTS.itervalues():
             # Zero the cost for each port
             port_cost[str(port)] = 0
 
-        port_cost[str(CPU_EXECUTION_PORTS["/"])] += num_div * OPERATORS["/"]["cost"]
-        port_cost[str(CPU_EXECUTION_PORTS["*"])] += num_mult * OPERATORS["*"]["cost"]
-        port_cost[str(CPU_EXECUTION_PORTS["+"])] += num_plus * OPERATORS["+"]["cost"]
-        port_cost[str(CPU_EXECUTION_PORTS["-"])] += num_minus * OPERATORS["-"]["cost"]
+        port_cost[str(CPU_EXECUTION_PORTS["/"])] += (
+            num_div * OPERATORS["/"]["cost"])
+        port_cost[str(CPU_EXECUTION_PORTS["*"])] += (
+            num_mult * OPERATORS["*"]["cost"])
+        port_cost[str(CPU_EXECUTION_PORTS["+"])] += (
+            num_plus * OPERATORS["+"]["cost"])
+        port_cost[str(CPU_EXECUTION_PORTS["-"])] += (
+            num_minus * OPERATORS["-"]["cost"])
 
         net_cost = 0
         for port in port_cost:
@@ -795,32 +827,40 @@ class DirectedAcyclicGraph(object):
             perfect_sched_mem_bw = float(mem_traffic_bytes) / float(net_cost)
 
         print "  Estimate using perfect schedule:"
-        print ("    Cost if all ops on different execution ports are perfectly "
-               "overlapped = {0} cycles".format(net_cost))
+        print ("    Cost if all ops on different execution ports are "
+               "perfectly overlapped = {0} cycles".format(net_cost))
 
         # Print out example performance figures using the clock speed
         # in EXAMPLE_CLOCK_GHZ
-        print "  e.g. at {0} GHz, these different estimates give (GFLOPS): ".format(EXAMPLE_CLOCK_GHZ)
-        print "  No ILP  |  Computed Schedule  |  Perfect Schedule | Critical path"
-        print "  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       |   {3:5.2f}".\
-                     format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            max_flops_per_hz*EXAMPLE_CLOCK_GHZ)
+        print ("  e.g. at {0} GHz, these different estimates give (GFLOPS): ".
+               format(EXAMPLE_CLOCK_GHZ))
+        print (
+            "  No ILP  |  Computed Schedule  |  Perfect Schedule | "
+            "Critical path")
+        print ("  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       "
+               "|   {3:5.2f}".
+               format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
         if num_cache_ref:
             print (" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
-                          "GB/s".format(
-                min_mem_bw*EXAMPLE_CLOCK_GHZ,
-                sched_mem_bw*EXAMPLE_CLOCK_GHZ,
-                perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
-                max_mem_bw*EXAMPLE_CLOCK_GHZ))
+                   "GB/s".format(
+                       min_mem_bw*EXAMPLE_CLOCK_GHZ,
+                       sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                       perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                       max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
+    def generate_schedule(self, sched_to_dot=True):
+        '''Create a schedule mapping operations to hardware
 
-    def generate_schedule(self):
-        ''' Create a schedule describing how the nodes/operations in the DAG
-        map onto the available hardware '''
+        Creates a schedule describing how the nodes/operations in the DAG
+        map onto the available hardware (execution ports on an Intel CPU)
 
-        output_dot_schedule = True
+        Keyword arguments:
+        sched_to_dot - Whether or not to output each step in the schedule to
+                       a separate dot file to enable visualisation.
+        '''
 
         # Flag all input nodes as being ready
         input_nodes = self.input_nodes()
@@ -828,12 +868,12 @@ class DirectedAcyclicGraph(object):
             node.mark_ready()
 
         # Output this initial graph
-        if output_dot_schedule:
+        if sched_to_dot:
             self.to_dot(name=self._name+"_step0.gv")
 
         # Construct a schedule
         step = 0
-        
+
         # We have one slot per execution port at each step in the schedule.
         # Each port then has its own schedule (list) with each entry being the
         # DAGNode representing the operation to be performed or None
@@ -862,7 +902,7 @@ class DirectedAcyclicGraph(object):
                 # Prepare the next slot in the schedule on this port
                 slot[port].append(None)
 
-            if output_dot_schedule:
+            if sched_to_dot:
                 self.to_dot(name=self._name+"_step{0}.gv".format(step+1))
 
             # Update our list of operations that are now ready to be
@@ -873,9 +913,10 @@ class DirectedAcyclicGraph(object):
             # constructing
             step += 1
 
-            if step > 500:
-                raise DAGError("Unexpectedly long schedule - this is "
-                                "probably a bug.")
+            if step > MAX_SCHEDULE_LENGTH:
+                raise DAGError(
+                    "Unexpectedly long schedule ({0} steps) - this is "
+                    "probably a bug.".format(step))
         return step, slot
 
     def operations_ready(self):
@@ -886,7 +927,8 @@ class DirectedAcyclicGraph(object):
         # Check nodes on critical path first so as to prioritise them
         # when generating schedule
         if self._critical_path:
-            available_ops.extend(ready_ops_from_list(self._critical_path.nodes))
+            available_ops.extend(
+                ready_ops_from_list(self._critical_path.nodes))
 
             # Next we check the dependencies of the next un-computed node
             # on the critical path

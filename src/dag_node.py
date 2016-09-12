@@ -183,14 +183,14 @@ class DAGNode(object):
     def node_type(self, mytype):
         ''' Set the type of this node '''
         if mytype not in VALID_NODE_TYPES:
-            raise Exception("node_type must be one of {0} but "
-                            "got '{1}'".format(VALID_NODE_TYPES, mytype))
+            raise DAGError("node_type must be one of {0} but "
+                           "got '{1}'".format(VALID_NODE_TYPES, mytype))
         self._node_type = mytype
 
     @property
     def is_operator(self):
         ''' Returns true if this node represents a floating point operation '''
-        return (self._node_type in OPERATORS)
+        return self._node_type in OPERATORS
 
     @property
     def variable(self):
@@ -207,7 +207,9 @@ class DAGNode(object):
             print "Producers:"
             for idx, node in enumerate(self._producers):
                 print idx, str(node), type(node)
-            raise DAGError("Max recursion depth exceeded when walking tree")
+            raise DAGError(
+                "Max recursion depth ({0}) exceeded when walking tree".
+                format(MAX_RECURSION_DEPTH))
         local_list = []
         if top_down:
             # Add the children of this node before recursing down
@@ -235,6 +237,12 @@ class DAGNode(object):
                 return FORTRAN_INTRINSICS[self._name]
             else:
                 return 0
+
+    @property
+    def incl_weight(self):
+        ''' Getter for the inclusive weight of this node. This must have
+        previously been calculated by a call to ``calc_weight()`` '''
+        return self._incl_weight
 
     def calc_weight(self):
         ''' Calculate the inclusive weight of this node by recursing
@@ -296,8 +304,8 @@ class DAGNode(object):
         max_weight = -0.01
         node = None
         for child in self._producers:
-            if child._incl_weight > max_weight:
-                max_weight = child._incl_weight
+            if child.incl_weight > max_weight:
+                max_weight = child.incl_weight
                 node = child
         # Move down to that child
         if node:
@@ -314,7 +322,7 @@ class DAGNode(object):
             nodestr += " (w={0})".format(str(self._incl_weight))
         nodestr += "\""
 
-        # Default node is a black elipse
+        # Default node style is a black elipse
         node_colour = "black"
         node_shape = "ellipse"
         node_size = None
@@ -333,9 +341,6 @@ class DAGNode(object):
             elif self._node_type == "intrinsic":
                 node_colour = "gold"
                 node_shape = "ellipse"
-            else:
-                # Use default node style
-                pass
 
         nodestr += ", color=\"{0}\", shape=\"{1}\"".format(node_colour,
                                                            node_shape)

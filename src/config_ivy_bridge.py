@@ -6,10 +6,10 @@
 # Operations are in order of decreasing cost (for use when
 # searching for duplicated sub-graphs).
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"/":{"latency":15, "cost":8},
-             "+":{"latency":3, "cost":1},
-             "-":{"latency":3, "cost":1},
-             "*":{"latency":5, "cost":1}}
+OPERATORS = {"/": {"latency": 15, "cost": 8},
+             "+": {"latency": 3, "cost": 1},
+             "-": {"latency": 3, "cost": 1},
+             "*": {"latency": 5, "cost": 1}}
 
 # Which execution port each f.p. operation is mapped to on the CPU
 # (from http://www.agner.org/optimize/microarchitecture.pdf).
@@ -25,7 +25,7 @@ EXAMPLE_CLOCK_GHZ = 3.85
 # Fortran intrinsics that we recognise, with their cost in cycles
 # (as obtained from micro-benchmarks: dl_microbench).
 # TODO these costs are microarchitecture (and compiler+flags) specific.
-FORTRAN_INTRINSICS = {"SIGN":3, "SIN":49, "COS":49}
+FORTRAN_INTRINSICS = {"SIGN": 3, "SIN": 49, "COS": 49}
 
 # Whether this microarchitecture supports the Fused Multiply Add op
 # TODO check on this before we attempt to generate FMAs.
