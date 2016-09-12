@@ -423,7 +423,7 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['+', '*', '-', '**', '/', 'intrinsic', "
+    assert ("node_type must be one of ['+', '*', '-', '/', 'intrinsic', "
             "'constant', 'array_ref'] but got 'not-a-type'" in str(err))
 
 
@@ -568,5 +568,5 @@ def test_mult_operand():
     with open(out_file, 'r') as fout:
         graph = fout.read()
     print graph
-    # Check that we have power operation in the graph as an operator
-    assert "label=\"**\", color=\"red\", shape=\"box\"" in graph
+    # Check that we have power operation in the graph as an intrinsic
+    assert "label=\"**\", color=\"gold\", shape=\"ellipse\"" in graph
