@@ -453,15 +453,25 @@ class DirectedAcyclicGraph(object):
         is_division = False
         for child in children:
             if isinstance(child, str):
-                if child in OPERATORS:
+                if child in OPERATORS or child in "**":
                     # This is the operator which is then the parent
                     # of the DAG of this subexpression. All operators
                     # are unique nodes in the DAG.
+                    # Fortran natively supports raising one variable to the
+                    # power of another. However, we treat it as a call to
+                    # an intrinsic and create a unique node to represent it
+                    if child == "**":
+                        my_type = "intrinsic"
+                    else:
+                        my_type = child
                     opnode = self.get_node(parent, mapping, name=child,
-                                           unique=True, node_type=child)
+                                           unique=True, node_type=my_type)
+                    # Make this operation the parent of the rest of the nodes
+                    # making up the expression
                     parent = opnode
                     is_division = (child == "/")
                     opcount += 1
+
         if opcount > 1:
             raise DAGError("Found more than one operator amongst list of "
                            "siblings: this is not supported!")
