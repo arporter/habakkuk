@@ -554,3 +554,32 @@ def test_schedule_too_long():
         os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "long_sched_test_step{0}.gv".format(i)))
     assert "Unexpectedly long schedule" in str(err)
+
+
+def test_mult_operand():
+    ''' Test that we handle the case where the Fortran parser generates
+    a Mult_Operand object '''
+    make_dag.runner(Options(),
+                    [os.path.join(BASE_PATH,
+                                  "pert_pressure_gradient_kernel_mod.F90")])
+    out_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "pert_pressure_gradient_code_loop6.gv")
+    assert os.path.isfile(out_file)
+    with open(out_file, 'r') as fout:
+        graph = fout.read()
+    print graph
+    # Check that we have power operation in the graph as an intrinsic
+    assert "label=\"**\", color=\"gold\", shape=\"ellipse\"" in graph
+
+
+def test_unrecognised_child():
+    ''' Check that we raise the expected exception if we encounter an
+    unrecognised object in the tree produced by the parser. '''
+    dag = dag_from_strings(["aprod = var1 * var2 * var3",
+                            "bprod = var1 * var2 / var3",
+                            "cprod = var1 * var2 + var3"])
+    anode = dag._nodes["aprod"]
+    children = [anode]
+    with pytest.raises(DAGError) as err:
+        dag.make_dag(anode, children, {})
+    assert "Unrecognised child type:" in str(err)
