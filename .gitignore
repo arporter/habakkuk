@@ -5,3 +5,4 @@
 *.png
 _build/
 htmlcov/
+fparser.log
