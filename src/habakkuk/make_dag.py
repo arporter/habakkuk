@@ -194,7 +194,7 @@ def dag_of_files(options, args):
                 format(filename, reader.fifo_item[0], reader.fifo_item[-1]))
 
 
-def main(argv):
+def runner(argv):
     ''' The top-level routine that runs Habakkuk. Parses the command-line
     arguments passed in to this routine. '''
     import os
@@ -241,8 +241,4 @@ def main(argv):
         raise IOError("The specified source file ('{0}') does not exist"
                       .format(args[0]))
 
-    runner(options, args)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+    dag_of_files(options, args)

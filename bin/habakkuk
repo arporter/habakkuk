@@ -3,63 +3,11 @@
 '''A python script to parse one or more Fortran source files and
     produce a DAG for each subroutine/loop they contain.'''
 
-from habakkuk.make_dag import dags_from_files
+from habakkuk.make_dag import runner
 # TODO swap to using argparse since optparse is deprecated
 from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 import sys
 
-
-def main(argv):
-    ''' The top-level routine that runs Habakkuk. Parses the command-line
-    arguments passed in to this routine. '''
-    import os
-    parser = OptionParser()
-    set_f2003_options(parser)
-    parser.add_option("--no-prune",
-                      help="Do not attempt to prune duplicate operations "
-                      "from the graph",
-                      action="store_true",
-                      dest="no_prune",
-                      default=False)
-    parser.add_option("--no-fma",
-                      help="Do not attempt to generate fused multiply-add "
-                      "operations",
-                      action="store_true",
-                      dest="no_fma",
-                      default=True)
-    parser.add_option("--rm-scalar-tmps",
-                      help="Remove scalar temporaries from the DAG",
-                      action="store_true",
-                      dest="rm_scalar_tmps",
-                      default=False)
-    parser.add_option("--show-weights",
-                      help="Display node weights in the DAG",
-                      action="store_true",
-                      dest="show_weights",
-                      default=False)
-    parser.add_option("--unroll",
-                      help="No. of times to unroll a loop. (Applied to every "
-                      "loop that is encountered.)",
-                      metavar="UNROLL_FACTOR",
-                      action="store",
-                      type="int",
-                      dest="unroll_factor",
-                      default=1)
-
-    # Use the parser object to parse the command-line arguments
-    options, args = parser.parse_args(argv)
-
-    # Check that we've been passed the name of an existing file
-    if not args:
-        raise IOError("The name of a Fortran source file must be provided.")
-    if not os.path.isfile(args[0]):
-        raise IOError("The specified source file ('{0}') does not exist"
-                      .format(args[0]))
-
-    # Pass the options and list of source files in to be processed
-    dags_from_files(options, args)
-
-
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    runner(sys.argv[1:])
