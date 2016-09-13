@@ -3,7 +3,7 @@
 ''' A python script to parse a Fortran source file and produce a DAG
     for each subroutine it contains. '''
 
-from dag import DirectedAcyclicGraph
+from habakkuk.dag import DirectedAcyclicGraph
 from parse2003 import walk
 
 # TODO swap to using argparse since optparse is deprecated

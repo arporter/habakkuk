@@ -2,7 +2,7 @@
 ''' Module containing class holding information on a single node in
     a Directed Acyclic Graph '''
 
-from config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
+from habakkuk.config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]

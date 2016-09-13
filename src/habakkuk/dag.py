@@ -3,10 +3,10 @@
     Acyclic Graph. '''
 
 from fparser import Fortran2003
-from dag_node import DAGNode, DAGError
+from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
-from config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
+from habakkuk.config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
     FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
 
 # Maximum length of schedule we expect to handle.
