@@ -5,7 +5,7 @@ def dag_from_strings(lines, name=None):
     ''' Function that takes a list of strings (containing Fortran
     assignment statements) and generates a DAG. '''
     from fparser import Fortran2003
-    from dag import DirectedAcyclicGraph
+    from habakkuk.dag import DirectedAcyclicGraph
 
     assigns = []
     for line in lines:

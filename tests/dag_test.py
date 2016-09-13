@@ -4,10 +4,10 @@
 import os
 import pytest
 from test_utilities import dag_from_strings, Options
-import make_dag
-from dag_node import DAGError
+from habakkuk import make_dag
+from habakkuk.dag_node import DAGError
 from fparser import Fortran2003
-from dag import DirectedAcyclicGraph
+from habakkuk.dag import DirectedAcyclicGraph
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -17,7 +17,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_is_intrinsic_err():
     ''' Check that the expected exception is raised if we pass an
     incorrect object to the is_intrinsic_fn() function '''
-    from dag import is_intrinsic_fn
+    from habakkuk.dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
     # items should be a list with the first element a Name. Make
     # it a str instead by over-writing the items component.
@@ -30,7 +30,7 @@ def test_is_intrinsic_err():
 def test_is_intrinsic_false():
     ''' Check that is_intrinsic_fn() returns False if passed something
     that is not a Fortran intrinsic '''
-    from dag import is_intrinsic_fn
+    from habakkuk.dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("a(i,j)")
     val = is_intrinsic_fn(fake_parse_obj)
     assert not val
@@ -39,7 +39,7 @@ def test_is_intrinsic_false():
 def test_is_intrinsic_true():
     ''' Check that is_intrinsic_fn() returns False if passed something
     that is not a Fortran intrinsic '''
-    from dag import is_intrinsic_fn
+    from habakkuk.dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("sin(r)")
     val = is_intrinsic_fn(fake_parse_obj)
     assert val
@@ -48,7 +48,7 @@ def test_is_intrinsic_true():
 def test_critical_path_no_input():
     ''' Check that we raise expected error when querying a critical path
     for the input node when it has none '''
-    from dag import Path
+    from habakkuk.dag import Path
     path = Path()
     with pytest.raises(DAGError) as err:
         path.input_node()
@@ -198,8 +198,8 @@ def test_rm_scalar_tmps():
 def test_basic_scalar_dag(capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH, "triple_product.f90")])
+    make_dag.dag_of_files(Options(),
+                          [os.path.join(BASE_PATH, "triple_product.f90")])
     result, _ = capsys.readouterr()
     print result
     assert "Wrote DAG to test_triple_product.gv" in result
@@ -216,8 +216,8 @@ def test_basic_fma(capsys):
     fused multiply-add instructions '''
     options = Options()
     options.no_fma = False
-    make_dag.runner(options,
-                    [os.path.join(BASE_PATH, "fma_test.f90")])
+    make_dag.dag_of_files(options,
+                          [os.path.join(BASE_PATH, "fma_test.f90")])
     result, _ = capsys.readouterr()
     print result
 
@@ -228,8 +228,8 @@ def test_array_readwrite_no_fma(capsys):
     options = Options()
     options.no_fma = True
 
-    make_dag.runner(options,
-                    [os.path.join(BASE_PATH, "shallow_loop11.f90")])
+    make_dag.dag_of_files(options,
+                          [os.path.join(BASE_PATH, "shallow_loop11.f90")])
     result, _ = capsys.readouterr()
     print result
     assert "6 addition operators." in result
@@ -247,8 +247,8 @@ def test_array_readwrite_with_fma(capsys):
     options = Options()
     options.no_fma = False
 
-    make_dag.runner(options,
-                    [os.path.join(BASE_PATH, "shallow_loop11.f90")])
+    make_dag.dag_of_files(options,
+                          [os.path.join(BASE_PATH, "shallow_loop11.f90")])
     result, _ = capsys.readouterr()
     print result
     assert "6 addition operators." in result
@@ -265,16 +265,18 @@ def test_array_readwrite_with_fma(capsys):
 def test_array_assign(capsys):
     ''' Test that the parser copes if the first executable statement is an
     array assignment '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH, "first_line_array_assign.f90")])
+    make_dag.dag_of_files(Options(),
+                          [os.path.join(BASE_PATH,
+                                        "first_line_array_assign.f90")])
     _, _ = capsys.readouterr()
 
 
 def test_repeated_assign_array(capsys):
     ''' Test that we get correctly-named nodes when it is an array reference
     that is repeatedly assigned to. '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
+    make_dag.dag_of_files(Options(),
+                          [os.path.join(BASE_PATH,
+                                        "repeated_array_assign.f90")])
     result, _ = capsys.readouterr()
     fout = open('test_repeated_assign1.gv', 'r')
     graph = fout.read()
@@ -290,8 +292,9 @@ def test_repeated_assign_array(capsys):
 def test_repeated_assign_1darray_slice():
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
+    make_dag.dag_of_files(Options(),
+                          [os.path.join(BASE_PATH,
+                                        "repeated_array_assign.f90")])
     with open('test_repeated_assign4.gv', 'r') as fout:
         graph = fout.read()
     print graph
@@ -311,8 +314,9 @@ def test_repeated_assign_1darray_slice_from_string():
 def test_repeated_assign_2darray_slice():
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
+    make_dag.dag_of_files(Options(),
+                          [os.path.join(BASE_PATH,
+                                        "repeated_array_assign.f90")])
     with open('test_repeated_assign3.gv', 'r') as fout:
         graph = fout.read()
     print graph
@@ -324,8 +328,9 @@ def test_write_back_array(capsys):
     ''' Test that we get correctly-named nodes when it is an array reference
     that is read from and written to in the first statement we encounter
     it. '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH, "repeated_array_assign.f90")])
+    make_dag.dag_of_files(Options(),
+                          [os.path.join(BASE_PATH,
+                                        "repeated_array_assign.f90")])
     result, _ = capsys.readouterr()
     fout = open('test_repeated_assign2.gv', 'r')
     graph = fout.read()
@@ -344,9 +349,10 @@ def test_write_back_array(capsys):
 def test_repeated_assign_diff_elements():
     ''' Test that we get correctly-named nodes when different elements of
     the same array are accessed in a code fragment '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH,
-                                  "repeated_array_assign_diff_elements.f90")])
+    make_dag.dag_of_files(
+        Options(),
+        [os.path.join(BASE_PATH,
+                      "repeated_array_assign_diff_elements.f90")])
     with open('test_repeated_assign_diff_elems.gv', 'r') as fout:
         graph = fout.read()
     print graph
@@ -446,7 +452,7 @@ def test_node_is_op():
 def test_node_walk_too_deep():
     ''' Check that the walk() method aborts correctly if the recursion
     depth is too great '''
-    import dag_node
+    from habakkuk import dag_node
     dag = dag_from_strings(["xprod = 1.0",
                             "var1 = 2.0",
                             "aprod = var1 * var2 * xprod",
@@ -475,7 +481,7 @@ def test_node_weight_intrinsic():
     assert sin_node
     assert sin_node.node_type == "intrinsic"
     # Currently we only support the Ivy Bridge architecture
-    from config_ivy_bridge import FORTRAN_INTRINSICS
+    from habakkuk.config_ivy_bridge import FORTRAN_INTRINSICS
     assert sin_node.weight == FORTRAN_INTRINSICS["SIN"]
 
 
@@ -487,8 +493,7 @@ def test_node_dot_colours():
                             "cprod = var1 * var2 + bprod"],
                            name="dot_test")
     dag.to_dot()
-    dot_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "dot_test.gv")
+    dot_file = os.path.join(os.getcwd(), "dot_test.gv")
     with open(dot_file, 'r') as graph_file:
         graph = graph_file.read()
     print graph
@@ -528,7 +533,7 @@ def test_no_flops(capsys):
 def test_schedule_too_long():
     ''' Check that we raise the expected error if the computed schedule
     is too long '''
-    import dag
+    from habakkuk import dag
     old_max_length = dag.MAX_SCHEDULE_LENGTH
     dag.MAX_SCHEDULE_LENGTH = 5
     fortran_text = "".join(
@@ -538,31 +543,29 @@ def test_schedule_too_long():
     fortran_text = ("program long_sched_test\n"
                     "  b0 = 1.0\n" + fortran_text +
                     "end program long_sched_test\n")
-    tmp_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "test_long_sched.f90")
+    tmp_file = os.path.join(os.getcwd(), "test_long_sched.f90")
     with open(tmp_file, 'w') as fout:
         fout.write(fortran_text)
     with pytest.raises(DAGError) as err:
-        make_dag.runner(Options(), [tmp_file])
+        make_dag.dag_of_files(Options(), [tmp_file])
     # Restore the original value
     dag.MAX_SCHEDULE_LENGTH = old_max_length
     # Delete the files generated during this test
     os.remove(tmp_file)
-    os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "long_sched_test.gv"))
+    os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
     for i in range(6):
-        os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "long_sched_test_step{0}.gv".format(i)))
+        os.remove(os.path.join(os.getcwd(),
+                  "long_sched_test_step{0}.gv".format(i)))
     assert "Unexpectedly long schedule" in str(err)
 
 
 def test_mult_operand():
     ''' Test that we handle the case where the Fortran parser generates
     a Mult_Operand object '''
-    make_dag.runner(Options(),
-                    [os.path.join(BASE_PATH,
-                                  "pert_pressure_gradient_kernel_mod.F90")])
-    out_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    make_dag.dag_of_files(
+        Options(), [os.path.join(BASE_PATH,
+                                 "pert_pressure_gradient_kernel_mod.F90")])
+    out_file = os.path.join(os.cwd(),
                             "pert_pressure_gradient_code_loop6.gv")
     assert os.path.isfile(out_file)
     with open(out_file, 'r') as fout:

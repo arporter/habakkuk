@@ -5,7 +5,7 @@ import os
 import pytest
 from fparser import Fortran2003
 from test_utilities import dag_from_strings
-from parse2003 import ParseError
+from habakkuk.parse2003 import ParseError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -15,7 +15,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_walk_debug(capsys):
     ''' Test the walk method with debug=True '''
     from fparser.readfortran import FortranFileReader
-    from parse2003 import walk
+    from habakkuk.parse2003 import walk
     reader = FortranFileReader(os.path.join(BASE_PATH,
                                             "time_step_mod_simple.f90"))
     program = Fortran2003.Program(reader)
@@ -95,7 +95,7 @@ def test_indirect_array_access2():
 def test_load_unrecognised_array_access():
     ''' Check that we raise the expected exception when we don't recognise
     the form of an array access. '''
-    from parse2003 import Variable
+    from habakkuk.parse2003 import Variable
     assign = Fortran2003.Assignment_Stmt("a(i**2) = 2.0*b(i)")
     mapping = {}
     lhs_var = Variable()
@@ -107,7 +107,7 @@ def test_load_unrecognised_array_access():
 def test_load_array_section():
     ''' Check that we successfully create a Variable for an array
     section '''
-    from parse2003 import Variable
+    from habakkuk.parse2003 import Variable
     assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
     mapping = {}
     lhs_var = Variable()
@@ -118,7 +118,7 @@ def test_load_array_section():
 def test_load_unrecognised_type():
     ''' Check that Variable.load() raises the expected exception when we
     don't recognise the type of the node that is supplied '''
-    from parse2003 import Variable
+    from habakkuk.parse2003 import Variable
     mapping = {}
     lhs_var = Variable()
     with pytest.raises(ParseError) as err:
