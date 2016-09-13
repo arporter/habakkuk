@@ -42,7 +42,7 @@ if __name__ == "__main__":
         version = '0.1',
         description = 'Performance prediction for Fortran kernels.',
         long_description = open('README.md').read(),
-        author = 'Andrew R Porter'
+        author = 'Andrew R Porter',
         author_email = ('andrew.porter@stfc.ac.uk'),
         url = 'https://arporter.github.io/habakkuk/',
         license = 'OSI Approved :: BSD 2-Clause License',
