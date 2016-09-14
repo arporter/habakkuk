@@ -6,7 +6,7 @@ import pytest
 from test_utilities import dag_from_strings, Options
 from habakkuk import make_dag
 from habakkuk.dag_node import DAGError
-from fparser import Fortran2003
+from habakkuk.fparser import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph
 
 # constants
@@ -565,7 +565,7 @@ def test_mult_operand():
     make_dag.dag_of_files(
         Options(), [os.path.join(BASE_PATH,
                                  "pert_pressure_gradient_kernel_mod.F90")])
-    out_file = os.path.join(os.cwd(),
+    out_file = os.path.join(os.getcwd(),
                             "pert_pressure_gradient_code_loop6.gv")
     assert os.path.isfile(out_file)
     with open(out_file, 'r') as fout:

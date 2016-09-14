@@ -3,7 +3,7 @@
 
 import os
 import pytest
-from fparser import Fortran2003
+from habakkuk.fparser import Fortran2003
 from test_utilities import dag_from_strings
 from habakkuk.parse2003 import ParseError
 
@@ -14,14 +14,16 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 def test_walk_debug(capsys):
     ''' Test the walk method with debug=True '''
-    from fparser.readfortran import FortranFileReader
+    from habakkuk.fparser.readfortran import FortranFileReader
     from habakkuk.parse2003 import walk
     reader = FortranFileReader(os.path.join(BASE_PATH,
                                             "time_step_mod_simple.f90"))
     program = Fortran2003.Program(reader)
     names = walk(program.content, Fortran2003.Name, debug=True)
     result, _ = capsys.readouterr()
-    assert "child type =  <class 'fparser.Fortran2003.Module'>" in result
+    assert (
+        "child type =  <class 'habakkuk.fparser.Fortran2003.Module'>"
+        in result)
     assert isinstance(names[0], Fortran2003.Name)
     assert str(names[0]) == "time_step_mod"
 

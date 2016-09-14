@@ -5,7 +5,6 @@ import os
 import pytest
 from test_utilities import Options
 from habakkuk import make_dag
-
 # constants
 PWD = os.path.dirname(os.path.abspath(__file__))
 BASE_PATH = os.path.join(PWD, "test_files")
@@ -14,7 +13,7 @@ BASE_PATH = os.path.join(PWD, "test_files")
 def test_dag_of_code_block_items():
     ''' Test the dag_of_code_block() function when the supplied
     parent node has only items and not content '''
-    from fparser import Fortran2003
+    from habakkuk.fparser import Fortran2003
     from habakkuk.make_dag import dag_of_code_block
     assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
     dag = dag_of_code_block(assign, "Test dag")
