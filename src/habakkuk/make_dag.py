@@ -8,14 +8,14 @@ from parse2003 import walk
 
 # TODO swap to using argparse since optparse is deprecated
 from optparse import OptionParser
-from fparser.script_options import set_f2003_options
+from habakkuk.fparser.script_options import set_f2003_options
 import sys
 
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
-    from fparser.Fortran2003 import Assignment_Stmt
+    from habakkuk.fparser.Fortran2003 import Assignment_Stmt
 
     # Create a new DAG object
     digraph = DirectedAcyclicGraph(name)
@@ -72,9 +72,9 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 def dag_of_files(options, args):
     ''' Parses the files listed in args and generates a DAG for all of
     the subroutines/inner loops that it finds '''
-    from fparser.api import Fortran2003
-    from fparser.readfortran import FortranFileReader
-    from fparser.Fortran2003 import Main_Program, Program_Stmt, \
+    from habakkuk.fparser.api import Fortran2003
+    from habakkuk.fparser.readfortran import FortranFileReader
+    from habakkuk.fparser.Fortran2003 import Main_Program, Program_Stmt, \
         Subroutine_Subprogram, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part
     from parse2003 import Loop, get_child, ParseError

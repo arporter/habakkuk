@@ -54,7 +54,7 @@ class Loop(object):
     def load(self, parsed_loop):
         ''' Takes the supplied loop object produced by the f2003 parser
         and extracts relevant information from it to populate this object '''
-        from fparser.Fortran2003 import Nonlabel_Do_Stmt, Name
+        from habakkuk.fparser.Fortran2003 import Nonlabel_Do_Stmt, Name
         for node in parsed_loop.content:
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk(node.items, Name)
@@ -153,7 +153,7 @@ class Variable(object):
         output of the f2003 parser. If lhs is True then this variable
         appears on the LHS of an assignment and thus represents a new
         entity in a DAG. '''
-        from fparser.Fortran2003 import Name, Part_Ref, \
+        from habakkuk.fparser.Fortran2003 import Name, Part_Ref, \
             Real_Literal_Constant, Section_Subscript_List, \
             Int_Literal_Constant, Level_2_Expr, Array_Section
 
