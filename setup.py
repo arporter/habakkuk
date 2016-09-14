@@ -29,7 +29,6 @@
 
 """Setup script. Used by easy_install and pip."""
 
-#from distutils.core import setup
 from setuptools import setup, find_packages
 import os
 
@@ -38,25 +37,28 @@ PACKAGES = find_packages(where="src")
 if __name__ == "__main__":
 
     setup(
-        name = 'Habakkuk',
-        version = '0.1',
-        description = 'Performance prediction for Fortran kernels.',
-        long_description = open('README.md').read(),
-        author = 'Andrew R Porter',
-        author_email = ('andrew.porter@stfc.ac.uk'),
-        url = 'https://arporter.github.io/habakkuk/',
-        license = 'OSI Approved :: BSD 2-Clause License',
-        classifiers = ['Development Status :: 3 - Alpha',
-                       'Environment :: Console',
-                       'Programming Language :: Python',
-                       'Programming Language :: Python :: 2.6',
-                       'Programming Language :: Python :: 2.7',
-                       'Topic :: Scientific/Engineering',
-                       'Topic :: Utilities',
-                       'Operating System :: MacOS :: MacOS X',
-                       'Operating System :: POSIX',
-                       'Operating System :: Unix'],
-        packages = PACKAGES,
+        name='Habakkuk',
+        version='0.1.1',
+        description='Performance prediction for Fortran kernels.',
+        long_description=open('README.md').read(),
+        author='Andrew R Porter',
+        author_email=('andrew.porter@stfc.ac.uk'),
+        url='https://arporter.github.io/habakkuk/',
+        license='OSI Approved :: BSD 2-Clause License',
+        classifiers=['Development Status :: 3 - Alpha',
+                     'Environment :: Console',
+                     'Programming Language :: Python',
+                     'Programming Language :: Python :: 2.6',
+                     'Programming Language :: Python :: 2.7',
+                     'Topic :: Scientific/Engineering',
+                     'Topic :: Utilities',
+                     'Operating System :: MacOS :: MacOS X',
+                     'Operating System :: POSIX',
+                     'Operating System :: Unix'],
+        packages=PACKAGES,
         package_dir={"": "src"},
-        scripts = ['bin/habakkuk'],
+        # We need the following line to ensure we get the fparser/log.config
+        # file installed.
+        include_package_data=True,
+        scripts=['bin/habakkuk'],
     )
