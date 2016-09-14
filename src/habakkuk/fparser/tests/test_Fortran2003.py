@@ -1,5 +1,5 @@
-from fparser.Fortran2003 import *
-from fparser.api import get_reader
+from habakkuk.fparser.Fortran2003 import *
+from habakkuk.fparser.api import get_reader
 
 from nose.tools import assert_equal
 
@@ -2808,7 +2808,22 @@ def test_Use_Stmt(): # R1109
     assert isinstance(a, cls),`a`
     assert_equal(str(a),'USE :: a')
     assert_equal(repr(a),"Use_Stmt(None, Name('a'), '', None)")
-    
+
+    a = cls('use a, only: b')
+    assert isinstance(a, cls), `a`
+    assert_equal(str(a), 'USE :: a, ONLY: b')
+    assert_equal(repr(a), "Use_Stmt(None, Name('a'), ', ONLY:', Name('b'))")
+
+    a = cls('use a, only : b')
+    assert isinstance(a, cls), `a`
+    assert_equal(str(a), 'USE :: a, ONLY: b')
+    assert_equal(repr(a), "Use_Stmt(None, Name('a'), ', ONLY:', Name('b'))")
+
+    a = cls('use a, ONLY : b')
+    assert isinstance(a, cls), `a`
+    assert_equal(str(a), 'USE :: a, ONLY: b')
+    assert_equal(repr(a), "Use_Stmt(None, Name('a'), ', ONLY:', Name('b'))")
+
     a = cls('use :: a, c=>d')
     assert isinstance(a, cls),`a`
     assert_equal(str(a),'USE :: a, c => d')
@@ -3378,7 +3393,7 @@ def test_Contains(): # R1237
         assert_equal(str(a),'CONTAINS')
         assert_equal(repr(a),"Contains_Stmt('CONTAINS')")
 
-if 1:
+if 0:
     nof_needed_tests = 0
     nof_needed_match = 0
     total_needs = 0
