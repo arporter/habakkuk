@@ -586,21 +586,3 @@ def test_unrecognised_child():
     with pytest.raises(DAGError) as err:
         dag.make_dag(anode, children, {})
     assert "Unrecognised child type:" in str(err)
-
-
-def test_exp_schedule():
-    ''' Check that we correctly schedule (the instructions for) the
-    ** intrinsic operation '''
-    from habakkuk.dag import schedule_cost
-    assign = Fortran2003.Assignment_Stmt("a = b**c")
-    dag = DirectedAcyclicGraph("Test dag")
-    mapping = {}
-    dag.add_assignments([assign], mapping)
-    node_names = [node.name for node in dag._nodes.itervalues()]
-    assert "**" in node_names
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
-    print cost
-    assert nsteps > 0
-    assert cost > 0
-    
