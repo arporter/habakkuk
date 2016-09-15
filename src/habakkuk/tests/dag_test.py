@@ -171,7 +171,7 @@ def test_intrinsic_call():
     for node in dag._nodes.itervalues():
         node_names.append(node.name)
         if node.name == "SIN":
-            assert node.node_type == "intrinsic"
+            assert node.node_type == "SIN"
     assert "SIN" in node_names
     assert "b" in node_names
 
@@ -429,8 +429,9 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['+', '*', '-', '/', 'intrinsic', "
-            "'constant', 'array_ref'] but got 'not-a-type'" in str(err))
+    assert ("node_type must be one of ['COS', '**', '+', '*', '-', "
+            "'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
+            "'not-a-type'" in str(err))
 
 
 def test_node_is_op():
@@ -479,10 +480,10 @@ def test_node_weight_intrinsic():
             sin_node = node
             break
     assert sin_node
-    assert sin_node.node_type == "intrinsic"
+    assert sin_node.node_type == "SIN"
     # Currently we only support the Ivy Bridge architecture
-    from habakkuk.config_ivy_bridge import FORTRAN_INTRINSICS
-    assert sin_node.weight == FORTRAN_INTRINSICS["SIN"]
+    from habakkuk.config_ivy_bridge import OPERATORS
+    assert sin_node.weight == OPERATORS["SIN"]["cost"]
 
 
 def test_node_dot_colours():

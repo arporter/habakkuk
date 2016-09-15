@@ -44,17 +44,31 @@ def test_addition_schedule():
 
 def test_exp_schedule():
     ''' Check that we correctly schedule (the instructions for) the
-    ** intrinsic operation '''
+    '**' intrinsic operation '''
     from habakkuk.dag import schedule_cost
+    from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = b**c")
     dag = DirectedAcyclicGraph("Test dag")
     mapping = {}
     dag.add_assignments([assign], mapping)
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = []
+    pow_node = None
+    for node in dag._nodes.itervalues():
+        node_names.append(node.name)
+        if node.name == "**":
+            pow_node = node
     assert "**" in node_names
+    input_nodes = dag.input_nodes()
+    for node in input_nodes:
+        assert not node.ready
+        node.mark_ready()
+    # The pow node should now be ready to go...
+    assert pow_node.dependencies_satisfied
+    # ...but not actually marked as executed...
+    assert not pow_node.ready
     nsteps, schedule = dag.generate_schedule()
     cost = schedule_cost(nsteps, schedule)
     print cost
-    assert nsteps > 0
-    assert cost > 0
-    
+    assert nsteps == 1
+    assert cost == OPERATORS["**"]["cost"]
+

@@ -5,7 +5,7 @@
 from habakkuk.config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 
 # Valid types for a node in the DAG
-VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
+VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref"]
 
 INDENT_STR = "     "
 # At what depth to abort attempting to recursively walk down a graph
@@ -88,8 +88,8 @@ class DAGNode(object):
 
     def mark_ready(self):
         ''' Mark this node as ready (done). Propagate this up to any
-        consumers of this node unless they are operators (which must
-        be scheduled in order to be executed) '''
+        consumers of this node unless they are operators/intrinsics (which
+        must be scheduled in order to be executed) '''
         self._ready = True
         for node in self._consumers:
             if node.node_type not in OPERATORS:
@@ -233,8 +233,6 @@ class DAGNode(object):
         else:
             if self._node_type in OPERATORS:
                 return OPERATORS[self._node_type]["cost"]
-            elif self._node_type == "intrinsic":
-                return FORTRAN_INTRINSICS[self._name]
             else:
                 return 0
 
@@ -328,7 +326,12 @@ class DAGNode(object):
         node_size = None
 
         if self._node_type:
-            if self._node_type in OPERATORS:
+            # Check whether it is an intrinsic first as intrinsics are
+            # a special case of an operator
+            if self._node_type in FORTRAN_INTRINSICS:
+                node_colour = "gold"
+                node_shape = "ellipse"
+            elif self._node_type in OPERATORS:
                 node_colour = "red"
                 node_shape = "box"
                 node_size = str(0.5 + 0.01*self.weight)
@@ -337,9 +340,6 @@ class DAGNode(object):
                 node_shape = "ellipse"
             elif self._node_type == "array_ref":
                 node_colour = "blue"
-                node_shape = "ellipse"
-            elif self._node_type == "intrinsic":
-                node_colour = "gold"
                 node_shape = "ellipse"
 
         nodestr += ", color=\"{0}\", shape=\"{1}\"".format(node_colour,

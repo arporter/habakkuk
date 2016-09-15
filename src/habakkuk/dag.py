@@ -65,11 +65,12 @@ def subgraph_matches(node1, node2):
 
 def ready_ops_from_list(nodes):
     ''' Look through supplied list of nodes and identify those that
-    are operations which are ready to execute '''
+    are operations/intrinsics which are ready to execute '''
     op_list = []
     for node in nodes:
-        if not node.ready and node.node_type in OPERATORS and \
-           node.dependencies_satisfied:
+        if (not node.ready and
+            node.node_type in OPERATORS and
+            node.dependencies_satisfied):
             op_list.append(node)
     return op_list
 
@@ -167,6 +168,7 @@ class Path(object):
         path. '''
         flop_count = 0
         for node in self._nodes:
+            # TODO - how to account for calls to Fortran intrinsics?
             if node.node_type in OPERATORS:
                 flop_count += 1
         return flop_count
@@ -453,17 +455,11 @@ class DirectedAcyclicGraph(object):
         is_division = False
         for child in children:
             if isinstance(child, str):
-                if child in OPERATORS or child in "**":
+                if child in OPERATORS:
                     # This is the operator which is then the parent
                     # of the DAG of this subexpression. All operators
                     # are unique nodes in the DAG.
-                    # Fortran natively supports raising one variable to the
-                    # power of another. However, we treat it as a call to
-                    # an intrinsic and create a unique node to represent it
-                    if child == "**":
-                        my_type = "intrinsic"
-                    else:
-                        my_type = child
+                    my_type = child
                     opnode = self.get_node(parent, mapping, name=child,
                                            unique=True, node_type=my_type)
                     # Make this operation the parent of the rest of the nodes
@@ -500,10 +496,11 @@ class DirectedAcyclicGraph(object):
                 if is_intrinsic_fn(child):
                     # Create a unique node to represent the intrinsic call.
                     # Names of intrinics are stored in upper case.
+                    intr_name = str(child.items[0]).upper()
                     tmpnode = self.get_node(parent, mapping,
-                                            name=str(child.items[0]).upper(),
+                                            name=intr_name,
                                             unique=True,
-                                            node_type="intrinsic")
+                                            node_type=intr_name)
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Add its dependencies
