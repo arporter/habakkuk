@@ -2,7 +2,7 @@
 Test parsing of whole fortran files; 'blackbox' tests here.
 """
 
-from fparser import api
+from habakkuk.fparser import api
 import sys
 from os.path import abspath, join, dirname
 

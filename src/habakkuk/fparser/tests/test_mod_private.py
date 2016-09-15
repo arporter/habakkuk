@@ -1,4 +1,4 @@
-from fparser import api
+from habakkuk.fparser import api
 
 def test_default_private():
     src = '''\
