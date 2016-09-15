@@ -1,0 +1,18 @@
+include *.md
+include *.py
+recursive-include docs *.bat
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs Makefile
+recursive-include src *.config
+recursive-include src *.f95
+recursive-include src *.in
+recursive-include src *.py
+recursive-include src *.rst
+recursive-include src *.sh
+recursive-include src *.txt
+recursive-include src Makefile
+recursive-include src LICENSE
+recursive-include tests *.F90
+recursive-include tests *.f90
+recursive-include tests *.py
