@@ -7,16 +7,16 @@
 # duplicated sub-graphs).  TODO these costs are microarchitecture
 # specific.  Those operations that are listed in FORTRAN_INTRINSICS
 # are calls to intrinsic routines provided by the Fortran
-# run-time. Costs for these are obtained by running micro-benchmarks
-# (dl_microbench).
-OPERATORS = {"**": {"latency": 0, "cost": 75},
-             "SIN": {"latency": 0, "cost": 49},
-             "COS": {"latency": 0, "cost": 49},
-             "/": {"latency": 15, "cost": 8},
-             "SIGN": {"latency": 0, "cost": 3},
-             "+": {"latency": 3, "cost": 1},
-             "-": {"latency": 3, "cost": 1},
-             "*": {"latency": 5, "cost": 1}}
+# run-time. Costs and FLOP-counts for these are obtained by running
+# micro-benchmarks (dl_microbench) using a tool such as likwid.
+OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
+             "SIN": {"latency": 0, "cost": 49, "flops": 40},
+             "COS": {"latency": 0, "cost": 49, "flops": 40},
+             "/": {"latency": 15, "cost": 8, "flops": 1},
+             "SIGN": {"latency": 0, "cost": 3, "flops": 1},
+             "+": {"latency": 3, "cost": 1, "flops": 1},
+             "-": {"latency": 3, "cost": 1, "flops": 1},
+             "*": {"latency": 5, "cost": 1, "flops": 1}}
 
 # Which execution port each f.p. operation is mapped to on the CPU
 # (from http://www.agner.org/optimize/microarchitecture.pdf).
