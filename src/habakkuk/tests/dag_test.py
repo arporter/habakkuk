@@ -556,7 +556,7 @@ def test_schedule_too_long():
     os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
     for i in range(6):
         os.remove(os.path.join(os.getcwd(),
-                  "long_sched_test_step{0}.gv".format(i)))
+                               "long_sched_test_step{0}.gv".format(i)))
     assert "Unexpectedly long schedule" in str(err)
 
 
@@ -591,5 +591,39 @@ def test_unrecognised_child():
 
 def test_flop_count_err():
     ''' Check that we raise the expected exception if we pass something
-    that is not a list or a dictionary to the count_flops() function '''
-    pass
+    that is not a list or a dictionary to the flop_count() function '''
+    from habakkuk.dag import flop_count
+    not_a_list = "hello"
+    with pytest.raises(DAGError) as err:
+        _ = flop_count(not_a_list)
+    assert ("flop_count requires a list or a dictionary of nodes "
+            "but got " in str(err))
+
+
+def test_flop_count_basic():
+    ''' Check that flop_count() returns the correct value for a DAG
+    containing only basic arithmetic operations '''
+    from habakkuk.dag import flop_count
+    dag = dag_from_strings(["aprod = var1 * var2 * var3"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == 2
+
+
+def test_flop_count_power():
+    ''' Check that flop_count() returns the correct value for a DAG
+    containing a ** operation '''
+    from habakkuk.dag import flop_count
+    from habakkuk.config_ivy_bridge import OPERATORS
+    dag = dag_from_strings(["aprod = var1 ** var2"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == OPERATORS["**"]["flops"]
+
+
+def test_flop_count_sin():
+    ''' Check that flop_count() returns the correct value for a DAG
+    containing a sin() operation '''
+    from habakkuk.dag import flop_count
+    from habakkuk.config_ivy_bridge import OPERATORS
+    dag = dag_from_strings(["aprod = sin(var1)"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == OPERATORS["SIN"]["flops"]

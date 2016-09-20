@@ -68,9 +68,8 @@ def ready_ops_from_list(nodes):
     are operations/intrinsics which are ready to execute '''
     op_list = []
     for node in nodes:
-        if (not node.ready and
-            node.node_type in OPERATORS and
-            node.dependencies_satisfied):
+        if not node.ready and node.node_type in OPERATORS and \
+           node.dependencies_satisfied:
             op_list.append(node)
     return op_list
 
@@ -131,7 +130,7 @@ def schedule_cost(nsteps, schedule):
 def flop_count(nodes):
     '''The number of floating point operations in the supplied list of
     nodes. This is NOT the same as the number of cycles. '''
-    flop_count = 0
+    count = 0
     if isinstance(nodes, dict):
         node_list = nodes.itervalues()
     elif isinstance(nodes, list):
@@ -143,8 +142,8 @@ def flop_count(nodes):
 
     for node in node_list:
         if node.node_type in OPERATORS:
-            flop_count += OPERATORS[node.node_type]["flops"]
-    return flop_count
+            count += OPERATORS[node.node_type]["flops"]
+    return count
 
 
 # TODO: would it be better to inherit from the built-in list object?
@@ -229,7 +228,7 @@ class DirectedAcyclicGraph(object):
         ''' Add to the existing DAG using the supplied list of
         assignments. Each assignment is an instance of a
         fparser.Fortran2003.Assignment_Stmt '''
-        from parse2003 import Variable
+        from habakkuk.parse2003 import Variable
 
         for assign in assignments:
 
@@ -456,7 +455,7 @@ class DirectedAcyclicGraph(object):
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement and
         returns a list of the nodes that represent the variables involved '''
-        from parse2003 import Variable
+        from habakkuk.parse2003 import Variable
 
         node_list = []
         opcount = 0
