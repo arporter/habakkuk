@@ -128,6 +128,25 @@ def schedule_cost(nsteps, schedule):
     return cost
 
 
+def flop_count(nodes):
+    '''The number of floating point operations in the supplied list of
+    nodes. This is NOT the same as the number of cycles. '''
+    flop_count = 0
+    if isinstance(nodes, dict):
+        node_list = nodes.itervalues()
+    elif isinstance(nodes, list):
+        node_list = nodes
+    else:
+        raise DAGError(
+            "flop_count requires a list or a dictionary of nodes "
+            "but got {0}.".format(type(nodes)))
+
+    for node in node_list:
+        if node.node_type in OPERATORS:
+            flop_count += OPERATORS[node.node_type]["flops"]
+    return flop_count
+
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -161,17 +180,6 @@ class Path(object):
         for node in self._nodes:
             cost += node.weight
         return cost
-
-    def flops(self):
-        ''' The number of floating point operations in the path. This is
-        NOT the same as the number of cycles required to execute the
-        path. '''
-        flop_count = 0
-        for node in self._nodes:
-            # TODO - how to account for calls to Fortran intrinsics?
-            if node.node_type in OPERATORS:
-                flop_count += 1
-        return flop_count
 
     def __len__(self):
         ''' Over-load the built-in len operation so that it behaves as
@@ -718,9 +726,7 @@ class DirectedAcyclicGraph(object):
         num_ref = self.count_nodes("array_ref")
         num_cache_ref = self.cache_lines()
         total_cycles = self.total_cost()
-        # An FMA may only cost 1 (?) cycle but still does 2 FLOPs
-        # TODO how do we count FLOPs for e.g. sin() and cos()?
-        total_flops = num_plus + num_minus + num_mult + num_div + 2*num_fma
+        total_flops = flop_count(self._nodes)
         print "Stats for DAG {0}:".format(self._name)
         print "  {0} addition operators.".format(num_plus)
         print "  {0} subtraction operators.".format(num_minus)
@@ -771,9 +777,10 @@ class DirectedAcyclicGraph(object):
         print "  Everything in parallel to Critical path:"
         ncycles = self._critical_path.cycles()
         print ("    Critical path contains {0} nodes, {1} FLOPs and "
-               "is {2} cycles long".format(len(self._critical_path),
-                                           self._critical_path.flops(),
-                                           ncycles))
+               "is {2} cycles long".format(
+                   len(self._critical_path),
+                   flop_count(self._critical_path.nodes),
+                   ncycles))
         # Graph contains total_flops and will execute in at
         # least path.cycles() CPU cycles. A cycle has duration
         # 1/CLOCK_SPEED (s) so kernel will take at least

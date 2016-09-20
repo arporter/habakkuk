@@ -587,3 +587,9 @@ def test_unrecognised_child():
     with pytest.raises(DAGError) as err:
         dag.make_dag(anode, children, {})
     assert "Unrecognised child type:" in str(err)
+
+
+def test_flop_count_err():
+    ''' Check that we raise the expected exception if we pass something
+    that is not a list or a dictionary to the count_flops() function '''
+    pass
