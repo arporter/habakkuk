@@ -531,35 +531,6 @@ def test_no_flops(capsys):
     assert "DAG contains no FLOPs so skipping performance estimate" in result
 
 
-def test_schedule_too_long():
-    ''' Check that we raise the expected error if the computed schedule
-    is too long '''
-    from habakkuk import dag
-    old_max_length = dag.MAX_SCHEDULE_LENGTH
-    dag.MAX_SCHEDULE_LENGTH = 5
-    fortran_text = "".join(
-        ["  prod{0} = b{0} + a{0}\n".format(i, i, i) for i in range(6)])
-    # For some reason the parser fails without the initial b0 = 1.0
-    # assignment.
-    fortran_text = ("program long_sched_test\n"
-                    "  b0 = 1.0\n" + fortran_text +
-                    "end program long_sched_test\n")
-    tmp_file = os.path.join(os.getcwd(), "test_long_sched.f90")
-    with open(tmp_file, 'w') as fout:
-        fout.write(fortran_text)
-    with pytest.raises(DAGError) as err:
-        make_dag.dag_of_files(Options(), [tmp_file])
-    # Restore the original value
-    dag.MAX_SCHEDULE_LENGTH = old_max_length
-    # Delete the files generated during this test
-    os.remove(tmp_file)
-    os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
-    for i in range(6):
-        os.remove(os.path.join(os.getcwd(),
-                               "long_sched_test_step{0}.gv".format(i)))
-    assert "Unexpectedly long schedule" in str(err)
-
-
 def test_mult_operand():
     ''' Test that we handle the case where the Fortran parser generates
     a Mult_Operand object '''
