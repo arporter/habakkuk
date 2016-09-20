@@ -1,5 +1,5 @@
 
-from fparser.api import parse
+from habakkuk.fparser.api import parse
 
 def test_comment_lines():
     source_str = '''\

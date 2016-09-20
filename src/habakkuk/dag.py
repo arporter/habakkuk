@@ -65,7 +65,7 @@ def subgraph_matches(node1, node2):
 
 def ready_ops_from_list(nodes):
     ''' Look through supplied list of nodes and identify those that
-    are operations which are ready to execute '''
+    are operations/intrinsics which are ready to execute '''
     op_list = []
     for node in nodes:
         if not node.ready and node.node_type in OPERATORS and \
@@ -127,6 +127,25 @@ def schedule_cost(nsteps, schedule):
     return cost
 
 
+def flop_count(nodes):
+    '''The number of floating point operations in the supplied list of
+    nodes. This is NOT the same as the number of cycles. '''
+    count = 0
+    if isinstance(nodes, dict):
+        node_list = nodes.itervalues()
+    elif isinstance(nodes, list):
+        node_list = nodes
+    else:
+        raise DAGError(
+            "flop_count requires a list or a dictionary of nodes "
+            "but got {0}.".format(type(nodes)))
+
+    for node in node_list:
+        if node.node_type in OPERATORS:
+            count += OPERATORS[node.node_type]["flops"]
+    return count
+
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -160,16 +179,6 @@ class Path(object):
         for node in self._nodes:
             cost += node.weight
         return cost
-
-    def flops(self):
-        ''' The number of floating point operations in the path. This is
-        NOT the same as the number of cycles required to execute the
-        path. '''
-        flop_count = 0
-        for node in self._nodes:
-            if node.node_type in OPERATORS:
-                flop_count += 1
-        return flop_count
 
     def __len__(self):
         ''' Over-load the built-in len operation so that it behaves as
@@ -219,7 +228,7 @@ class DirectedAcyclicGraph(object):
         ''' Add to the existing DAG using the supplied list of
         assignments. Each assignment is an instance of a
         fparser.Fortran2003.Assignment_Stmt '''
-        from parse2003 import Variable
+        from habakkuk.parse2003 import Variable
 
         for assign in assignments:
 
@@ -446,24 +455,18 @@ class DirectedAcyclicGraph(object):
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement and
         returns a list of the nodes that represent the variables involved '''
-        from parse2003 import Variable
+        from habakkuk.parse2003 import Variable
 
         node_list = []
         opcount = 0
         is_division = False
         for child in children:
             if isinstance(child, str):
-                if child in OPERATORS or child in "**":
+                if child in OPERATORS:
                     # This is the operator which is then the parent
                     # of the DAG of this subexpression. All operators
                     # are unique nodes in the DAG.
-                    # Fortran natively supports raising one variable to the
-                    # power of another. However, we treat it as a call to
-                    # an intrinsic and create a unique node to represent it
-                    if child == "**":
-                        my_type = "intrinsic"
-                    else:
-                        my_type = child
+                    my_type = child
                     opnode = self.get_node(parent, mapping, name=child,
                                            unique=True, node_type=my_type)
                     # Make this operation the parent of the rest of the nodes
@@ -500,10 +503,11 @@ class DirectedAcyclicGraph(object):
                 if is_intrinsic_fn(child):
                     # Create a unique node to represent the intrinsic call.
                     # Names of intrinics are stored in upper case.
+                    intr_name = str(child.items[0]).upper()
                     tmpnode = self.get_node(parent, mapping,
-                                            name=str(child.items[0]).upper(),
+                                            name=intr_name,
                                             unique=True,
-                                            node_type="intrinsic")
+                                            node_type=intr_name)
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Add its dependencies
@@ -713,23 +717,20 @@ class DirectedAcyclicGraph(object):
     def report(self):
         ''' Report the properties of this DAG to stdout '''
         # Compute some properties of the graph
-        num_plus = self.count_nodes("+")
-        num_minus = self.count_nodes("-")
-        num_mult = self.count_nodes("*")
-        num_div = self.count_nodes("/")
-        num_fma = self.count_nodes("FMA")
+        op_count = {}
+        for operation in OPERATORS:
+            op_count[operation] = self.count_nodes(operation)
         num_ref = self.count_nodes("array_ref")
         num_cache_ref = self.cache_lines()
         total_cycles = self.total_cost()
-        # An FMA may only cost 1 (?) cycle but still does 2 FLOPs
-        # TODO how do we count FLOPs for e.g. sin() and cos()?
-        total_flops = num_plus + num_minus + num_mult + num_div + 2*num_fma
+        total_flops = flop_count(self._nodes)
         print "Stats for DAG {0}:".format(self._name)
-        print "  {0} addition operators.".format(num_plus)
-        print "  {0} subtraction operators.".format(num_minus)
-        print "  {0} multiplication operators.".format(num_mult)
-        print "  {0} division operators.".format(num_div)
-        print "  {0} fused multiply-adds.".format(num_fma)
+        print "  {0} addition operators.".format(op_count["+"])
+        print "  {0} subtraction operators.".format(op_count["-"])
+        print "  {0} multiplication operators.".format(op_count["*"])
+        print "  {0} division operators.".format(op_count["/"])
+        if "FMA" in op_count:
+            print "  {0} fused multiply-adds.".format(op_count["FMA"])
         print "  {0} FLOPs in total.".format(total_flops)
         print "  {0} array references.".format(num_ref)
         print "  {0} distinct cache-line references.".\
@@ -774,9 +775,10 @@ class DirectedAcyclicGraph(object):
         print "  Everything in parallel to Critical path:"
         ncycles = self._critical_path.cycles()
         print ("    Critical path contains {0} nodes, {1} FLOPs and "
-               "is {2} cycles long".format(len(self._critical_path),
-                                           self._critical_path.flops(),
-                                           ncycles))
+               "is {2} cycles long".format(
+                   len(self._critical_path),
+                   flop_count(self._critical_path.nodes),
+                   ncycles))
         # Graph contains total_flops and will execute in at
         # least path.cycles() CPU cycles. A cycle has duration
         # 1/CLOCK_SPEED (s) so kernel will take at least
@@ -818,15 +820,12 @@ class DirectedAcyclicGraph(object):
         for port in CPU_EXECUTION_PORTS.itervalues():
             # Zero the cost for each port
             port_cost[str(port)] = 0
-
-        port_cost[str(CPU_EXECUTION_PORTS["/"])] += (
-            num_div * OPERATORS["/"]["cost"])
-        port_cost[str(CPU_EXECUTION_PORTS["*"])] += (
-            num_mult * OPERATORS["*"]["cost"])
-        port_cost[str(CPU_EXECUTION_PORTS["+"])] += (
-            num_plus * OPERATORS["+"]["cost"])
-        port_cost[str(CPU_EXECUTION_PORTS["-"])] += (
-            num_minus * OPERATORS["-"]["cost"])
+        # We've previously counted the number of each type of operation.
+        # Use that information to compute the number of cycles for which
+        # each operation will occupy the port to which it is despatched.
+        for operator in op_count:
+            port_cost[str(CPU_EXECUTION_PORTS[operator])] += (
+                op_count[operator] * OPERATORS[operator]["cost"])
 
         net_cost = 0
         for port in port_cost:

@@ -1,4 +1,4 @@
-from fparser import api
+from habakkuk.fparser import api
 
 def test_reproduce_issue():
     source_str = '''

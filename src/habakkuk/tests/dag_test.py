@@ -171,7 +171,7 @@ def test_intrinsic_call():
     for node in dag._nodes.itervalues():
         node_names.append(node.name)
         if node.name == "SIN":
-            assert node.node_type == "intrinsic"
+            assert node.node_type == "SIN"
     assert "SIN" in node_names
     assert "b" in node_names
 
@@ -429,8 +429,9 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['+', '*', '-', '/', 'intrinsic', "
-            "'constant', 'array_ref'] but got 'not-a-type'" in str(err))
+    assert ("node_type must be one of ['COS', '**', '+', '*', '-', "
+            "'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
+            "'not-a-type'" in str(err))
 
 
 def test_node_is_op():
@@ -479,10 +480,10 @@ def test_node_weight_intrinsic():
             sin_node = node
             break
     assert sin_node
-    assert sin_node.node_type == "intrinsic"
+    assert sin_node.node_type == "SIN"
     # Currently we only support the Ivy Bridge architecture
-    from habakkuk.config_ivy_bridge import FORTRAN_INTRINSICS
-    assert sin_node.weight == FORTRAN_INTRINSICS["SIN"]
+    from habakkuk.config_ivy_bridge import OPERATORS
+    assert sin_node.weight == OPERATORS["SIN"]["cost"]
 
 
 def test_node_dot_colours():
@@ -530,35 +531,6 @@ def test_no_flops(capsys):
     assert "DAG contains no FLOPs so skipping performance estimate" in result
 
 
-def test_schedule_too_long():
-    ''' Check that we raise the expected error if the computed schedule
-    is too long '''
-    from habakkuk import dag
-    old_max_length = dag.MAX_SCHEDULE_LENGTH
-    dag.MAX_SCHEDULE_LENGTH = 5
-    fortran_text = "".join(
-        ["  prod{0} = b{0} + a{0}\n".format(i, i, i) for i in range(6)])
-    # For some reason the parser fails without the initial b0 = 1.0
-    # assignment.
-    fortran_text = ("program long_sched_test\n"
-                    "  b0 = 1.0\n" + fortran_text +
-                    "end program long_sched_test\n")
-    tmp_file = os.path.join(os.getcwd(), "test_long_sched.f90")
-    with open(tmp_file, 'w') as fout:
-        fout.write(fortran_text)
-    with pytest.raises(DAGError) as err:
-        make_dag.dag_of_files(Options(), [tmp_file])
-    # Restore the original value
-    dag.MAX_SCHEDULE_LENGTH = old_max_length
-    # Delete the files generated during this test
-    os.remove(tmp_file)
-    os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
-    for i in range(6):
-        os.remove(os.path.join(os.getcwd(),
-                  "long_sched_test_step{0}.gv".format(i)))
-    assert "Unexpectedly long schedule" in str(err)
-
-
 def test_mult_operand():
     ''' Test that we handle the case where the Fortran parser generates
     a Mult_Operand object '''
@@ -586,3 +558,43 @@ def test_unrecognised_child():
     with pytest.raises(DAGError) as err:
         dag.make_dag(anode, children, {})
     assert "Unrecognised child type:" in str(err)
+
+
+def test_flop_count_err():
+    ''' Check that we raise the expected exception if we pass something
+    that is not a list or a dictionary to the flop_count() function '''
+    from habakkuk.dag import flop_count
+    not_a_list = "hello"
+    with pytest.raises(DAGError) as err:
+        _ = flop_count(not_a_list)
+    assert ("flop_count requires a list or a dictionary of nodes "
+            "but got " in str(err))
+
+
+def test_flop_count_basic():
+    ''' Check that flop_count() returns the correct value for a DAG
+    containing only basic arithmetic operations '''
+    from habakkuk.dag import flop_count
+    dag = dag_from_strings(["aprod = var1 * var2 * var3"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == 2
+
+
+def test_flop_count_power():
+    ''' Check that flop_count() returns the correct value for a DAG
+    containing a ** operation '''
+    from habakkuk.dag import flop_count
+    from habakkuk.config_ivy_bridge import OPERATORS
+    dag = dag_from_strings(["aprod = var1 ** var2"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == OPERATORS["**"]["flops"]
+
+
+def test_flop_count_sin():
+    ''' Check that flop_count() returns the correct value for a DAG
+    containing a sin() operation '''
+    from habakkuk.dag import flop_count
+    from habakkuk.config_ivy_bridge import OPERATORS
+    dag = dag_from_strings(["aprod = sin(var1)"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == OPERATORS["SIN"]["flops"]
