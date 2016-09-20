@@ -16,7 +16,7 @@ def test_schedule_too_long():
     old_max_length = dag.MAX_SCHEDULE_LENGTH
     dag.MAX_SCHEDULE_LENGTH = 5
     fortran_text = "".join(
-        ["  prod{0} = b{0} + a{0}\n".format(i, i, i) for i in range(6)])
+        ["  prod{0} = b{0} + a{0}\n".format(i) for i in range(6)])
     # For some reason the parser fails without the initial b0 = 1.0
     # assignment.
     fortran_text = ("program long_sched_test\n"
@@ -50,7 +50,7 @@ def test_addition_schedule():
         node_names.append(node.name)
         if node.name == "+":
             plus_node = node
-    
+
     assert "a" in node_names
     assert "b" in node_names
     assert "+" in node_names
@@ -134,3 +134,44 @@ def test_sin_schedule():
     assert nsteps == 1
     assert cost == OPERATORS["SIN"]["cost"]
 
+
+def test_sin_plus_schedule(capsys):
+    ''' Check that we correctly schedule (the instructions for) a DAG
+    containing the 'sin' intrinsic operation as well as an addition '''
+    assign = Fortran2003.Assignment_Stmt("a = sin(b) + c")
+    dag = DirectedAcyclicGraph("Test dag")
+    mapping = {}
+    dag.add_assignments([assign], mapping)
+    dag.calc_critical_path()
+    dag.report()
+    result, _ = capsys.readouterr()
+    print result
+    assert "Schedule contains 2 steps" in result
+    assert "Cost of schedule as a whole = 50 cycles" in result
+    assert (
+        "Critical path contains 4 nodes, 41 FLOPs and is 50 cycles long" in
+        result)
+    assert (
+        "Cost if all ops on different execution ports are perfectly "
+        "overlapped = 49 cycles" in result)
+
+
+def test_cos_product_schedule(capsys):
+    ''' Check that we correctly schedule (the instructions for) a DAG
+    containing the 'cos' intrinsic operation as well as a multiplication '''
+    assign = Fortran2003.Assignment_Stmt("a = sin(b) * c")
+    dag = DirectedAcyclicGraph("Test dag")
+    mapping = {}
+    dag.add_assignments([assign], mapping)
+    dag.calc_critical_path()
+    dag.report()
+    result, _ = capsys.readouterr()
+    print result
+    assert "Schedule contains 2 steps" in result
+    assert "Cost of schedule as a whole = 50 cycles" in result
+    assert (
+        "Critical path contains 4 nodes, 41 FLOPs and is 50 cycles long" in
+        result)
+    assert (
+        "Cost if all ops on different execution ports are perfectly "
+        "overlapped = 50 cycles" in result)

@@ -717,21 +717,20 @@ class DirectedAcyclicGraph(object):
     def report(self):
         ''' Report the properties of this DAG to stdout '''
         # Compute some properties of the graph
-        num_plus = self.count_nodes("+")
-        num_minus = self.count_nodes("-")
-        num_mult = self.count_nodes("*")
-        num_div = self.count_nodes("/")
-        num_fma = self.count_nodes("FMA")
+        op_count = {}
+        for operation in OPERATORS:
+            op_count[operation] = self.count_nodes(operation)
         num_ref = self.count_nodes("array_ref")
         num_cache_ref = self.cache_lines()
         total_cycles = self.total_cost()
         total_flops = flop_count(self._nodes)
         print "Stats for DAG {0}:".format(self._name)
-        print "  {0} addition operators.".format(num_plus)
-        print "  {0} subtraction operators.".format(num_minus)
-        print "  {0} multiplication operators.".format(num_mult)
-        print "  {0} division operators.".format(num_div)
-        print "  {0} fused multiply-adds.".format(num_fma)
+        print "  {0} addition operators.".format(op_count["+"])
+        print "  {0} subtraction operators.".format(op_count["-"])
+        print "  {0} multiplication operators.".format(op_count["*"])
+        print "  {0} division operators.".format(op_count["/"])
+        if "FMA" in op_count:
+            print "  {0} fused multiply-adds.".format(op_count["FMA"])
         print "  {0} FLOPs in total.".format(total_flops)
         print "  {0} array references.".format(num_ref)
         print "  {0} distinct cache-line references.".\
@@ -821,15 +820,12 @@ class DirectedAcyclicGraph(object):
         for port in CPU_EXECUTION_PORTS.itervalues():
             # Zero the cost for each port
             port_cost[str(port)] = 0
-
-        port_cost[str(CPU_EXECUTION_PORTS["/"])] += (
-            num_div * OPERATORS["/"]["cost"])
-        port_cost[str(CPU_EXECUTION_PORTS["*"])] += (
-            num_mult * OPERATORS["*"]["cost"])
-        port_cost[str(CPU_EXECUTION_PORTS["+"])] += (
-            num_plus * OPERATORS["+"]["cost"])
-        port_cost[str(CPU_EXECUTION_PORTS["-"])] += (
-            num_minus * OPERATORS["-"]["cost"])
+        # We've previously counted the number of each type of operation.
+        # Use that information to compute the number of cycles for which
+        # each operation will occupy the port to which it is despatched.
+        for operator in op_count:
+            port_cost[str(CPU_EXECUTION_PORTS[operator])] += (
+                op_count[operator] * OPERATORS[operator]["cost"])
 
         net_cost = 0
         for port in port_cost:
