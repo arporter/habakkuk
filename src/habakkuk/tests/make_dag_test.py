@@ -132,3 +132,14 @@ def test_main_routine_invalid_fortran():
     print str(err)
     assert "Parse Error: Parsing " in str(err)
     assert "Is the file valid Fortran?" in str(err)
+
+
+def test_array_deref_count(capsys):
+    ''' Check that we cope with indirectly-addressed array
+    references '''
+    from habakkuk.make_dag import runner
+    args = [os.path.join(PWD, "test_files/gather.f90")]
+    runner(args)
+    result, _ = capsys.readouterr()
+    assert "4 array references" in result
+    assert "2 distinct cache-line references" in result
