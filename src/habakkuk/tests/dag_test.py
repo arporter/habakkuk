@@ -37,10 +37,32 @@ def test_is_intrinsic_false():
 
 
 def test_is_intrinsic_true():
-    ''' Check that is_intrinsic_fn() returns False if passed something
-    that is not a Fortran intrinsic '''
+    ''' Check that is_intrinsic_fn() returns True if passed something
+    that *is* a Fortran intrinsic '''
     from habakkuk.dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("sin(r)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+
+
+def test_max_is_intrinsic():
+    ''' Check that we recognise max as a Fortran intrinsic '''
+    from habakkuk.dag import is_intrinsic_fn
+    fake_parse_obj = Fortran2003.Part_Ref("max(r,p)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+    fake_parse_obj = Fortran2003.Part_Ref("MAX(r,p)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+
+
+def test_min_is_intrinsic():
+    ''' Check that we recognise min as a Fortran intrinsic '''
+    from habakkuk.dag import is_intrinsic_fn
+    fake_parse_obj = Fortran2003.Part_Ref("min(r,p)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+    fake_parse_obj = Fortran2003.Part_Ref("MIN(r,p)")
     val = is_intrinsic_fn(fake_parse_obj)
     assert val
 
@@ -174,6 +196,49 @@ def test_intrinsic_call():
             assert node.node_type == "SIN"
     assert "SIN" in node_names
     assert "b" in node_names
+
+
+def test_max_intrinsic_call():
+    ''' Test that the correct DAG is created from an assignment involving
+    a call to the max intrinsic. '''
+    assign = Fortran2003.Assignment_Stmt("a = max(b,c)")
+    dag = DirectedAcyclicGraph("Max dag")
+    mapping = {}
+    tmp_node = dag.get_node(parent=None,
+                            name="tmp_node",
+                            unique=True)
+    dag.make_dag(tmp_node, assign.items[2:], mapping)
+    node_names = []
+    for node in dag._nodes.itervalues():
+        node_names.append(node.name)
+        if node.name == "MAX":
+            assert node.node_type == "MAX"
+    assert "MAX" in node_names
+    assert "b" in node_names
+    assert "c" in node_names
+
+
+def test_min_intrinsic_call():
+    ''' Test that the correct DAG is created from an assignment involving
+    a call to the min intrinsic. '''
+    assign = Fortran2003.Assignment_Stmt("a = min(b,c,d)")
+    dag = DirectedAcyclicGraph("Max dag")
+    mapping = {}
+    tmp_node = dag.get_node(parent=None,
+                            name="tmp_node",
+                            unique=True)
+    dag.make_dag(tmp_node, assign.items[2:], mapping)
+    node_names = []
+    for node in dag._nodes.itervalues():
+        node_names.append(node.name)
+        if node.name == "MIN":
+            assert node.node_type == "MIN"
+            break
+    print dir(node)
+    assert "MIN" in node_names
+    assert "b" in node_names
+    assert "c" in node_names
+    assert "d" in node_names
 
 
 def test_rm_scalar_tmps():
