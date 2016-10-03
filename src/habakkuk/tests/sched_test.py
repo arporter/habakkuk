@@ -41,7 +41,7 @@ def test_schedule_too_long():
 def test_addition_schedule():
     ''' Check the construction of a schedule of a very simple DAG '''
     assign = Fortran2003.Assignment_Stmt("a = b + c")
-    dag = DirectedAcyclicGraph("Test dag")
+    dag = DirectedAcyclicGraph("Test_dag")
     mapping = {}
     dag.add_assignments([assign], mapping)
     node_names = []
@@ -79,7 +79,7 @@ def test_exp_schedule():
     from habakkuk.dag import schedule_cost
     from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = b**c")
-    dag = DirectedAcyclicGraph("Test dag")
+    dag = DirectedAcyclicGraph("Test_dag")
     mapping = {}
     dag.add_assignments([assign], mapping)
     node_names = []
@@ -110,7 +110,7 @@ def test_sin_schedule():
     from habakkuk.dag import schedule_cost
     from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = sin(b)")
-    dag = DirectedAcyclicGraph("Test dag")
+    dag = DirectedAcyclicGraph("Test_dag")
     mapping = {}
     dag.add_assignments([assign], mapping)
     node_names = []
@@ -139,7 +139,7 @@ def test_sin_plus_schedule(capsys):
     ''' Check that we correctly schedule (the instructions for) a DAG
     containing the 'sin' intrinsic operation as well as an addition '''
     assign = Fortran2003.Assignment_Stmt("a = sin(b) + c")
-    dag = DirectedAcyclicGraph("Test dag")
+    dag = DirectedAcyclicGraph("Test_dag")
     mapping = {}
     dag.add_assignments([assign], mapping)
     dag.calc_critical_path()
@@ -160,7 +160,7 @@ def test_cos_product_schedule(capsys):
     ''' Check that we correctly schedule (the instructions for) a DAG
     containing the 'cos' intrinsic operation as well as a multiplication '''
     assign = Fortran2003.Assignment_Stmt("a = sin(b) * c")
-    dag = DirectedAcyclicGraph("Test dag")
+    dag = DirectedAcyclicGraph("Test_dag")
     mapping = {}
     dag.add_assignments([assign], mapping)
     dag.calc_critical_path()
@@ -175,3 +175,22 @@ def test_cos_product_schedule(capsys):
     assert (
         "Cost if all ops on different execution ports are perfectly "
         "overlapped = 50 cycles" in result)
+
+
+def test_max_min_addition_schedule(capsys):
+    ''' Check that we generate correct schedule when DAG contains a MAX,
+    a MIN and an addition '''
+    assign = Fortran2003.Assignment_Stmt("a = MIN(b,c) * MAX(c,d) + e")
+    dag = DirectedAcyclicGraph("Test_dag")
+    mapping = {}
+    dag.add_assignments([assign], mapping)
+    dag.calc_critical_path()
+    dag.report()
+    result, _ = capsys.readouterr()
+    print result
+    assert "Schedule contains 4 steps" in result
+    assert "Cost of schedule as a whole = 4 cycles" in result
+    assert ("Critical path contains 5 nodes, 2 FLOPs and is 3 cycles long"
+            in result)
+    assert ("Cost if all ops on different execution ports are perfectly "
+            "overlapped = 2 cycles" in result)

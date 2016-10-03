@@ -78,16 +78,25 @@ def schedule_cost(nsteps, schedule):
     ''' Calculate the cost (in cycles) of the supplied schedule '''
 
     print "Schedule contains {0} steps:".format(nsteps)
+
+    # Create header string for print-out of schedule
+    print "    {0:^30s}".format("Execution Port")
+    header_str = "    "
+    for port in range(NUM_EXECUTION_PORTS):
+        header_str += " {0:^4n}".format(port)
+    print header_str
+
     cost = 0
     for step in range(0, nsteps):
 
-        sched_str = str(step)
+        sched_str = "{0:3s}".format(str(step))
         max_cost = 0
 
         # Find the most expensive operation on any port at this step of
         # the schedule
         for port in range(NUM_EXECUTION_PORTS):
-            sched_str += " {0}".format(schedule[port][step])
+
+            sched_str += " {0:4s}".format(schedule[port][step])
 
             port_cost = 0
 
