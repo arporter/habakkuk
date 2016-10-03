@@ -213,16 +213,18 @@ def test_max_intrinsic_call():
         node_names.append(node.name)
         if node.name == "MAX":
             assert node.node_type == "MAX"
+            max_node = node
+    prod_names = [pnode.name for pnode in max_node.producers]
     assert "MAX" in node_names
-    assert "b" in node_names
-    assert "c" in node_names
+    assert "b" in prod_names
+    assert "c" in prod_names
 
 
 def test_min_intrinsic_call():
     ''' Test that the correct DAG is created from an assignment involving
     a call to the min intrinsic. '''
     assign = Fortran2003.Assignment_Stmt("a = min(b,c,d)")
-    dag = DirectedAcyclicGraph("Max dag")
+    dag = DirectedAcyclicGraph("Max_dag")
     mapping = {}
     tmp_node = dag.get_node(parent=None,
                             name="tmp_node",
@@ -233,12 +235,12 @@ def test_min_intrinsic_call():
         node_names.append(node.name)
         if node.name == "MIN":
             assert node.node_type == "MIN"
-            break
-    print dir(node)
+            min_node = node
+    prod_names = [pnode.name for pnode in min_node.producers]
     assert "MIN" in node_names
-    assert "b" in node_names
-    assert "c" in node_names
-    assert "d" in node_names
+    assert "b" in prod_names
+    assert "c" in prod_names
+    assert "d" in prod_names
 
 
 def test_rm_scalar_tmps():
@@ -494,8 +496,8 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['COS', '**', '+', '*', '-', "
-            "'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
+    assert ("node_type must be one of ['COS', '**', 'MIN', 'MAX', '+', '*', "
+            "'-', 'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
             "'not-a-type'" in str(err))
 
 
