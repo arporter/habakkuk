@@ -47,7 +47,7 @@ def test_variable_scalar_index_expr():
 
 
 def test_variable_index_exprn_minus1():
-    ''' Test the code that attempts to simply array-index expressions
+    ''' Test the code that attempts to simplify array-index expressions
     when the net increment to an index is negative '''
     dag = dag_from_strings(["a(i) = 2.0 * b(i)"])
     anode = dag._nodes["a(i)"]
@@ -82,6 +82,7 @@ def test_indirect_array_access1():
     node_names = [node.name for node in dag._nodes.itervalues()]
     print node_names
     assert "b(map(i))" in node_names
+    assert "map(i)" in node_names
 
 
 def test_indirect_array_access2():
@@ -92,6 +93,15 @@ def test_indirect_array_access2():
     node_names = [node.name for node in dag._nodes.itervalues()]
     print node_names
     assert "b(map(i)+j)" in node_names
+    assert "map(i)" in node_names
+    assert dag.cache_lines() == 2
+
+
+def test_indirect_array_access_difft_cache_lines():
+    ''' Check that we correctly identify two indirect array accesses as
+    (probably) belonging to two different cache lines '''
+    dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
+    assert dag.cache_lines() == 2
 
 
 def test_load_unrecognised_array_access():

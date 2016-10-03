@@ -141,5 +141,6 @@ def test_array_deref_count(capsys):
     args = [os.path.join(PWD, "test_files/gather.f90")]
     runner(args)
     result, _ = capsys.readouterr()
+    print result
     assert "4 array references" in result
     assert "2 distinct cache-line references" in result
