@@ -16,14 +16,19 @@ OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
              "SIGN": {"latency": 0, "cost": 3, "flops": 1},
              "+": {"latency": 3, "cost": 1, "flops": 1},
              "-": {"latency": 3, "cost": 1, "flops": 1},
-             "*": {"latency": 5, "cost": 1, "flops": 1}}
+             "*": {"latency": 5, "cost": 1, "flops": 1},
+             "MIN": {"latency": 0, "cost": 1, "flops": 0},
+             "MAX": {"latency": 0, "cost": 1, "flops": 0}}
 
 # Which execution port each f.p. operation is mapped to on the CPU
 # (from http://www.agner.org/optimize/microarchitecture.pdf).
 NUM_EXECUTION_PORTS = 2
 CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1,
                        # Which port the intrinsics will utilise
-                       "**": 0, "SIN": 0, "COS": 0, "SIGN": 1}
+                       "**": 0, "SIN": 0, "COS": 0, "SIGN": 1,
+                       # The CMP instruction can execute on 0, 1 or 5
+                       # so specify 5 here as 0 and 1 are likely to be busy
+                       "MAX": 5, "MIN": 5}
 
 # Size of a cache line in bytes
 CACHE_LINE_BYTES = 64
@@ -32,7 +37,7 @@ CACHE_LINE_BYTES = 64
 EXAMPLE_CLOCK_GHZ = 3.85
 
 # Fortran intrinsics that we recognise. All uppercase.
-FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "**"]
+FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "**", "MAX", "MIN"]
 
 # Whether this microarchitecture supports the Fused Multiply Add op
 # TODO check on this before we attempt to generate FMAs.
