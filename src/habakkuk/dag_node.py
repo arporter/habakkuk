@@ -7,7 +7,7 @@ from habakkuk.config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref"]
 
-INDENT_STR = "     "
+INDENT_STR = "  "
 # At what depth to abort attempting to recursively walk down a graph
 # (hitting this indicates a bug!)
 MAX_RECURSION_DEPTH = 40
@@ -76,6 +76,9 @@ class DAGNode(object):
             self._ready = True
         else:
             self._ready = False
+        # If this node represents an array access then this list contains
+        # a list of parent nodes, one for each array index expression
+        self.array_index_nodes = []
 
     def __str__(self):
         return self.name
@@ -130,7 +133,8 @@ class DAGNode(object):
 
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''
-        print indent*INDENT_STR, self.name
+        prefix = indent*INDENT_STR
+        print prefix+"\- "+self.name
         for child in self._producers:
             child.display(indent=indent+1)
 
