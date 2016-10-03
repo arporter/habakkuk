@@ -411,13 +411,34 @@ class DirectedAcyclicGraph(object):
         is the number of distinct memory references. We assume that
         any array reference of the form u(i+1,j) will have been fetched
         when u(i,j) was accessed. '''
-        # List of distinct array references
-        array_refs = []
+        # Set of unique array references
+        array_refs = set()
         # Loop over all nodes in the tree, looking for array references
         ancestors = self.output_nodes()
         for ancestor in ancestors:
             nodes = ancestor.walk("array_ref")
             for node in nodes:
+                if node.is_integer:
+                    # Ignore integer array references
+                    # TODO include integer array refs in cache-line count
+                    continue
+                # We assume that two references to the same array are
+                # from the same cache line if they differ only in
+                # their first array index and then only in the 'linear'
+                # part of it. i.e. my_array(my_map(df) + i) will be
+                # fetched with my_array(my_map(df)+i+1) but e.g.
+                # my_array(my_map(df+1)+i) will not.
+                # 1. Check whether the expression for the first array index
+                #    itself contains any array references
+                map_refs = node.array_index_nodes[0].walk("array_ref")
+                if map_refs:
+                    print "1st map lookup: ", map_refs[0]
+                # Look at the immediate dependencies of the first array-
+                # index expression
+                for prod_node in node.array_index_nodes[0].producers:
+                    print prod_node
+                    if prod_node.node_type == "+" or prod_node.node_type == "-":
+                        pass  # TODO
                 # We care about the name of the array and the value of
                 # anything other than the first index (assuming that any
                 # accesses that differ only in the first index are all
@@ -425,8 +446,7 @@ class DirectedAcyclicGraph(object):
                 key = node.variable.name
                 for index in node.variable.indices[1:]:
                     key += "_" + index
-                if key not in array_refs:
-                    array_refs.append(key)
+                array_refs.add(key)
         return len(array_refs)
 
     def calc_costs(self):
@@ -523,20 +543,35 @@ class DirectedAcyclicGraph(object):
                     # Assume it's an array reference
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
-                    tmpnode = self.get_node(parent, variable=arrayvar,
-                                            node_type="array_ref",
-                                            is_integer=array_index)
-                    node_list.append(tmpnode)
+                    array_node = self.get_node(parent, variable=arrayvar,
+                                               node_type="array_ref",
+                                               is_integer=array_index)
+                    node_list.append(array_node)
                     if is_division and idx == 2:
-                        parent.operands.append(tmpnode)
+                        parent.operands.append(array_node)
                     # Include the array index expression in the DAG. Set
                     # flag to indicate that this is an array index so that
                     # we know we're dealing with integers.
                     # The first item in the list child.items is the name
                     # of the array variable itself so we skip that.
-                    node_list += self.make_dag(tmpnode, child.items[1:],
-                                               mapping,
-                                               array_index=True)
+                    for idx, item in enumerate(child.items[1:]):
+                        if array_index:
+                            # We are down within an array-index expression
+                            # so we don't create a node to represent each
+                            # array-index expression
+                            tmpnode = array_node
+                        else:
+                            # Array is not within an array-index expression so
+                            # we create a node to represent each index
+                            # expression
+                            tmpnode = self.get_node(array_node,
+                                                    name="index{0}".format(idx+1),
+                                                    is_integer=True,
+                                                    unique=True)
+                            array_node.array_index_nodes.append(tmpnode)
+                        node_list += self.make_dag(tmpnode, [item],
+                                                   mapping,
+                                                   array_index=True)
             elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
