@@ -26,7 +26,8 @@ class DAGError(Exception):
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
 
-    def __init__(self, parent=None, name=None, digraph=None, variable=None):
+    def __init__(self, parent=None, name=None, digraph=None, variable=None,
+                 is_integer=False):
         # Keep a reference back to the digraph object containing
         # this node
         self._digraph = digraph
@@ -42,6 +43,9 @@ class DAGNode(object):
             parent.add_producer(self)
         # The type of this node
         self._node_type = None
+        # Whether or not this node represents an integer quantity (as
+        # opposed to the default of floating point)
+        self._integer = is_integer
         # The name of this node - used to label the node in DOT. This
         # name is not necessarily the same as the name of the variable
         # in the Fortran code: if it has been assigned to then it becomes
@@ -66,10 +70,21 @@ class DAGNode(object):
         # Whether the quantity represented by this node is ready to
         # be consumed (if an operator then that means it has been
         # executed). Used when generating a schedule for the DAG.
-        self._ready = False
+        # Since we're not interested in integer operations we mark
+        # this node as ready if it represents an integer quantity.
+        if self._integer:
+            self._ready = True
+        else:
+            self._ready = False
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_integer(self):
+        ''' Returns True if the quantity represented by this node is
+        an integer (or operates on integers) '''
+        return self._integer
 
     @property
     def dependencies_satisfied(self):
@@ -228,7 +243,7 @@ class DAGNode(object):
     @property
     def weight(self):
         ''' Returns the (exclusive) weight/cost of this node '''
-        if not self._node_type:
+        if not self._node_type or self._integer:
             return 0
         else:
             if self._node_type in OPERATORS:
@@ -258,8 +273,8 @@ class DAGNode(object):
         for child in self._producers:
             fma_count += child.fuse_multiply_adds()
 
-        # If this node is an addition
-        if self._node_type == "+":
+        # If this node is a floating-point addition
+        if self._node_type == "+" and not self._integer:
             # Loop over a copy of the list of producers as this loop
             # modifies the original
             for child in self._producers[:]:
@@ -305,8 +320,8 @@ class DAGNode(object):
             if child.incl_weight > max_weight:
                 max_weight = child.incl_weight
                 node = child
-        # Move down to that child
-        if node:
+        # Move down to that child unless it is an integer quantity
+        if node and not node.is_integer:
             node.critical_path(path)
 
     def to_dot(self, fileobj, show_weight):
@@ -349,12 +364,18 @@ class DAGNode(object):
 
         # Set node fill colours in order to animate the execution
         # schedule
-        if self._ready:
-            # Node has been executed/updated
-            nodestr += ", style=\"filled\", fillcolor=\"grey\""
-        elif self.dependencies_satisfied:
-            # Node is ready to be executed/updated
-            nodestr += ", style=\"filled\", fillcolor=\"green\""
+        if self._integer:
+            # Node represents an integer quantity and does not take
+            # part in schedule. Use X11 colour 'Green Yellow' for such
+            # nodes
+            nodestr += ", style=\"filled\", fillcolor=\"#ADFF2F\""
+        else:
+            if self._ready:
+                # Node has been executed/updated
+                nodestr += ", style=\"filled\", fillcolor=\"grey\""
+            elif self.dependencies_satisfied:
+                # Node is ready to be executed/updated
+                nodestr += ", style=\"filled\", fillcolor=\"green\""
 
         nodestr += "]\n"
 

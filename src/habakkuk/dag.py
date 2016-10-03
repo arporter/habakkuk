@@ -292,7 +292,7 @@ class DirectedAcyclicGraph(object):
             self.delete_node(tmp_node)
 
     def get_node(self, parent=None, mapping=None, name=None, unique=False,
-                 node_type=None, variable=None):
+                 node_type=None, variable=None, is_integer=False):
         ''' Looks-up or creates a node in the graph. If unique is False and
         we do not already have a node with the supplied name then we create a
         new one. If unique is True then we always create a new node. If a
@@ -305,7 +305,7 @@ class DirectedAcyclicGraph(object):
         if unique:
             # Node is unique so we make a new one, no questions asked.
             node = DAGNode(parent=parent, name=name, digraph=self,
-                           variable=variable)
+                           variable=variable, is_integer=is_integer)
             # Store this node in our list using its unique ID in place of a
             # name (since a unique node has been requested). This then
             # ensures we have a list of all nodes in the graph.
@@ -333,7 +333,7 @@ class DirectedAcyclicGraph(object):
                 # Create a new node and store it in our list so we
                 # can refer back to it in future if needed
                 node = DAGNode(parent=parent, name=node_name,
-                               variable=variable)
+                               variable=variable, is_integer=is_integer)
                 self._nodes[node_name] = node
 
         if node_type:
@@ -452,7 +452,7 @@ class DirectedAcyclicGraph(object):
             num_fma += node.fuse_multiply_adds()
         return num_fma
 
-    def make_dag(self, parent, children, mapping):
+    def make_dag(self, parent, children, mapping, array_index=False):
         ''' Makes a DAG from the RHS of a Fortran assignment statement and
         returns a list of the nodes that represent the variables involved '''
         from habakkuk.parse2003 import Variable
@@ -468,7 +468,8 @@ class DirectedAcyclicGraph(object):
                     # are unique nodes in the DAG.
                     my_type = child
                     opnode = self.get_node(parent, mapping, name=child,
-                                           unique=True, node_type=my_type)
+                                           unique=True, node_type=my_type,
+                                           is_integer=array_index)
                     # Make this operation the parent of the rest of the nodes
                     # making up the expression
                     parent = opnode
@@ -484,7 +485,8 @@ class DirectedAcyclicGraph(object):
             if isinstance(child, Fortran2003.Name):
                 var = Variable()
                 var.load(child, mapping)
-                tmpnode = self.get_node(parent, variable=var)
+                tmpnode = self.get_node(parent, variable=var,
+                                        is_integer=array_index)
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
@@ -495,10 +497,12 @@ class DirectedAcyclicGraph(object):
                 const_var.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=const_var,
                                         unique=True,
-                                        node_type="constant")
+                                        node_type="constant",
+                                        is_integer=array_index)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
             elif isinstance(child, Fortran2003.Part_Ref):
+                print child
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
                     # Create a unique node to represent the intrinsic call.
@@ -507,40 +511,53 @@ class DirectedAcyclicGraph(object):
                     tmpnode = self.get_node(parent, mapping,
                                             name=intr_name,
                                             unique=True,
-                                            node_type=intr_name)
+                                            node_type=intr_name,
+                                            is_integer=array_index)
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Add its dependencies
                     node_list += self.make_dag(tmpnode,
-                                               child.items[1:], mapping)
+                                               child.items[1:], mapping,
+                                               array_index)
                 else:
                     # Assume it's an array reference
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
                     tmpnode = self.get_node(parent, variable=arrayvar,
-                                            node_type="array_ref")
+                                            node_type="array_ref",
+                                            is_integer=array_index)
                     node_list.append(tmpnode)
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
-                    # Include the array index expression in the DAG
-                    # self.make_dag(tmpnode, child.items, mapping)
+                    # Include the array index expression in the DAG. Set
+                    # flag to indicate that this is an array index so that
+                    # we know we're dealing with integers.
+                    # The first item in the list child.items is the name
+                    # of the array variable itself so we skip that.
+                    node_list += self.make_dag(tmpnode, child.items[1:],
+                                               mapping,
+                                               array_index=True)
             elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=arrayvar,
-                                        node_type="array_ref")
+                                        node_type="array_ref",
+                                        is_integer=array_index)
                 node_list.append(tmpnode)
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
-                node_list += self.make_dag(parent, child.items, mapping)
+                node_list += self.make_dag(parent, child.items, mapping,
+                                           array_index)
             elif isinstance(child, Fortran2003.Section_Subscript_List):
                 # We have a list of arguments
-                node_list += self.make_dag(parent, child.items, mapping)
+                node_list += self.make_dag(parent, child.items, mapping,
+                                           array_index)
             elif isinstance(child, Fortran2003.Mult_Operand):
                 # We have an expression that is something like (a * b) ** c
                 # and can just carry-on down to the children
-                node_list += self.make_dag(parent, child.items, mapping)
+                node_list += self.make_dag(parent, child.items, mapping,
+                                           array_index)
             elif isinstance(child, str):
                 # This is the operator node which we've already dealt with
                 pass
