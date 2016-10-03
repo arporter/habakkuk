@@ -22,7 +22,7 @@ OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
 
 # Which execution port each f.p. operation is mapped to on the CPU
 # (from http://www.agner.org/optimize/microarchitecture.pdf).
-NUM_EXECUTION_PORTS = 2
+NUM_EXECUTION_PORTS = 6
 CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1,
                        # Which port the intrinsics will utilise
                        "**": 0, "SIN": 0, "COS": 0, "SIGN": 1,
