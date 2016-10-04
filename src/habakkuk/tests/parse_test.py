@@ -94,14 +94,6 @@ def test_indirect_array_access2():
     print node_names
     assert "b(map(i)+j)" in node_names
     assert "map(i)" in node_names
-    assert dag.cache_lines() == 2
-
-
-def test_indirect_array_access_difft_cache_lines():
-    ''' Check that we correctly identify two indirect array accesses as
-    (probably) belonging to two different cache lines '''
-    dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
-    assert dag.cache_lines() == 2
 
 
 def test_load_unrecognised_array_access():
