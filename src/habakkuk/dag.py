@@ -412,7 +412,7 @@ class DirectedAcyclicGraph(object):
         any array reference of the form u(i+1,j) will have been fetched
         when u(i,j) was accessed. '''
         # Set of unique array references
-        array_refs = set()
+        array_refs = {}
         # Loop over all nodes in the tree, looking for array references
         ancestors = self.output_nodes()
         for ancestor in ancestors:
@@ -422,6 +422,9 @@ class DirectedAcyclicGraph(object):
                     # Ignore integer array references
                     # TODO include integer array refs in cache-line count
                     continue
+                if node.variable.name not in array_refs:
+                    array_refs[node.variable.name] = []
+                array_refs[node.variable.name].append(node.array_index_nodes)
                 # We assume that two references to the same array are
                 # from the same cache line if they differ only in
                 # their first array index and then only in the 'linear'
@@ -439,15 +442,52 @@ class DirectedAcyclicGraph(object):
                     print prod_node
                     if prod_node.node_type == "+" or prod_node.node_type == "-":
                         pass  # TODO
-                # We care about the name of the array and the value of
-                # anything other than the first index (assuming that any
-                # accesses that differ only in the first index are all
-                # fetched in the same cache line).
-                key = node.variable.name
-                for index in node.variable.indices[1:]:
-                    key += "_" + index
-                array_refs.add(key)
-        return len(array_refs)
+        cline_count = 0
+        for array in array_refs:
+            print "array = ", array
+            if len(array_refs[array]) == 1:
+                # There's only one access to an array with this name
+                cline_count += 1
+                continue
+            # We need to find the number of unique array accesses
+            # We can construct a string representation of each index expression
+            # for all indices > 1.
+            # Find out how many dimensions the first access to this array has
+            ndims = len(array_refs[array][0])
+            print "ndims = ", ndims
+            if ndims > 1:
+                index_exprns = set()
+                # Loop over all accesses to this array and construct a string
+                # representation of their non-rank 1 index expressions.
+                # Each unique expression then represents a different cache-line
+                # access
+                access_hash = []
+                for access in array_refs[array]:
+                    index_str = "_".join([str(obj) for obj in access[1:]])
+                    print "index_str = ",index_str
+                    access_hash.append(index_str)
+                    index_exprns.add(index_str)
+                cline_count += len(index_exprns)
+                # Now check the array accesses that we've found to match in
+                # all bar the first dimension
+                for index_str in index_exprns:
+                    # Construct a list of the accesses whose non-rank-1 indexing
+                    # matches the hash in index_str
+                    match_list = []
+                    for idx, access in enumerate(array_refs[array]):
+                        if access_hash[idx] == index_str:
+                            match_list.append(access)
+                    # Loop over all pairs of such accesses
+                    for idx, match1 in enumerate(match_list[:-1]):
+                        for match2 in match_list[idx+1:]:
+                            print match1[0], match2[0]
+                            match1[0].display()
+            # Now we've counted accesses to this array that differ in anything
+            # other than the first dimension, we must now check for those
+            # that differ by more than a linear increment in the first
+            # dimension.
+            
+        return cline_count
 
     def calc_costs(self):
         ''' Analyse the DAG and calculate a weight for each node. '''
@@ -554,7 +594,15 @@ class DirectedAcyclicGraph(object):
                     # we know we're dealing with integers.
                     # The first item in the list child.items is the name
                     # of the array variable itself so we skip that.
-                    for idx, item in enumerate(child.items[1:]):
+                    print "Item 0 = ", child.items[0]
+                    if isinstance(child.items[1],
+                                  Fortran2003.Section_Subscript_List):
+                        arg_list = child.items[1].items
+                    else:
+                        arg_list = child.items[1:]
+                    for idx, item in enumerate(arg_list):
+                        print "idx = ", idx, "array_index = ", array_index
+
                         if array_index:
                             # We are down within an array-index expression
                             # so we don't create a node to represent each
@@ -568,10 +616,16 @@ class DirectedAcyclicGraph(object):
                                                     name="index{0}".format(idx+1),
                                                     is_integer=True,
                                                     unique=True)
-                            array_node.array_index_nodes.append(tmpnode)
+                            if idx > 0:
+                                # Just store a string representation for any
+                                # index expression other than the first
+                                array_node.array_index_nodes.append(str(item))
+                            else:
+                                array_node.array_index_nodes.append(tmpnode)
                         node_list += self.make_dag(tmpnode, [item],
                                                    mapping,
                                                    array_index=True)
+
             elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
