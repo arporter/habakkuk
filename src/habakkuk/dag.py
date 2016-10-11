@@ -93,14 +93,10 @@ def differ_by_constant(node1, node2):
             if not subgraph_matches(child1, child2):
                 node_set1 = set(child1.walk())
                 node_set2 = set(child2.walk())
-                print node_set1
-                print node_set2
                 # The list of nodes that are not shared by the two sub-graphs
                 unshared_nodes = node_set1 ^ node_set2
                 for node in unshared_nodes:
                     if node.node_type not in ["+", "-", "constant"]:
-                        print "Node type: ", node.node_type 
-                        print "Node: ", node
                         return False
     return True
 
@@ -266,10 +262,16 @@ class DirectedAcyclicGraph(object):
         ''' Set the name of this DAG '''
         self._name = new_name
 
-    def add_assignments(self, assignments, mapping):
+    def add_assignments(self, assignments, mapping, all_integer=False):
         ''' Add to the existing DAG using the supplied list of
         assignments. Each assignment is an instance of a
-        fparser.Fortran2003.Assignment_Stmt '''
+        fparser.Fortran2003.Assignment_Stmt.
+
+        assignments - list of Fortran2003.Assignment_Stmt objects
+        mapping - variable-name map to allow for repeated assignment,
+                  e.g. i' = i + 1
+        all_integer - specifies whether the set of assignments is for
+                      all-integer quantities. '''
         from habakkuk.parse2003 import Variable
 
         for assign in assignments:
@@ -287,7 +289,8 @@ class DirectedAcyclicGraph(object):
 
             # First two items of an Assignment_Stmt are the name of
             # the var being assigned to and '=' so skip them
-            rhs_node_list = self.make_dag(tmp_node, assign.items[2:], mapping)
+            rhs_node_list = self.make_dag(tmp_node, assign.items[2:], mapping,
+                                          array_index=all_integer)
 
             # Only update the map once we've created a DAG of the
             # assignment statement. This is because any references
@@ -319,10 +322,13 @@ class DirectedAcyclicGraph(object):
             lhs_var.name = mapping[lhs_var.full_orig_name]
 
             # Create the LHS node proper now that we've updated the
-            # naming map
-            lhs_node = self.get_node(parent=None,
-                                     mapping=mapping,
-                                     variable=lhs_var)
+            # naming map. We use make_dag() to do this so that we
+            # capture any dependencies on variables within array-index
+            # expressions
+            new_nodes = self.make_dag(None,
+                                      [assign.items[0]],
+                                      mapping, array_index=all_integer)
+            lhs_node = new_nodes[0]
 
             # Copy over the dependencies from the temporary node
             for node in tmp_node.producers:
@@ -455,7 +461,19 @@ class DirectedAcyclicGraph(object):
                 else: 
                     if not new_node.is_integer:
                         node_list.add(new_node)
-        return len(node_list)
+        if node_type not in OPERATORS:
+            # If we're dealing with, e.g. array references we don't
+            # want to count reads and write separately. We must
+            # therefore examine the full original name of the variable
+            # rather than the name given to the node in the DAG (since
+            # that may have a ' appended if the variable is readwrite)
+            unique_names = set()
+            for node in node_list:
+                if node.variable:
+                    unique_names.add(node.variable.full_orig_name)
+            return len(unique_names)
+        else:
+            return len(node_list)
 
     def cache_lines(self):
         ''' Count the number of cache lines accessed by the graph. This
@@ -527,11 +545,8 @@ class DirectedAcyclicGraph(object):
                     # by one...
                     for idx, match1 in enumerate(match_list[:-1]):
                         for match2 in match_list[idx+1:]:
-                            match1[0].display()
-                            match2[0].display()
                             if differ_by_constant(match1[0], match2[0]):
                                 count -= 1
-                    print "count = ", count
                     cline_count += count
             else:
                 # This is an array of rank 1 (1D). We potentially need
@@ -542,8 +557,6 @@ class DirectedAcyclicGraph(object):
                 # cache lines required by 1.
                 for idx, access1 in enumerate(array_refs[array][:-1]):
                     for access2 in array_refs[array][idx+1:]:
-                        access1[0].display()
-                        access2[0].display()
                         if differ_by_constant(access1[0], access2[0]):
                             count -= 1
                 cline_count += count
