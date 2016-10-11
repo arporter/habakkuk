@@ -53,18 +53,10 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     if loop:
         for _ in range(1, unroll_factor):
             # Increment the loop counter and then add to the DAG again
-            mapping[loop.var_name] += "+1"
+            digraph.add_assignments(
+                [Assignment_Stmt("{0} = {0} + 1".format(loop.var_name))],
+                mapping)
             digraph.add_assignments(assignments, mapping)
-
-    # Correctness check - if we've ended up with e.g. my_var' as a key
-    # in our name-mapping dictionary then something has gone wrong.
-    for name in mapping:
-        if "'" in name:
-            from parse2003 import ParseError
-            raise ParseError(
-                "Found {0} in name map but names with ' characters "
-                "appended should only appear in the value part of "
-                "the dictionary")
 
     return digraph
 

@@ -175,11 +175,18 @@ class DAGNode(object):
         return False
 
     @property
-    def has_producer(self):
+    def has_producer(self, include_integers=False):
         ''' Returns true if this node has one or more
-        dependencies/producers '''
-        if self._producers:
-            return True
+        dependencies/producers. By default we ignore nodes representing
+        integer quantities since they are only part of array-index
+        expressions. '''
+        if include_integers:
+            if self._producers:
+                return True
+        else:
+            for prod in self._producers:
+                if not prod._integer:
+                    return True
         return False
 
     @property
@@ -219,8 +226,8 @@ class DAGNode(object):
 
     def walk(self, node_type=None, top_down=False, depth=0):
         ''' Walk down the tree from this node and generate a list of all
-        nodes of type node_type. If no node type is supplied then return
-        all descendents '''
+        nodes of type node_type (excluding this node). If no node type is
+        supplied then return all descendents '''
         if depth > MAX_RECURSION_DEPTH:
             print "Current node = ", str(self)
             print "Producers:"

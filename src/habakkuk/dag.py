@@ -63,6 +63,48 @@ def subgraph_matches(node1, node2):
     return matches
 
 
+def differ_by_constant(node1, node2):
+    ''' Returns True if the two expressions represented by node1 and node2
+    differ only by a numerical constant. '''
+    # Are the two expressions identical?
+    if subgraph_matches(node1, node2):
+        return True
+    # If top-level node is not addition/subtraction/a scalar then the
+    # two expressions cannot differ by just a constant
+    if node1.producers[0].node_type and node1.producers[0].node_type not in ["+", "-"]:
+        return False
+    if node2.producers[0].node_type and node2.producers[0].node_type not in ["+", "-"]:
+        return False
+
+    if node1.producers[0].node_type:
+        children1 = node1.producers[0].producers
+    else:
+        children1 = [node1.producers[0]]
+    if node2.producers[0].node_type:
+        children2 = node2.producers[0].producers
+    else:
+        children2 = [node2.producers[0]]
+
+    # Examine the operands of the addition/subtraction and identify the
+    # difference
+    for child1 in children1:
+        for child2 in children2:
+            # Look for the sub-graphs that differ
+            if not subgraph_matches(child1, child2):
+                node_set1 = set(child1.walk())
+                node_set2 = set(child2.walk())
+                print node_set1
+                print node_set2
+                # The list of nodes that are not shared by the two sub-graphs
+                unshared_nodes = node_set1 ^ node_set2
+                for node in unshared_nodes:
+                    if node.node_type not in ["+", "-", "constant"]:
+                        print "Node type: ", node.node_type 
+                        print "Node: ", node
+                        return False
+    return True
+
+
 def ready_ops_from_list(nodes):
     ''' Look through supplied list of nodes and identify those that
     are operations/intrinsics which are ready to execute '''
@@ -394,16 +436,25 @@ class DirectedAcyclicGraph(object):
                 node_list.append(node)
         return node_list
 
-    def count_nodes(self, node_type):
+    def count_nodes(self, node_type, include_integers=False):
         ''' Count the number of nodes in the graph that are of the
         specified type '''
         ancestors = self.output_nodes()
-        node_list = []
+        node_list = set()
         for node in ancestors:
+            if node.node_type == node_type:
+                if include_integers:
+                    node_list.add(node)
+                else: 
+                    if not node.is_integer:
+                        node_list.add(node)
             nodes = node.walk(node_type)
             for new_node in nodes:
-                if new_node not in node_list:
-                    node_list.append(new_node)
+                if include_integers:
+                    node_list.add(new_node)
+                else: 
+                    if not new_node.is_integer:
+                        node_list.add(new_node)
         return len(node_list)
 
     def cache_lines(self):
@@ -417,6 +468,10 @@ class DirectedAcyclicGraph(object):
         ancestors = self.output_nodes()
         for ancestor in ancestors:
             nodes = ancestor.walk("array_ref")
+            # Include this output node in the list if it is of the correct type
+            if ancestor.node_type == "array_ref":
+                nodes.append(ancestor)
+            # Examine all of the array refs that we've found
             for node in nodes:
                 if node.is_integer:
                     # Ignore integer array references
@@ -424,24 +479,9 @@ class DirectedAcyclicGraph(object):
                     continue
                 if node.variable.name not in array_refs:
                     array_refs[node.variable.name] = []
+                # array_index_nodes can contain None, e.g. if the corresponding
+                # array index expression is ':'
                 array_refs[node.variable.name].append(node.array_index_nodes)
-                # We assume that two references to the same array are
-                # from the same cache line if they differ only in
-                # their first array index and then only in the 'linear'
-                # part of it. i.e. my_array(my_map(df) + i) will be
-                # fetched with my_array(my_map(df)+i+1) but e.g.
-                # my_array(my_map(df+1)+i) will not.
-                # 1. Check whether the expression for the first array index
-                #    itself contains any array references
-                map_refs = node.array_index_nodes[0].walk("array_ref")
-                if map_refs:
-                    print "1st map lookup: ", map_refs[0]
-                # Look at the immediate dependencies of the first array-
-                # index expression
-                for prod_node in node.array_index_nodes[0].producers:
-                    print prod_node
-                    if prod_node.node_type == "+" or prod_node.node_type == "-":
-                        pass  # TODO
         cline_count = 0
         for array in array_refs:
             print "array = ", array
@@ -463,11 +503,13 @@ class DirectedAcyclicGraph(object):
                 # access
                 access_hash = []
                 for access in array_refs[array]:
+                    print "Access: ", access[1]
                     index_str = "_".join([str(obj) for obj in access[1:]])
                     print "index_str = ",index_str
                     access_hash.append(index_str)
                     index_exprns.add(index_str)
-                cline_count += len(index_exprns)
+
+                print "Index expressions: ", index_exprns
                 # Now check the array accesses that we've found to match in
                 # all bar the first dimension
                 for index_str in index_exprns:
@@ -477,16 +519,34 @@ class DirectedAcyclicGraph(object):
                     for idx, access in enumerate(array_refs[array]):
                         if access_hash[idx] == index_str:
                             match_list.append(access)
-                    # Loop over all pairs of such accesses
+                    # We potentially have as many non-contiguous accesses
+                    # as we have items in the list
+                    count = len(match_list)
+                    # Loop over all pairs of such accesses. For every match
+                    # we reduce the number of non-contiguous accesses
+                    # by one...
                     for idx, match1 in enumerate(match_list[:-1]):
                         for match2 in match_list[idx+1:]:
-                            print match1[0], match2[0]
                             match1[0].display()
-            # Now we've counted accesses to this array that differ in anything
-            # other than the first dimension, we must now check for those
-            # that differ by more than a linear increment in the first
-            # dimension.
-            
+                            match2[0].display()
+                            if differ_by_constant(match1[0], match2[0]):
+                                count -= 1
+                    print "count = ", count
+                    cline_count += count
+            else:
+                # This is an array of rank 1 (1D). We potentially need
+                # as many cache lines as there are array accesses
+                count = len(array_refs[array])
+                # Compare each access to this array. For every one that
+                # is the same +/- a constant, we reduce the number of
+                # cache lines required by 1.
+                for idx, access1 in enumerate(array_refs[array][:-1]):
+                    for access2 in array_refs[array][idx+1:]:
+                        access1[0].display()
+                        access2[0].display()
+                        if differ_by_constant(access1[0], access2[0]):
+                            count -= 1
+                cline_count += count
         return cline_count
 
     def calc_costs(self):
@@ -562,7 +622,7 @@ class DirectedAcyclicGraph(object):
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
             elif isinstance(child, Fortran2003.Part_Ref):
-                print child
+                print "child is a Part_Ref: ", child
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
                     # Create a unique node to represent the intrinsic call.
@@ -594,14 +654,12 @@ class DirectedAcyclicGraph(object):
                     # we know we're dealing with integers.
                     # The first item in the list child.items is the name
                     # of the array variable itself so we skip that.
-                    print "Item 0 = ", child.items[0]
                     if isinstance(child.items[1],
                                   Fortran2003.Section_Subscript_List):
                         arg_list = child.items[1].items
                     else:
                         arg_list = child.items[1:]
                     for idx, item in enumerate(arg_list):
-                        print "idx = ", idx, "array_index = ", array_index
 
                         if array_index:
                             # We are down within an array-index expression
@@ -619,8 +677,16 @@ class DirectedAcyclicGraph(object):
                             if idx > 0:
                                 # Just store a string representation for any
                                 # index expression other than the first
+                                # TODO make this more robust by storing node
+                                # reference and comparing sub-graphs
                                 array_node.array_index_nodes.append(str(item))
                             else:
+                                # For the first array index we store the
+                                # parent node of the whole index expression.
+                                # This permits us to subsequently reason
+                                # about array accesses that differ only in
+                                # the first index and therefore might share
+                                # a cache line.
                                 array_node.array_index_nodes.append(tmpnode)
                         node_list += self.make_dag(tmpnode, [item],
                                                    mapping,
@@ -650,8 +716,13 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, str):
                 # This is the operator node which we've already dealt with
                 pass
+            elif array_index and isinstance(child,
+                                            Fortran2003.Subscript_Triplet):
+                # We've got a ':' as part of an array index expression - 
+                # don't generate a node for this.
+                pass
             else:
-                raise DAGError("Unrecognised child type: {0}, {1}".
+                raise DAGError("Unrecognised child; type = {0}, str = '{1}'".
                                format(type(child), str(child)))
         return node_list
 
@@ -826,6 +897,7 @@ class DirectedAcyclicGraph(object):
         op_count = {}
         for operation in OPERATORS:
             op_count[operation] = self.count_nodes(operation)
+        # Count all real array references
         num_ref = self.count_nodes("array_ref")
         num_cache_ref = self.cache_lines()
         total_cycles = self.total_cost()
