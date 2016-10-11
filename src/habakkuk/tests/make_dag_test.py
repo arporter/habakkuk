@@ -65,10 +65,10 @@ def test_basic_loop_unroll():
     # not just their existence
     assert "label=\"2.0\", color=\"green\"" in loop_graph
     assert "label=\"i\", color=\"black\"" in loop_graph
-    assert "label=\"i+1\", color=\"black\"" in loop_graph
+    assert "label=\"i'\", color=\"black\"" in loop_graph
     assert "label=\"*\", color=\"red\", shape=\"box\"" in loop_graph
     assert "label=\"aprod(i)\", color=\"blue\"" in loop_graph
-    assert "label=\"aprod(i+1)\", color=\"blue\"" in loop_graph
+    assert "label=\"aprod(i')\", color=\"blue\"" in loop_graph
 
 
 def test_main_routine_no_file_err():
