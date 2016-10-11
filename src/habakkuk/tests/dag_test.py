@@ -373,12 +373,12 @@ def test_node_display(capsys):
     result, _ = capsys.readouterr()
     print result
     expected = (
-        " aprod\n"
-        "      *\n"
-        "           *\n"
-        "                var1\n"
-        "                var2\n"
-        "           var3\n")
+        "\- aprod\n"
+        "  \- *\n"
+        "    \- *\n"
+        "      \- var1\n"
+        "      \- var2\n"
+        "    \- var3\n")
     assert expected in result
 
 
@@ -557,7 +557,8 @@ def test_unrecognised_child():
     children = [anode]
     with pytest.raises(DAGError) as err:
         dag.make_dag(anode, children, {})
-    assert "Unrecognised child type:" in str(err)
+    assert ("Unrecognised child; type = <class 'habakkuk.dag_node.DAGNode'>"
+            in str(err))
 
 
 def test_flop_count_err():
@@ -604,11 +605,22 @@ def test_indirect_1darray_access_difft_cache_lines():
     ''' Check that we correctly identify two indirect array accesses as
     (probably) belonging to two different cache lines '''
     dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
-    assert dag.cache_lines() == 2
+    assert dag.cache_lines() == 3
 
 
 def test_indirect_2darray_access_difft_cache_lines():
-    ''' Check that we correctly identify two indirect array accesses as
-    (probably) belonging to two different cache lines '''
-    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * b(map(i+1)+j, i)"])
-    assert dag.cache_lines() == 2
+    ''' Check that we correctly identify 3 indirect array accesses as
+    (probably) belonging to different cache lines '''
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i)"])
+    assert dag.cache_lines() == 4
+
+
+def test_indirect_2darray_access_same_cache_lines():
+    ''' Check that we identify two indirect array accesses that differ only
+    by a constant (in the first index) as (probably) belonging to the same
+    cache line '''
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i) + b(map(i)+j+1, i)"])
+    assert dag.cache_lines() == 4
+

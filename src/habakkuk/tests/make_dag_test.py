@@ -143,4 +143,4 @@ def test_array_deref_count(capsys):
     result, _ = capsys.readouterr()
     print result
     assert "4 array references" in result
-    assert "2 distinct cache-line references" in result
+    assert "4 distinct cache-line references" in result
