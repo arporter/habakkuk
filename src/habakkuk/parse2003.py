@@ -157,17 +157,15 @@ class Variable(object):
             Real_Literal_Constant, Section_Subscript_List, \
             Int_Literal_Constant, Level_2_Expr, Array_Section
 
+        _is_constant = False
+
         if isinstance(node, Name):
             # This node is simply the name of a variable
             name = str(node)
             self._orig_name = name[:]
+            self._full_orig_name = self._orig_name
             if mapping and name in mapping:
                 self._name = mapping[name]
-                if lhs:
-                    # If this variable appears on the LHS of an assignment
-                    # then it is effectively a new variable for the
-                    # purposes of the graph.
-                    self._name += "'"
             else:
                 self._name = name
             self._is_array_ref = False
@@ -241,6 +239,7 @@ class Variable(object):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
+            _is_constant = True
 
         elif isinstance(node, Array_Section):
             self._name = str(node.items[0])
@@ -251,6 +250,12 @@ class Variable(object):
         else:
             raise ParseError("Unrecognised type for variable '{0}': {1}".
                              format(str(node), type(node)))
+
+        # Add this variable name to the map if it's not already present and
+        # this instance is not on the LHS of an assignment. (Because if it is
+        # then we handle its naming at a higher level)
+        if not lhs and not _is_constant and self._full_orig_name not in mapping:
+            mapping[self.full_orig_name] = self.orig_name
 
     @property
     def orig_name(self):
