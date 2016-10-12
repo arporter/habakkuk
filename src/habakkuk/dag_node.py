@@ -175,18 +175,14 @@ class DAGNode(object):
         return False
 
     @property
-    def has_producer(self, include_integers=False):
+    def has_producer(self):
         ''' Returns true if this node has one or more
         dependencies/producers. By default we ignore nodes representing
         integer quantities since they are only part of array-index
         expressions. '''
-        if include_integers:
-            if self._producers:
+        for prod in self._producers:
+            if not prod._integer:
                 return True
-        else:
-            for prod in self._producers:
-                if not prod._integer:
-                    return True
         return False
 
     @property
