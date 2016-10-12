@@ -318,9 +318,6 @@ class DirectedAcyclicGraph(object):
                             mapping[lhs_var.full_orig_name] += "'"
                             break
 
-            # Update the base name of the LHS variable to match that in the map
-            lhs_var.name = mapping[lhs_var.full_orig_name]
-
             # Create the LHS node proper now that we've updated the
             # naming map. We use make_dag() to do this so that we
             # capture any dependencies on variables within array-index
@@ -635,7 +632,6 @@ class DirectedAcyclicGraph(object):
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
             elif isinstance(child, Fortran2003.Part_Ref):
-                print "child is a Part_Ref: ", child
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
                     # Create a unique node to represent the intrinsic call.
@@ -829,10 +825,6 @@ class DirectedAcyclicGraph(object):
                     continue
 
                 # We've found one or more nodes that match node1
-                print "Node {0} matches:".format(str(node1))
-                for node in matching_nodes:
-                    print str(node)
-
                 found_duplicate = True
 
                 # Create a new node to store the result of this
