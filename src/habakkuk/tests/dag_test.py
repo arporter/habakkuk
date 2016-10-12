@@ -55,6 +55,17 @@ def test_critical_path_no_input():
     assert "Failed to find input node for critical path" in str(err)
 
 
+def test_critical_path_length():
+    ''' Test that computed critical path is correct '''
+    dag = dag_from_strings(["var1 = 3.0 + 2.0", "aprod(i+1) = 2.0 * var1"])
+    dag.calc_critical_path()
+    path = dag.critical_path
+    assert path.cycles() == 2
+    node_names = [node.name for node in path.nodes]
+    assert "var1" in node_names
+    assert "aprod(i+1)" in node_names
+
+
 def test_dag_get_node_err():
     ''' Check that we raise expected error when calling get_node() without
     a name or a variable '''
@@ -419,6 +430,20 @@ def test_node_rm_consumer():
     with pytest.raises(DAGError) as err:
         var3node.rm_consumer(anode)
     assert " as a consumer!" in str(err)
+
+
+def test_node_int_consumers():
+    ''' Test the DAGNode.has_producer/consumer methods '''
+    dag = dag_from_strings(["i = 2", "aprod(i) = 2.0"])
+    anode = dag._nodes["aprod(i)"]
+    assert anode.has_producer
+    assert not anode.has_consumer
+    for node in dag._nodes.itervalues():
+        if node.name == "2.0":
+            twonode = node
+            break
+    assert not twonode.has_producer
+    assert twonode.has_consumer
 
 
 def test_node_type_setter():
