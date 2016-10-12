@@ -265,11 +265,6 @@ class Variable(object):
         ''' Return the name of this variable as a string '''
         return self._name
 
-    @name.setter
-    def name(self, new_name):
-        ''' Set or change the name of this variable '''
-        self._name = new_name
-
     @property
     def is_array_ref(self):
         ''' Returns True if this Variable is an array access '''
