@@ -322,17 +322,21 @@ class DAGNode(object):
 
     def critical_path(self, path):
         ''' Compute the critical (most expensive) path from this node '''
-        # Add ourself to the path
+        # Add ourself to the path unless we represent an integer
+        # quantity in which case we terminate the path.
+        if self.is_integer:
+            return
         path.append(self)
-        # Find the child with the greatest inclusive weight
+        # Find the child with the greatest inclusive weight that doesn't
+        # represent an integer quantity
         max_weight = -0.01
         node = None
         for child in self._producers:
-            if child.incl_weight > max_weight:
+            if not child.is_integer and child.incl_weight > max_weight:
                 max_weight = child.incl_weight
                 node = child
-        # Move down to that child unless it is an integer quantity
-        if node and not node.is_integer:
+        # Move down to that child
+        if node:
             node.critical_path(path)
 
     def to_dot(self, fileobj, show_weight):
