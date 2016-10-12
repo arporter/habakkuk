@@ -170,7 +170,7 @@ class Variable(object):
                 self._name = name
             self._is_array_ref = False
 
-        elif isinstance(node, Part_Ref):
+        elif isinstance(node, Part_Ref) or isinstance(node, Array_Section):
             # This node might be an array access or a function call
             self._name = str(node.items[0])
             self._orig_name = self._name
@@ -179,7 +179,12 @@ class Variable(object):
             if mapping and self._full_orig_name in mapping:
                 self._name = mapping[self._full_orig_name]
 
-            if isinstance(node.items[1], Section_Subscript_List):
+            if isinstance(node, Array_Section):
+                # This node is an array section which means that it has
+                # one index specified using ':'
+                self._index_exprns = str(node.items[1])
+                array_index_vars = []
+            elif isinstance(node.items[1], Section_Subscript_List):
                 # Obtain the expression for each index of the array ref
                 for item in node.items[1].items:
                     self._index_exprns.append(str(item).replace(" ", ""))
@@ -206,8 +211,6 @@ class Variable(object):
                 array_index_vars = walk(node.items[1].items, Name)
             elif isinstance(node.items[1], Part_Ref):
                 # Array index expression is itself an array access
-                print dir(node.items[1])
-                print node.items[1].items
                 # TODO don't flatten the array expression into a string
                 # so that we can handle loop-unrolling for such cases
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
@@ -241,12 +244,6 @@ class Variable(object):
             self._is_array_ref = False
             _is_constant = True
 
-        elif isinstance(node, Array_Section):
-            self._name = str(node.items[0])
-            self._orig_name = self._name
-            self._is_array_ref = True
-            self._index_exprns = str(node.items[1])
-
         else:
             raise ParseError("Unrecognised type for variable '{0}': {1}".
                              format(str(node), type(node)))
@@ -254,7 +251,7 @@ class Variable(object):
         # Add this variable name to the map if it's not already present and
         # this instance is not on the LHS of an assignment. (Because if it is
         # then we handle its naming at a higher level)
-        if not lhs and not _is_constant and self._full_orig_name not in mapping:
+        if not lhs and not _is_constant and self.full_orig_name not in mapping:
             mapping[self.full_orig_name] = self.orig_name
 
     @property
