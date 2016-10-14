@@ -144,3 +144,14 @@ def test_array_deref_count(capsys):
     print result
     assert "4 array references" in result
     assert "4 distinct cache-line references" in result
+
+
+def test_multiple_array_accesses(capsys):
+    ''' Check that we cope with the array accesses in a real-world
+    NEMO example '''
+    from habakkuk.make_dag import runner
+    args = [os.path.join(PWD, "test_files/zpshde_loop6.f90")]
+    runner(args)
+    result, _ = capsys.readouterr()
+    print result
+    assert "40 distinct cache-line references" in result
