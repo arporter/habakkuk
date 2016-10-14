@@ -166,7 +166,7 @@ def schedule_cost(nsteps, schedule):
 
 
 def flop_count(nodes):
-    '''The number of floating point operations in the supplied list of
+    '''The number of *floating point* operations in the supplied list of
     nodes. This is NOT the same as the number of cycles. '''
     count = 0
     if isinstance(nodes, dict):
@@ -179,7 +179,7 @@ def flop_count(nodes):
             "but got {0}.".format(type(nodes)))
 
     for node in node_list:
-        if node.node_type in OPERATORS:
+        if node.node_type in OPERATORS and not node.is_integer:
             count += OPERATORS[node.node_type]["flops"]
     return count
 
@@ -479,27 +479,36 @@ class DirectedAcyclicGraph(object):
         when u(i,j) was accessed. '''
         # Set of unique array references
         array_refs = {}
+        # List of nodes representing array accesses
+        nodes = []
         # Loop over all nodes in the tree, looking for array references
         ancestors = self.output_nodes()
         for ancestor in ancestors:
-            nodes = ancestor.walk("array_ref")
+            nodes += ancestor.walk("array_ref")
             # Include this output node in the list if it is of the correct type
             if ancestor.node_type == "array_ref":
                 nodes.append(ancestor)
-            # Examine all of the array refs that we've found
-            for node in nodes:
-                if node.is_integer:
-                    # Ignore integer array references
-                    # TODO include integer array refs in cache-line count
-                    continue
-                if node.variable.name not in array_refs:
-                    array_refs[node.variable.name] = []
-                # array_index_nodes can contain None, e.g. if the corresponding
-                # array index expression is ':'
-                array_refs[node.variable.name].append(node.array_index_nodes)
+        # Ensure we have a list of unique nodes - use a set
+        unique_nodes = set(nodes)
+
+        # Examine all of the array refs that we've found
+        for node in unique_nodes:
+            if node.is_integer:
+                # Ignore integer array references
+                # TODO include integer array refs in cache-line count
+                continue
+            if node.variable.name not in array_refs:
+                array_refs[node.variable.name] = []
+            # For each access to a given array we add a list of the
+            # index-expressions...
+            # array_index_nodes can contain None, e.g. if the corresponding
+            # array index expression is ':'
+            array_refs[node.variable.name].append(node.array_index_nodes)
+
+        # Loop over each array that has been accessed and examine the ways in
+        # which it is accessed
         cline_count = 0
         for array in array_refs:
-            print "array = ", array
             if len(array_refs[array]) == 1:
                 # There's only one access to an array with this name
                 cline_count += 1
@@ -509,7 +518,6 @@ class DirectedAcyclicGraph(object):
             # for all indices > 1.
             # Find out how many dimensions the first access to this array has
             ndims = len(array_refs[array][0])
-            print "ndims = ", ndims
             if ndims > 1:
                 index_exprns = set()
                 # Loop over all accesses to this array and construct a string
@@ -518,13 +526,10 @@ class DirectedAcyclicGraph(object):
                 # access
                 access_hash = []
                 for access in array_refs[array]:
-                    print "Access: ", access[1]
                     index_str = "_".join([str(obj) for obj in access[1:]])
-                    print "index_str = ",index_str
                     access_hash.append(index_str)
                     index_exprns.add(index_str)
 
-                print "Index expressions: ", index_exprns
                 # Now check the array accesses that we've found to match in
                 # all bar the first dimension
                 for index_str in index_exprns:
@@ -683,20 +688,24 @@ class DirectedAcyclicGraph(object):
                                                     name="index{0}".format(idx+1),
                                                     is_integer=True,
                                                     unique=True)
-                            if idx > 0:
-                                # Just store a string representation for any
-                                # index expression other than the first
-                                # TODO make this more robust by storing node
-                                # reference and comparing sub-graphs
-                                array_node.array_index_nodes.append(str(item))
-                            else:
-                                # For the first array index we store the
-                                # parent node of the whole index expression.
-                                # This permits us to subsequently reason
-                                # about array accesses that differ only in
-                                # the first index and therefore might share
-                                # a cache line.
-                                array_node.array_index_nodes.append(tmpnode)
+                            # We don't know whether array_node is new or a
+                            # pre-existing node. If the latter then we don't
+                            # want to add to the existing array_index_nodes list
+                            if len(array_node.array_index_nodes) < len(arg_list):
+                                if idx > 0:
+                                    # Just store a string representation for any
+                                    # index expression other than the first
+                                    # TODO make this more robust by storing node
+                                    # reference and comparing sub-graphs
+                                    array_node.array_index_nodes.append(str(item))
+                                else:
+                                    # For the first array index we store the
+                                    # parent node of the whole index expression.
+                                    # This permits us to subsequently reason
+                                    # about array accesses that differ only in
+                                    # the first index and therefore might share
+                                    # a cache line.
+                                    array_node.array_index_nodes.append(tmpnode)
                         node_list += self.make_dag(tmpnode, [item],
                                                    mapping,
                                                    array_index=True)
