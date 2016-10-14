@@ -176,6 +176,7 @@ class Variable(object):
             self._orig_name = self._name
             self._full_orig_name = str(node).replace(" ", "")
             self._is_array_ref = True
+            # Ensure we use the name map when naming this variable
             if mapping and self._full_orig_name in mapping:
                 self._name = mapping[self._full_orig_name]
 
