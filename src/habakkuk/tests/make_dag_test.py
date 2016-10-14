@@ -154,4 +154,6 @@ def test_multiple_array_accesses(capsys):
     runner(args)
     result, _ = capsys.readouterr()
     print result
-    assert "40 distinct cache-line references" in result
+    assert "14 addition operators" in result
+    assert "38 FLOPs in total"
+    assert "33 distinct cache-line references" in result
