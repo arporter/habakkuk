@@ -4127,8 +4127,12 @@ class Masked_Elsewhere_Stmt(StmtBase): # R749
     use_names = ['Mask_Expr', 'Where_Construct_Name']
     @staticmethod
     def match(string):
-        if string[:9].upper()!='ELSEWHERE': return
-        line = string[9:].lstrip()
+        if string[:9].upper()!='ELSEWHERE' and \
+           string[:10].upper() != "ELSE WHERE":
+            return
+        idx = string[:10].upper().index("WHERE")
+        line = string[idx+5:].lstrip()
+
         if not line.startswith('('): return
         i = line.rfind(')')
         if i==-1: return
@@ -4156,7 +4160,14 @@ class Elsewhere_Stmt(StmtBase, WORDClsBase): # R750
     use_names = ['Where_Construct_Name']
     @staticmethod
     def match(string):
-        return WORDClsBase.match('ELSEWHERE', Where_Construct_Name, string)
+        if string[:9].upper() != 'ELSEWHERE' and \
+           string[:10].upper() != "ELSE WHERE":
+            return
+        idx = string[:10].upper().index("WHERE")
+        line = string[idx+5:].lstrip()
+        if line:
+            return "ELSEWHERE", Where_Construct_Name(line)
+        return "ELSEWHERE", None
 
     def get_end_name(self):
         name = self.items[1]

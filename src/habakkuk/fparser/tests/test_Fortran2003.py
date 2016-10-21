@@ -2013,6 +2013,18 @@ def test_Where_Construct(): # R745
     assert isinstance(a,cls),`a`
     assert_equal(str(a),'n:WHERE (cond1)\nELSEWHERE(cond2) n\nELSEWHERE n\nEND WHERE n')
 
+    a = cls(get_reader('''
+    n:where (cond1)
+    else where (cond2) n
+    else where n
+    end where n
+'''))
+    assert isinstance(a,cls),`a`
+    print str(a)
+    assert_equal(str(a),
+                 'n:WHERE (cond1)\nELSEWHERE(cond2) n\nELSEWHERE n\n'
+                 'END WHERE n')
+
 
 def test_Where_Construct_Stmt(): # R745
 
@@ -3392,6 +3404,7 @@ def test_Contains(): # R1237
         assert isinstance(a, cls),`a`
         assert_equal(str(a),'CONTAINS')
         assert_equal(repr(a),"Contains_Stmt('CONTAINS')")
+
 
 if 0:
     nof_needed_tests = 0
