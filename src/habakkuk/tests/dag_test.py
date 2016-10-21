@@ -529,6 +529,11 @@ def test_node_dot_colours():
     os.remove(dot_file)
 
 
+def test_exclude_int_nodes_from_dot():
+    ''' Check that we can turn-off output of integer nodes in dot '''
+    assert False
+
+
 def test_prune_duplicates():
     ''' Test that we are able to identify and remove nodes representing
     duplicate computation '''
@@ -544,6 +549,20 @@ def test_prune_duplicates():
     assert node_names.count("*") == 2
     assert node_names.count("/") == 1
     assert node_names.count("+") == 1
+
+
+def test_rm_scalar_tmps_array_accesses():
+    ''' Check that we can successfully remove scalar temporaries when
+    we have array accesses '''
+    dag = dag_from_strings(
+        ["iku = miku(ji,jj)", "ikup1 = miku(ji,jj) + 1",
+         "ikv = mikv(ji,jj)", "ikvp1 = mikv(ji,jj) + 1",
+         "ze3wu  = (gdepw_0(ji+1,jj,iku+1) - gdept_0(ji+1,jj,iku)) - (gdepw_0(ji,jj,iku+1) - gdept_0(ji,jj,iku))",
+         "ze3wv  = (gdepw_0(ji,jj+1,ikv+1) - gdept_0(ji,jj+1,ikv)) - (gdepw_0(ji,jj,ikv+1) - gdept_0(ji,jj,ikv))",
+         "pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - gdep3w_0(ji,jj,iku)"])
+    dag.to_dot()
+    dag.rm_scalar_temporaries()
+    assert 0
 
 
 def test_no_flops(capsys):
@@ -624,6 +643,11 @@ def test_flop_count_sin():
     dag = dag_from_strings(["aprod = sin(var1)"])
     nflops = flop_count(dag._nodes)
     assert nflops == OPERATORS["SIN"]["flops"]
+
+
+def test_flop_count_ignore_ints():
+    ''' Check that flop_count() correctly ignores integer operations '''
+    assert False
 
 
 def test_indirect_1darray_access_difft_cache_lines():
