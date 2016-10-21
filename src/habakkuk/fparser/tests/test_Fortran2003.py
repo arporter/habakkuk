@@ -20,13 +20,13 @@ def test_Program(): # R201
         cls = Program
         reader = get_reader('''\
       subroutine foo
-      end subroutine foo
+      end subroutine Foo
       subroutine bar
       end
       ''')
         a = cls(reader)
         assert isinstance(a, cls),`a`
-        assert_equal(str(a), 'SUBROUTINE foo\nEND SUBROUTINE foo\nSUBROUTINE bar\nEND SUBROUTINE bar')
+        assert_equal(str(a), 'SUBROUTINE foo\nEND SUBROUTINE Foo\nSUBROUTINE bar\nEND SUBROUTINE bar')
 
         reader = get_reader('''\
       subroutine foo (*)

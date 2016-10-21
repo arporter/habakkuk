@@ -282,9 +282,12 @@ content : tuple
             # check names of start and end statements:
             start_stmt = content[0]
             end_stmt = content[-1]
-            if isinstance(end_stmt, endcls_all) and hasattr(end_stmt, 'get_name') and hasattr(start_stmt, 'get_name'):
+            if isinstance(end_stmt, endcls_all) and \
+               hasattr(end_stmt, 'get_name') and \
+               hasattr(start_stmt, 'get_name'):
                 if end_stmt.get_name() is not None:
-                    if start_stmt.get_name() != end_stmt.get_name():
+                    if start_stmt.get_name().string.lower() != \
+                       end_stmt.get_name().string.lower():
                         end_stmt.item.reader.error('expected <%s-name> is %s but got %s. Ignoring.'\
                                                    % (end_stmt.get_type().lower(), start_stmt.get_name(), end_stmt.get_name()))
                 else:
