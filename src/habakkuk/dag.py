@@ -498,11 +498,15 @@ class DirectedAcyclicGraph(object):
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
             elif (isinstance(child, Fortran2003.Real_Literal_Constant) or
-                  isinstance(child, Fortran2003.Int_Literal_Constant)):
+                  isinstance(child, Fortran2003.Int_Literal_Constant) or
+                  isinstance(child, Fortran2003.Char_Literal_Constant) or
+                  isinstance(child, Fortran2003.Logical_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=const_var,
+                                        # TODO I don't think this
+                                        # should be unique
                                         unique=True,
                                         node_type="constant")
                 if is_division and idx == 2:
@@ -556,6 +560,20 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Fortran2003.Array_Constructor):
                 # This is an array constructor. Make a node for it.
                 node_list.append(self.get_node(parent, name=str(child)))
+            elif isinstance(child, Fortran2003.Level_3_Expr) or \
+                 isinstance(child, Fortran2003.Level_4_Expr):
+                # Have an expression that is something like 
+                # TRIM(ssnd(ji) % clname) // '_cat' // cli2. Carry on 
+                # down to the children
+                node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.Data_Ref):
+                # Have an expression that is something like 
+                # ssnd(ji) % clname so we carry on down to the children
+                node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.Equiv_Operand):
+                # A logical expression c.f.
+                #  kinfo == OASIS_Recvd .OR. kinfo == OASIS_FromRest
+                pass
             else:
                 raise DAGError("Unrecognised child type: {0}, {1}".
                                format(type(child), str(child)))

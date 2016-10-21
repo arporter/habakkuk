@@ -155,7 +155,8 @@ class Variable(object):
         entity in a DAG. '''
         from habakkuk.fparser.Fortran2003 import Name, Part_Ref, \
             Real_Literal_Constant, Section_Subscript_List, \
-            Int_Literal_Constant, Level_2_Expr, Array_Section
+            Int_Literal_Constant, Level_2_Expr, Array_Section, \
+            Char_Literal_Constant, Logical_Literal_Constant
 
         if isinstance(node, Name):
             # This node is simply the name of a variable
@@ -237,7 +238,9 @@ class Variable(object):
                     self._index_vars.append(name)
 
         elif (isinstance(node, Real_Literal_Constant) or
-              isinstance(node, Int_Literal_Constant)):
+              isinstance(node, Int_Literal_Constant) or
+              isinstance(node, Char_Literal_Constant) or
+              isinstance(node, Logical_Literal_Constant)):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
