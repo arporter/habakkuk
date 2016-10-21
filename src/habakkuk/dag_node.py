@@ -335,10 +335,15 @@ class DAGNode(object):
         if node:
             node.critical_path(path)
 
-    def to_dot(self, fileobj, show_weight):
+    def to_dot(self, fileobj, show_weight, include_integer_nodes=True):
         ''' Generate representation in the DOT language '''
+
+        if not include_integer_nodes and self.is_integer:
+            # Don't output nodes representing integer quantities
+            return
+
         for child in self._producers:
-            child.to_dot(fileobj, show_weight)
+            child.to_dot(fileobj, show_weight, include_integer_nodes)
 
         nodestr = "{0} [label=\"{1}".format(self.node_id,
                                             self.name)
@@ -394,5 +399,7 @@ class DAGNode(object):
         if self._consumers:
             fileobj.write(self.node_id+" -> {\n")
             for child in self._consumers:
+                if not include_integer_nodes and child.is_integer:
+                    continue
                 fileobj.write(" "+child.node_id)
             fileobj.write("}\n")
