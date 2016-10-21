@@ -6024,7 +6024,27 @@ class Data_Edit_Desc_C1002(Base):
                 i2 = i2.lstrip()
                 return c, W(i1), M(i2), None
             return c,W(line), None, None
-        if c in ['E','F','G']:
+        if c in ['E']:
+            line = string[1:].lstrip()
+            c2 = line[0].upper()
+            if c2 in ['S', 'N']:
+                line = line[1:].lstrip()
+            else:
+                c2 = ""
+            if line.count('.')==1:
+                i1,i2 = line.split('.',1)
+                i1 = i1.rstrip()
+                i2 = i2.lstrip()
+                return c+c2, W(i1), D(i2), None
+            elif line.count('.')==2:
+                i1,i2,i3 = line.split('.',2)
+                i1 = i1.rstrip()
+                i2 = i2.lstrip()
+                i3 = i3.lstrip()
+                return c+c2, W(i1), D(i2), E(i3)
+            else:
+                return
+        if c in ['F','G']:
             line = string[1:].lstrip()
             if line.count('.')==1:
                 i1,i2 = line.split('.',1)
