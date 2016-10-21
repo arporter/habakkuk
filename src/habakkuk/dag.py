@@ -553,6 +553,9 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, str):
                 # This is the operator node which we've already dealt with
                 pass
+            elif isinstance(child, Fortran2003.Array_Constructor):
+                # This is an array constructor. Make a node for it.
+                node_list.append(self.get_node(parent, name=str(child)))
             else:
                 raise DAGError("Unrecognised child type: {0}, {1}".
                                format(type(child), str(child)))
@@ -869,7 +872,7 @@ class DirectedAcyclicGraph(object):
                        perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                        max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
-    def generate_schedule(self, sched_to_dot=True):
+    def generate_schedule(self, sched_to_dot=False):
         '''Create a schedule mapping operations to hardware
 
         Creates a schedule describing how the nodes/operations in the DAG
