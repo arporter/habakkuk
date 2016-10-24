@@ -527,16 +527,34 @@ class DirectedAcyclicGraph(object):
                     node_list += self.make_dag(tmpnode,
                                                child.items[1:], mapping)
                 else:
-                    # Assume it's an array reference
-                    arrayvar = Variable()
-                    arrayvar.load(child, mapping)
-                    tmpnode = self.get_node(parent, variable=arrayvar,
-                                            node_type="array_ref")
-                    node_list.append(tmpnode)
-                    if is_division and idx == 2:
-                        parent.operands.append(tmpnode)
-                    # Include the array index expression in the DAG
-                    # self.make_dag(tmpnode, child.items, mapping)
+                    from parse2003 import walk
+                    section_list = walk(child.items[1:],
+                                        Fortran2003.Section_Subscript_List)
+                    if not section_list:
+                        section_list = walk(child.items[1:],
+                                        Fortran2003.Array_Section)
+                    if section_list:
+                        # An array reference won't include an array
+                        # section in the index expression so this must
+                        # be a call to a routine
+                        tmp_node = self.get_node(parent,
+                                                 name=child.items[0],
+                                                 node_type="call")
+                        node_list.append(tmp_node)
+                        node_list += self.make_dag(tmp_node,
+                                                   child.items[1:],
+                                                   mapping)
+                    else:
+                        # Assume it's an array reference
+                        arrayvar = Variable()
+                        arrayvar.load(child, mapping)
+                        tmpnode = self.get_node(parent, variable=arrayvar,
+                                                node_type="array_ref")
+                        node_list.append(tmpnode)
+                        if is_division and idx == 2:
+                            parent.operands.append(tmpnode)
+                        # Include the array index expression in the DAG
+                        # self.make_dag(tmpnode, child.items, mapping)
             elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
@@ -550,16 +568,34 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, Fortran2003.Section_Subscript_List):
                 # We have a list of arguments
                 node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.And_Operand) or \
+                 isinstance(child, Fortran2003.Or_Operand):
+                # We have an expression that is something like 
+                # .NOT. sdjf % ln_clim
+                # and can just carry-on down to the children
+                node_list += self.make_dag(parent, child.items, mapping)
             elif isinstance(child, Fortran2003.Mult_Operand):
                 # We have an expression that is something like (a * b) ** c
                 # and can just carry-on down to the children
                 node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.Subscript_Triplet):
+                # This is the expression defining the array section
+                pass
             elif isinstance(child, str):
                 # This is the operator node which we've already dealt with
                 pass
             elif isinstance(child, Fortran2003.Array_Constructor):
                 # This is an array constructor. Make a node for it.
                 node_list.append(self.get_node(parent, name=str(child)))
+            elif isinstance(child, Fortran2003.Structure_Constructor):
+                # This is a structure constructor. Make a node for it.
+                node_list.append(self.get_node(parent, name=str(child)))
+            elif isinstance(child, Fortran2003.Structure_Constructor_2):
+                # This is a structure constructor, e.g.
+                # mask = tmask_i(:, :). Make a node for it.
+                tmp_node = self.get_node(parent, name=str(child.items[0]))
+                node_list.append(tmp_node)
+                node_list += self.make_dag(tmp_node, child.items[2:], mapping)
             elif isinstance(child, Fortran2003.Level_3_Expr) or \
                  isinstance(child, Fortran2003.Level_4_Expr):
                 # Have an expression that is something like 

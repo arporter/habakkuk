@@ -5,7 +5,7 @@
 from habakkuk.config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 
 # Valid types for a node in the DAG
-VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref"]
+VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref", "call"]
 
 INDENT_STR = "     "
 # At what depth to abort attempting to recursively walk down a graph
