@@ -156,7 +156,7 @@ class Variable(object):
         from habakkuk.fparser.Fortran2003 import Name, Part_Ref, \
             Real_Literal_Constant, Section_Subscript_List, \
             Int_Literal_Constant, Level_2_Expr, Array_Section, \
-            Char_Literal_Constant, Logical_Literal_Constant
+            Char_Literal_Constant, Logical_Literal_Constant, Data_Ref
 
         if isinstance(node, Name):
             # This node is simply the name of a variable
@@ -171,6 +171,12 @@ class Variable(object):
                     self._name += "'"
             else:
                 self._name = name
+            self._is_array_ref = False
+
+        elif isinstance(node, Data_Ref):
+            # Reference to a component of a derived type
+            self._name = str(node).replace(" ","")
+            self._orig_name = self._name
             self._is_array_ref = False
 
         elif isinstance(node, Part_Ref):
@@ -192,7 +198,8 @@ class Variable(object):
                 # (i.e. ignoring whether they are "+1" etc.)
                 array_index_vars = walk(node.items[1].items, Name)
             elif (isinstance(node.items[1], Name) or
-                  isinstance(node.items[1], Int_Literal_Constant)):
+                  isinstance(node.items[1], Int_Literal_Constant) or
+                  isinstance(node.items[1], Data_Ref)):
                 # There's only a single array index/argument
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = [node.items[1]]
