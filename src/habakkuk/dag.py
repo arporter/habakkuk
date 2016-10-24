@@ -528,17 +528,17 @@ class DirectedAcyclicGraph(object):
                                                child.items[1:], mapping)
                 else:
                     from parse2003 import walk
-                    section_list = walk(child.items[1:],
-                                        Fortran2003.Section_Subscript_List)
-                    if not section_list:
-                        section_list = walk(child.items[1:],
-                                        Fortran2003.Array_Section)
+                    section_list = []
+                    for item in child.items[1:]:
+                        if hasattr(item, "items"):
+                            section_list += walk(item.items,
+                                                 Fortran2003.Array_Section)
                     if section_list:
                         # An array reference won't include an array
                         # section in the index expression so this must
                         # be a call to a routine
                         tmp_node = self.get_node(parent,
-                                                 name=child.items[0],
+                                                 name=str(child.items[0]),
                                                  node_type="call")
                         node_list.append(tmp_node)
                         node_list += self.make_dag(tmp_node,
@@ -705,10 +705,6 @@ class DirectedAcyclicGraph(object):
                     continue
 
                 # We've found one or more nodes that match node1
-                print "Node {0} matches:".format(str(node1))
-                for node in matching_nodes:
-                    print str(node)
-
                 found_duplicate = True
 
                 # Create a new node to store the result of this
