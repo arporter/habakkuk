@@ -496,9 +496,11 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['COS', '**', 'MIN', 'MAX', '+', '*', "
-            "'-', 'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
-            "'not-a-type'" in str(err))
+    print str(err)
+    assert ("node_type must be one of ['TRIM', 'COUNT', 'COS', 'SUM', 'EXP', "
+            "'TANH', 'MIN', 'MAX', '+', '*', '-', 'SQRT', 'SIGN', 'ABS', '/', "
+            "'**', 'TAN', 'SIN', 'NINT', 'constant', 'array_ref', 'call'] but "
+            "got 'not-a-type'" in str(err))
 
 
 def test_node_is_op():
@@ -665,3 +667,23 @@ def test_flop_count_sin():
     dag = dag_from_strings(["aprod = sin(var1)"])
     nflops = flop_count(dag._nodes)
     assert nflops == OPERATORS["SIN"]["flops"]
+
+
+def test_array_ref_contains_array_ref():
+    ''' Check that we correctly identify a Part_Ref that itself
+    contains an array slice as being a function call rather than
+    an array reference '''
+    dag = dag_from_strings(["aprod = my_array(x(1,2))"])
+    for node in dag._nodes.itervalues():
+        if "my_array" in node.name:
+            assert node.node_type == "array_ref"
+
+
+def test_fn_call_contains_array_slice():
+    ''' Check that we correctly identify a Part_Ref that itself
+    contains an array slice as being a function call rather than
+    an array reference '''
+    dag = dag_from_strings(["aprod = my_fn(x(:))"])
+    for node in dag._nodes.itervalues():
+        if "my_fn" in node.name:
+            assert node.node_type == "call"
