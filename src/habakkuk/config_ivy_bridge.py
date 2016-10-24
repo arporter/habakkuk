@@ -10,12 +10,16 @@
 # run-time. Costs and FLOP-counts for these are obtained by running
 # micro-benchmarks (dl_microbench) using a tool such as likwid.
 OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
-             # TODO measure actual values for EXP on ivy bridge
+             # TODO measure actual values for EXP, TAN*, SQRT, ABS on ivy bridge
+             "SQRT": {"latency": 0, "cost": 75, "flops": 28},
              "EXP": {"latency": 0, "cost": 50, "flops": 20},
              "SIN": {"latency": 0, "cost": 49, "flops": 40},
              "COS": {"latency": 0, "cost": 49, "flops": 40},
+             "TAN": {"latency": 0, "cost": 49, "flops": 40},
+             "TANH": {"latency": 0, "cost": 49, "flops": 40},
              "/": {"latency": 15, "cost": 8, "flops": 1},
              "SIGN": {"latency": 0, "cost": 3, "flops": 1},
+             "ABS": {"latency": 0, "cost": 3, "flops": 1},
              "+": {"latency": 3, "cost": 1, "flops": 1},
              "-": {"latency": 3, "cost": 1, "flops": 1},
              "*": {"latency": 5, "cost": 1, "flops": 1},
@@ -28,6 +32,7 @@ OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
              # for any FLOPs but need to be here so that we can
              # grok the Fortran
              "TRIM": {"latency": 0, "cost": 1, "flops": 0},
+             "COUNT": {"latency": 0, "cost": 1, "flops": 0},
              "NINT": {"latency": 0, "cost": 1, "flops": 0}}
 
 # Which execution port each f.p. operation is mapped to on the CPU
@@ -36,12 +41,12 @@ NUM_EXECUTION_PORTS = 6
 CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1,
                        # Which port the intrinsics will utilise
                        "**": 0, "SIN": 0, "COS": 0, "SIGN": 1, "EXP": 0,
-                       "SUM": 0,
+                       "SUM": 0, "TAN": 0, "TANH": 0, "SQRT": 0,
                        # The CMP instruction can execute on 0, 1 or 5
                        # so specify 5 here as 0 and 1 are likely to be busy
-                       "MAX": 5, "MIN": 5,
+                       "MAX": 5, "MIN": 5, "ABS": 5,
                        # String manipulation is integer
-                       "TRIM": 5, "NINT": 5}
+                       "TRIM": 1, "NINT": 1, "COUNT": 1}
 
 # Size of a cache line in bytes
 CACHE_LINE_BYTES = 64
@@ -51,7 +56,8 @@ EXAMPLE_CLOCK_GHZ = 3.85
 
 # Fortran intrinsics that we recognise. All uppercase.
 FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "**", "MAX", "MIN", "EXP",
-                      "TRIM", "NINT", "SUM"]
+                      "TRIM", "NINT", "SUM", "TAN", "TANH", "SQRT", "ABS",
+                      "COUNT"]
 
 # Whether this microarchitecture supports the Fused Multiply Add op
 # TODO check on this before we attempt to generate FMAs.
