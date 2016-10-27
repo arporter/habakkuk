@@ -282,9 +282,12 @@ content : tuple
             # check names of start and end statements:
             start_stmt = content[0]
             end_stmt = content[-1]
-            if isinstance(end_stmt, endcls_all) and hasattr(end_stmt, 'get_name') and hasattr(start_stmt, 'get_name'):
+            if isinstance(end_stmt, endcls_all) and \
+               hasattr(end_stmt, 'get_name') and \
+               hasattr(start_stmt, 'get_name'):
                 if end_stmt.get_name() is not None:
-                    if start_stmt.get_name() != end_stmt.get_name():
+                    if start_stmt.get_name().string.lower() != \
+                       end_stmt.get_name().string.lower():
                         end_stmt.item.reader.error('expected <%s-name> is %s but got %s. Ignoring.'\
                                                    % (end_stmt.get_type().lower(), start_stmt.get_name(), end_stmt.get_name()))
                 else:
@@ -4124,8 +4127,12 @@ class Masked_Elsewhere_Stmt(StmtBase): # R749
     use_names = ['Mask_Expr', 'Where_Construct_Name']
     @staticmethod
     def match(string):
-        if string[:9].upper()!='ELSEWHERE': return
-        line = string[9:].lstrip()
+        if string[:9].upper()!='ELSEWHERE' and \
+           string[:10].upper() != "ELSE WHERE":
+            return
+        idx = string[:10].upper().index("WHERE")
+        line = string[idx+5:].lstrip()
+
         if not line.startswith('('): return
         i = line.rfind(')')
         if i==-1: return
@@ -4153,7 +4160,14 @@ class Elsewhere_Stmt(StmtBase, WORDClsBase): # R750
     use_names = ['Where_Construct_Name']
     @staticmethod
     def match(string):
-        return WORDClsBase.match('ELSEWHERE', Where_Construct_Name, string)
+        if string[:9].upper() != 'ELSEWHERE' and \
+           string[:10].upper() != "ELSE WHERE":
+            return
+        idx = string[:10].upper().index("WHERE")
+        line = string[idx+5:].lstrip()
+        if line:
+            return "ELSEWHERE", Where_Construct_Name(line)
+        return "ELSEWHERE", None
 
     def get_end_name(self):
         name = self.items[1]
@@ -6010,7 +6024,27 @@ class Data_Edit_Desc_C1002(Base):
                 i2 = i2.lstrip()
                 return c, W(i1), M(i2), None
             return c,W(line), None, None
-        if c in ['E','F','G']:
+        if c in ['E']:
+            line = string[1:].lstrip()
+            c2 = line[0].upper()
+            if c2 in ['S', 'N']:
+                line = line[1:].lstrip()
+            else:
+                c2 = ""
+            if line.count('.')==1:
+                i1,i2 = line.split('.',1)
+                i1 = i1.rstrip()
+                i2 = i2.lstrip()
+                return c+c2, W(i1), D(i2), None
+            elif line.count('.')==2:
+                i1,i2,i3 = line.split('.',2)
+                i1 = i1.rstrip()
+                i2 = i2.lstrip()
+                i3 = i3.lstrip()
+                return c+c2, W(i1), D(i2), E(i3)
+            else:
+                return
+        if c in ['F','G']:
             line = string[1:].lstrip()
             if line.count('.')==1:
                 i1,i2 = line.split('.',1)

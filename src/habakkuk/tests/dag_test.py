@@ -37,10 +37,32 @@ def test_is_intrinsic_false():
 
 
 def test_is_intrinsic_true():
-    ''' Check that is_intrinsic_fn() returns False if passed something
-    that is not a Fortran intrinsic '''
+    ''' Check that is_intrinsic_fn() returns True if passed something
+    that *is* a Fortran intrinsic '''
     from habakkuk.dag import is_intrinsic_fn
     fake_parse_obj = Fortran2003.Part_Ref("sin(r)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+
+
+def test_max_is_intrinsic():
+    ''' Check that we recognise max as a Fortran intrinsic '''
+    from habakkuk.dag import is_intrinsic_fn
+    fake_parse_obj = Fortran2003.Part_Ref("max(r,p)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+    fake_parse_obj = Fortran2003.Part_Ref("MAX(r,p)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+
+
+def test_min_is_intrinsic():
+    ''' Check that we recognise min as a Fortran intrinsic '''
+    from habakkuk.dag import is_intrinsic_fn
+    fake_parse_obj = Fortran2003.Part_Ref("min(r,p)")
+    val = is_intrinsic_fn(fake_parse_obj)
+    assert val
+    fake_parse_obj = Fortran2003.Part_Ref("MIN(r,p)")
     val = is_intrinsic_fn(fake_parse_obj)
     assert val
 
@@ -185,6 +207,51 @@ def test_intrinsic_call():
             assert node.node_type == "SIN"
     assert "SIN" in node_names
     assert "b" in node_names
+
+
+def test_max_intrinsic_call():
+    ''' Test that the correct DAG is created from an assignment involving
+    a call to the max intrinsic. '''
+    assign = Fortran2003.Assignment_Stmt("a = max(b,c)")
+    dag = DirectedAcyclicGraph("Max dag")
+    mapping = {}
+    tmp_node = dag.get_node(parent=None,
+                            name="tmp_node",
+                            unique=True)
+    dag.make_dag(tmp_node, assign.items[2:], mapping)
+    node_names = []
+    for node in dag._nodes.itervalues():
+        node_names.append(node.name)
+        if node.name == "MAX":
+            assert node.node_type == "MAX"
+            max_node = node
+    prod_names = [pnode.name for pnode in max_node.producers]
+    assert "MAX" in node_names
+    assert "b" in prod_names
+    assert "c" in prod_names
+
+
+def test_min_intrinsic_call():
+    ''' Test that the correct DAG is created from an assignment involving
+    a call to the min intrinsic. '''
+    assign = Fortran2003.Assignment_Stmt("a = min(b,c,d)")
+    dag = DirectedAcyclicGraph("Max_dag")
+    mapping = {}
+    tmp_node = dag.get_node(parent=None,
+                            name="tmp_node",
+                            unique=True)
+    dag.make_dag(tmp_node, assign.items[2:], mapping)
+    node_names = []
+    for node in dag._nodes.itervalues():
+        node_names.append(node.name)
+        if node.name == "MIN":
+            assert node.node_type == "MIN"
+            min_node = node
+    prod_names = [pnode.name for pnode in min_node.producers]
+    assert "MIN" in node_names
+    assert "b" in prod_names
+    assert "c" in prod_names
+    assert "d" in prod_names
 
 
 def test_rm_scalar_tmps():
@@ -454,9 +521,11 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['COS', '**', '+', '*', '-', "
-            "'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
-            "'not-a-type'" in str(err))
+    print str(err)
+    assert ("node_type must be one of ['TRIM', 'COUNT', 'COS', 'SUM', 'EXP', "
+            "'TANH', 'MIN', 'MAX', '+', '*', '-', 'SQRT', 'SIGN', 'ABS', '/', "
+            "'**', 'TAN', 'SIN', 'NINT', 'constant', 'array_ref', 'call'] but "
+            "got 'not-a-type'" in str(err))
 
 
 def test_node_is_op():
@@ -673,3 +742,22 @@ def test_indirect_2darray_access_same_cache_lines():
                             "b(map(i+1)+j, i) + b(map(i)+j+1, i)"])
     assert dag.cache_lines() == 4
 
+
+def test_array_ref_contains_array_ref():
+    ''' Check that we correctly identify a Part_Ref that itself
+    contains an array slice as being a function call rather than
+    an array reference '''
+    dag = dag_from_strings(["aprod = my_array(x(1,2))"])
+    for node in dag._nodes.itervalues():
+        if "my_array" in node.name:
+            assert node.node_type == "array_ref"
+
+
+def test_fn_call_contains_array_slice():
+    ''' Check that we correctly identify a Part_Ref that itself
+    contains an array slice as being a function call rather than
+    an array reference '''
+    dag = dag_from_strings(["aprod = my_fn(x(:))"])
+    for node in dag._nodes.itervalues():
+        if "my_fn" in node.name:
+            assert node.node_type == "call"

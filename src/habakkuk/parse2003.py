@@ -155,7 +155,8 @@ class Variable(object):
         entity in a DAG. '''
         from habakkuk.fparser.Fortran2003 import Name, Part_Ref, \
             Real_Literal_Constant, Section_Subscript_List, \
-            Int_Literal_Constant, Level_2_Expr, Array_Section
+            Int_Literal_Constant, Level_2_Expr, Array_Section, \
+            Char_Literal_Constant, Logical_Literal_Constant, Data_Ref
 
         _is_constant = False
 
@@ -168,6 +169,12 @@ class Variable(object):
                 self._name = mapping[name]
             else:
                 self._name = name
+            self._is_array_ref = False
+
+        elif isinstance(node, Data_Ref):
+            # Reference to a component of a derived type
+            self._name = str(node).replace(" ","")
+            self._orig_name = self._name
             self._is_array_ref = False
 
         elif isinstance(node, Part_Ref) or isinstance(node, Array_Section):
@@ -195,7 +202,8 @@ class Variable(object):
                 # (i.e. ignoring whether they are "+1" etc.)
                 array_index_vars = walk(node.items[1].items, Name)
             elif (isinstance(node.items[1], Name) or
-                  isinstance(node.items[1], Int_Literal_Constant)):
+                  isinstance(node.items[1], Int_Literal_Constant) or
+                  isinstance(node.items[1], Data_Ref)):
                 # There's only a single array index/argument
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = [node.items[1]]
@@ -239,7 +247,9 @@ class Variable(object):
                     self._index_vars.append(name)
 
         elif (isinstance(node, Real_Literal_Constant) or
-              isinstance(node, Int_Literal_Constant)):
+              isinstance(node, Int_Literal_Constant) or
+              isinstance(node, Char_Literal_Constant) or
+              isinstance(node, Logical_Literal_Constant)):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False

@@ -116,16 +116,25 @@ def schedule_cost(nsteps, schedule):
     ''' Calculate the cost (in cycles) of the supplied schedule '''
 
     print "Schedule contains {0} steps:".format(nsteps)
+
+    # Create header string for print-out of schedule
+    print "    {0:^30s}".format("Execution Port")
+    header_str = "    "
+    for port in range(NUM_EXECUTION_PORTS):
+        header_str += " {0:^4n}".format(port)
+    print header_str
+
     cost = 0
     for step in range(0, nsteps):
 
-        sched_str = str(step)
+        sched_str = "{0:3s}".format(str(step))
         max_cost = 0
 
         # Find the most expensive operation on any port at this step of
         # the schedule
         for port in range(NUM_EXECUTION_PORTS):
-            sched_str += " {0}".format(schedule[port][step])
+
+            sched_str += " {0:4s}".format(schedule[port][step])
 
             port_cost = 0
 
@@ -626,11 +635,15 @@ class DirectedAcyclicGraph(object):
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
             elif (isinstance(child, Fortran2003.Real_Literal_Constant) or
-                  isinstance(child, Fortran2003.Int_Literal_Constant)):
+                  isinstance(child, Fortran2003.Int_Literal_Constant) or
+                  isinstance(child, Fortran2003.Char_Literal_Constant) or
+                  isinstance(child, Fortran2003.Logical_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=const_var,
+                                        # TODO I don't think this
+                                        # should be unique
                                         unique=True,
                                         node_type="constant",
                                         is_integer=array_index)
@@ -654,62 +667,79 @@ class DirectedAcyclicGraph(object):
                                                child.items[1:], mapping,
                                                array_index)
                 else:
-                    # Assume it's an array reference
-                    arrayvar = Variable()
-                    arrayvar.load(child, mapping)
-                    array_node = self.get_node(parent, variable=arrayvar,
-                                               node_type="array_ref",
-                                               is_integer=array_index)
-                    node_list.append(array_node)
-                    if is_division and idx == 2:
-                        parent.operands.append(array_node)
-                    # Include the array index expression in the DAG. Set
-                    # flag to indicate that this is an array index so that
-                    # we know we're dealing with integers.
-                    # The first item in the list child.items is the name
-                    # of the array variable itself so we skip that.
-                    if isinstance(child.items[1],
-                                  Fortran2003.Section_Subscript_List):
-                        arg_list = child.items[1].items
+                    from parse2003 import walk
+                    section_list = []
+                    for item in child.items[1:]:
+                        if hasattr(item, "items"):
+                            section_list += walk(item.items,
+                                                 Fortran2003.Array_Section)
+                    if section_list:
+                        # An array reference won't include an array
+                        # section in the index expression so this must
+                        # be a call to a routine
+                        tmp_node = self.get_node(parent,
+                                                 name=str(child.items[0]),
+                                                 node_type="call")
+                        node_list.append(tmp_node)
+                        node_list += self.make_dag(tmp_node,
+                                                   child.items[1:],
+                                                   mapping)
                     else:
-                        arg_list = child.items[1:]
-                    for idx, item in enumerate(arg_list):
+                        # Assume it's an array reference
+                        arrayvar = Variable()
+                        arrayvar.load(child, mapping)
+                        tmpnode = self.get_node(parent, variable=arrayvar,
+                                                node_type="array_ref")
+                        node_list.append(tmpnode)
+                        if is_division and idx == 2:
+                            parent.operands.append(tmpnode)
 
-                        if array_index:
-                            # We are down within an array-index expression
-                            # so we don't create a node to represent each
-                            # array-index expression
-                            tmpnode = array_node
+                        # Include the array index expression in the DAG. Set
+                        # flag to indicate that this is an array index so that
+                        # we know we're dealing with integers.
+                        # The first item in the list child.items is the name
+                        # of the array variable itself so we skip that.
+                        if isinstance(child.items[1],
+                                      Fortran2003.Section_Subscript_List):
+                            arg_list = child.items[1].items
                         else:
-                            # Array is not within an array-index expression so
-                            # we create a node to represent each index
-                            # expression
-                            tmpnode = self.get_node(array_node,
-                                                    name="index{0}".format(idx+1),
-                                                    is_integer=True,
-                                                    unique=True)
-                            # We don't know whether array_node is new or a
-                            # pre-existing node. If the latter then we don't
-                            # want to add to the existing array_index_nodes list
-                            if len(array_node.array_index_nodes) < len(arg_list):
-                                if idx > 0:
-                                    # Just store a string representation for any
-                                    # index expression other than the first
-                                    # TODO make this more robust by storing node
-                                    # reference and comparing sub-graphs
-                                    array_node.array_index_nodes.append(str(item))
-                                else:
-                                    # For the first array index we store the
-                                    # parent node of the whole index expression.
-                                    # This permits us to subsequently reason
-                                    # about array accesses that differ only in
-                                    # the first index and therefore might share
-                                    # a cache line.
-                                    array_node.array_index_nodes.append(tmpnode)
-                        node_list += self.make_dag(tmpnode, [item],
-                                                   mapping,
-                                                   array_index=True)
+                            arg_list = child.items[1:]
+                        for idx, item in enumerate(arg_list):
 
+                            if array_index:
+                                # We are down within an array-index expression
+                                # so we don't create a node to represent each
+                                # array-index expression
+                                tmpnode = array_node
+                            else:
+                                # Array is not within an array-index expression so
+                                # we create a node to represent each index
+                                # expression
+                                tmpnode = self.get_node(array_node,
+                                                        name="index{0}".format(idx+1),
+                                                        is_integer=True,
+                                                        unique=True)
+                                # We don't know whether array_node is new or a
+                                # pre-existing node. If the latter then we don't
+                                # want to add to the existing array_index_nodes list
+                                if len(array_node.array_index_nodes) < len(arg_list):
+                                    if idx > 0:
+                                        # Just store a string representation for any
+                                        # index expression other than the first
+                                        # TODO make this more robust by storing node
+                                        # reference and comparing sub-graphs
+                                        array_node.array_index_nodes.append(str(item))
+                                    else:
+                                        # For the first array index we store the
+                                        # parent node of the whole index expression.
+                                        # This permits us to subsequently reason
+                                        # about array accesses that differ only in
+                                        # the first index and therefore might share
+                                        # a cache line.
+                                        array_node.array_index_nodes.append(tmpnode)
+                            node_list += self.make_dag(tmpnode, [item],
+                                                       mapping,
+                                                       array_index=True)
             elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
@@ -726,6 +756,18 @@ class DirectedAcyclicGraph(object):
                 # We have a list of arguments
                 node_list += self.make_dag(parent, child.items, mapping,
                                            array_index)
+            elif array_index and isinstance(child,
+                                            Fortran2003.Subscript_Triplet):
+                # We've got a ':' as part of an array index expression - 
+                # don't generate a node for this.
+                pass
+            elif isinstance(child, Fortran2003.And_Operand) or \
+                 isinstance(child, Fortran2003.Or_Operand):
+                # We have an expression that is something like 
+                # .NOT. sdjf % ln_clim
+                # and can just carry-on down to the children
+                node_list += self.make_dag(parent, child.items, mapping,
+                                           array_index)
             elif isinstance(child, Fortran2003.Mult_Operand):
                 # We have an expression that is something like (a * b) ** c
                 # and can just carry-on down to the children
@@ -734,10 +776,31 @@ class DirectedAcyclicGraph(object):
             elif isinstance(child, str):
                 # This is the operator node which we've already dealt with
                 pass
-            elif array_index and isinstance(child,
-                                            Fortran2003.Subscript_Triplet):
-                # We've got a ':' as part of an array index expression - 
-                # don't generate a node for this.
+            elif isinstance(child, Fortran2003.Array_Constructor):
+                # This is an array constructor. Make a node for it.
+                node_list.append(self.get_node(parent, name=str(child)))
+            elif isinstance(child, Fortran2003.Structure_Constructor):
+                # This is a structure constructor. Make a node for it.
+                node_list.append(self.get_node(parent, name=str(child)))
+            elif isinstance(child, Fortran2003.Structure_Constructor_2):
+                # This is a structure constructor, e.g.
+                # mask = tmask_i(:, :). Make a node for it.
+                tmp_node = self.get_node(parent, name=str(child.items[0]))
+                node_list.append(tmp_node)
+                node_list += self.make_dag(tmp_node, child.items[2:], mapping)
+            elif isinstance(child, Fortran2003.Level_3_Expr) or \
+                 isinstance(child, Fortran2003.Level_4_Expr):
+                # Have an expression that is something like 
+                # TRIM(ssnd(ji) % clname) // '_cat' // cli2. Carry on 
+                # down to the children
+                node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.Data_Ref):
+                # Have an expression that is something like 
+                # ssnd(ji) % clname so we carry on down to the children
+                node_list += self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Fortran2003.Equiv_Operand):
+                # A logical expression c.f.
+                #  kinfo == OASIS_Recvd .OR. kinfo == OASIS_FromRest
                 pass
             else:
                 raise DAGError("Unrecognised child; type = {0}, str = '{1}'".
@@ -1052,7 +1115,7 @@ class DirectedAcyclicGraph(object):
                        perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                        max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
-    def generate_schedule(self, sched_to_dot=True):
+    def generate_schedule(self, sched_to_dot=False):
         '''Create a schedule mapping operations to hardware
 
         Creates a schedule describing how the nodes/operations in the DAG

@@ -78,6 +78,7 @@ def dag_of_files(options, args):
     show_weights = options.show_weights
 
     for filename in args:
+        print "Habakkuk processing file '{0}'".format(filename)
         reader = FortranFileReader(filename)
         if options.mode != 'auto':
             reader.set_mode_from_str(options.mode)
@@ -106,7 +107,12 @@ def dag_of_files(options, args):
 
                 # Find the section of the tree containing the execution part
                 # of the code
-                exe_part = get_child(subroutine, Execution_Part)
+                try:
+                    exe_part = get_child(subroutine, Execution_Part)
+                except ParseError:
+                    # This subroutine has no execution part so we skip it
+                    # TODO log this event
+                    continue
 
                 # Make a list of all Do loops in the routine
                 loops = walk(exe_part.content, Block_Nonlabel_Do_Construct)

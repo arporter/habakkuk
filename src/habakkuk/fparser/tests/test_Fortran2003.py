@@ -20,13 +20,13 @@ def test_Program(): # R201
         cls = Program
         reader = get_reader('''\
       subroutine foo
-      end subroutine foo
+      end subroutine Foo
       subroutine bar
       end
       ''')
         a = cls(reader)
         assert isinstance(a, cls),`a`
-        assert_equal(str(a), 'SUBROUTINE foo\nEND SUBROUTINE foo\nSUBROUTINE bar\nEND SUBROUTINE bar')
+        assert_equal(str(a), 'SUBROUTINE foo\nEND SUBROUTINE Foo\nSUBROUTINE bar\nEND SUBROUTINE bar')
 
         reader = get_reader('''\
       subroutine foo (*)
@@ -2013,6 +2013,18 @@ def test_Where_Construct(): # R745
     assert isinstance(a,cls),`a`
     assert_equal(str(a),'n:WHERE (cond1)\nELSEWHERE(cond2) n\nELSEWHERE n\nEND WHERE n')
 
+    a = cls(get_reader('''
+    n:where (cond1)
+    else where (cond2) n
+    else where n
+    end where n
+'''))
+    assert isinstance(a,cls),`a`
+    print str(a)
+    assert_equal(str(a),
+                 'n:WHERE (cond1)\nELSEWHERE(cond2) n\nELSEWHERE n\n'
+                 'END WHERE n')
+
 
 def test_Where_Construct_Stmt(): # R745
 
@@ -2702,6 +2714,17 @@ def test_Format_Item(): # R1003
     a = cls('3f12.6/')
     assert_equal(str(a),'3F12.6, /')
 
+    a = cls('3e12.6/')
+    assert_equal(str(a),'3E12.6, /')
+
+    # Scientific format
+    a = cls('3es12.6/')
+    assert_equal(str(a),'3ES12.6, /')
+
+    # Engineering format
+    a = cls('3en12.6/')
+    assert_equal(str(a),'3EN12.6, /')
+
     a = cls("/' '")
     assert_equal(str(a),"/, ' '")
 
@@ -2728,6 +2751,9 @@ def test_Format_Item_List():
     a = cls("' ', ' '")
     assert_equal(str(a),"' ', ' '")
     
+    a = cls("3(3f8.2, :), (A)")
+    assert_equal(str(a), "3(3F8.2, :), (A)")
+
 
 ###############################################################################
 ############################### SECTION 11 ####################################
@@ -3392,6 +3418,7 @@ def test_Contains(): # R1237
         assert isinstance(a, cls),`a`
         assert_equal(str(a),'CONTAINS')
         assert_equal(repr(a),"Contains_Stmt('CONTAINS')")
+
 
 if 0:
     nof_needed_tests = 0
