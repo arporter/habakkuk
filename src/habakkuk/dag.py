@@ -486,7 +486,7 @@ class DirectedAcyclicGraph(object):
         is the number of distinct memory references. We assume that
         any array reference of the form u(i+1,j) will have been fetched
         when u(i,j) was accessed. '''
-        # Set of unique array references
+        # Dictionary of unique array references
         array_refs = {}
         # List of nodes representing array accesses
         nodes = []
@@ -506,6 +506,7 @@ class DirectedAcyclicGraph(object):
                 # Ignore integer array references
                 # TODO include integer array refs in cache-line count
                 continue
+
             if node.variable.name not in array_refs:
                 array_refs[node.variable.name] = []
             # For each access to a given array we add a list of the
@@ -527,6 +528,7 @@ class DirectedAcyclicGraph(object):
             # for all indices > 1.
             # Find out how many dimensions the first access to this array has
             ndims = len(array_refs[array][0])
+
             if ndims > 1:
                 index_exprns = set()
                 # Loop over all accesses to this array and construct a string
@@ -626,6 +628,7 @@ class DirectedAcyclicGraph(object):
 
         for idx, child in enumerate(children):
 
+            print str(child), type(child)
             if isinstance(child, Fortran2003.Name):
                 var = Variable()
                 var.load(child, mapping)
@@ -683,16 +686,17 @@ class DirectedAcyclicGraph(object):
                         node_list.append(tmp_node)
                         node_list += self.make_dag(tmp_node,
                                                    child.items[1:],
-                                                   mapping)
+                                                   mapping, array_index)
                     else:
                         # Assume it's an array reference
                         arrayvar = Variable()
                         arrayvar.load(child, mapping)
-                        tmpnode = self.get_node(parent, variable=arrayvar,
-                                                node_type="array_ref")
-                        node_list.append(tmpnode)
+                        array_node = self.get_node(parent, variable=arrayvar,
+                                                   node_type="array_ref",
+                                                   is_integer=array_index)
+                        node_list.append(array_node)
                         if is_division and idx == 2:
-                            parent.operands.append(tmpnode)
+                            parent.operands.append(array_node)
 
                         # Include the array index expression in the DAG. Set
                         # flag to indicate that this is an array index so that
@@ -719,7 +723,7 @@ class DirectedAcyclicGraph(object):
                                                         name="index{0}".format(idx+1),
                                                         is_integer=True,
                                                         unique=True)
-                                # We don't know whether array_node is new or a
+                                # We don't know whether tmpnode is new or a
                                 # pre-existing node. If the latter then we don't
                                 # want to add to the existing array_index_nodes list
                                 if len(array_node.array_index_nodes) < len(arg_list):
