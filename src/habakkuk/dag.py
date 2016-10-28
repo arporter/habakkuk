@@ -716,28 +716,35 @@ class DirectedAcyclicGraph(object):
                                 # Array is not within an array-index expression so
                                 # we create a node to represent each index
                                 # expression
-                                tmpnode = self.get_node(array_node,
-                                                        name="index{0}".format(idx+1),
-                                                        is_integer=True,
-                                                        unique=True)
-                                # We don't know whether tmpnode is new or a
-                                # pre-existing node. If the latter then we don't
-                                # want to add to the existing array_index_nodes list
-                                if len(array_node.array_index_nodes) < len(arg_list):
+                                tmpnode = self.get_node(
+                                    array_node,
+                                    name="index{0}".format(idx+1),
+                                    is_integer=True, unique=True)
+                                # We don't know whether tmpnode is new
+                                # or a pre-existing node. If the
+                                # latter then we don't want to add to
+                                # the existing array_index_nodes list
+                                if len(array_node.array_index_nodes) < \
+                                   len(arg_list):
                                     if idx > 0:
-                                        # Just store a string representation for any
-                                        # index expression other than the first
-                                        # TODO make this more robust by storing node
-                                        # reference and comparing sub-graphs
-                                        array_node.array_index_nodes.append(str(item))
+                                        # Just store a string representation
+                                        # for any index expression other than
+                                        # the first
+                                        # TODO make this more robust by storing
+                                        # node reference and comparing
+                                        # sub-graphs
+                                        array_node.array_index_nodes.append(
+                                            str(item))
                                     else:
                                         # For the first array index we store the
-                                        # parent node of the whole index expression.
-                                        # This permits us to subsequently reason
-                                        # about array accesses that differ only in
-                                        # the first index and therefore might share
+                                        # parent node of the whole index
+                                        # expression. This permits us to
+                                        # subsequently reason about array
+                                        # accesses that differ only in the
+                                        # first index and therefore might share
                                         # a cache line.
-                                        array_node.array_index_nodes.append(tmpnode)
+                                        array_node.array_index_nodes.append(
+                                            tmpnode)
                             node_list += self.make_dag(tmpnode, [item],
                                                        mapping,
                                                        array_index=True)
