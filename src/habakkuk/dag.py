@@ -1035,23 +1035,33 @@ class DirectedAcyclicGraph(object):
         # Performance estimate using critical path - this is an upper
         # bound (assumes all other parts of the graph can somehow be
         # computed in parallel to the critical path).
-        print "  Everything in parallel to Critical path:"
-        ncycles = self._critical_path.cycles()
-        print ("    Critical path contains {0} nodes, {1} FLOPs and "
-               "is {2} cycles long".format(
-                   len(self._critical_path),
-                   flop_count(self._critical_path.nodes),
-                   ncycles))
-        # Graph contains total_flops and will execute in at
-        # least path.cycles() CPU cycles. A cycle has duration
-        # 1/CLOCK_SPEED (s) so kernel will take at least
-        # path.cycles()*1/CLOCK_SPEED (s).
-        # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
-        max_flops_per_hz = float(total_flops)/float(ncycles)
-        print ("    FLOPS (ignoring memory accesses) = "
-               "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
+        # If a loop body contains, e.g. just an assignment then it's possible
+        # we won't have a critical path
+        if self._critical_path:
+            ncycles = self._critical_path.cycles()
+        else:
+            print "No FLOPS found so have no critical path"
+            ncycles = 0
+            max_mem_bw = 0
+            max_flops_per_hz = 0
 
-        if num_cache_ref:
+        if ncycles > 0:
+            print "  Everything in parallel to Critical path:"
+            print ("    Critical path contains {0} nodes, {1} FLOPs and "
+                   "is {2} cycles long".format(
+                       len(self._critical_path),
+                       flop_count(self._critical_path.nodes),
+                       ncycles))
+            # Graph contains total_flops and will execute in at
+            # least path.cycles() CPU cycles. A cycle has duration
+            # 1/CLOCK_SPEED (s) so kernel will take at least
+            # path.cycles()*1/CLOCK_SPEED (s).
+            # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
+            max_flops_per_hz = float(total_flops)/float(ncycles)
+            print ("    FLOPS (ignoring memory accesses) = "
+                   "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
+
+        if num_cache_ref and ncycles:
             # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
             max_mem_bw = float(mem_traffic_bytes) / float(ncycles)
             print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
