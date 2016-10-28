@@ -718,10 +718,12 @@ def test_flop_count_sin():
     assert nflops == OPERATORS["SIN"]["flops"]
 
 
-@pytest.mark.xfail(reason="Test not yet implemented")
 def test_flop_count_ignore_ints():
     ''' Check that flop_count() correctly ignores integer operations '''
-    assert False
+    from habakkuk.dag import flop_count
+    dag = dag_from_strings(["a(i) = b(i) + c(i+1) + d(2*i)"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == 2
 
 
 def test_indirect_1darray_access_difft_cache_lines():
