@@ -231,6 +231,8 @@ class Variable(object):
             elif isinstance(node.items[1], Fortran2003.Add_Operand):
                 # Array index expression is something like "2*i"
                 array_index_vars = walk(node.items[1].items, Fortran2003.Name)
+            elif isinstance(node.items[1], Fortran2003.Parenthesis):
+                array_index_vars = walk(node.items[1].items, Fortran2003.Name)
             else:
                 raise ParseError(
                     "Unrecognised array-index expression (type={0}): {1}".
