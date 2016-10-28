@@ -69,11 +69,18 @@ def differ_by_constant(node1, node2):
     # Are the two expressions identical?
     if subgraph_matches(node1, node2):
         return True
+
+    # Check that both nodes have producers
+    if not (node1.producers and node2.producers):
+        return False
+
     # If top-level node is not addition/subtraction/a scalar then the
     # two expressions cannot differ by just a constant
-    if node1.producers[0].node_type and node1.producers[0].node_type not in ["+", "-"]:
+    if node1.producers[0].node_type and \
+       node1.producers[0].node_type not in ["+", "-"]:
         return False
-    if node2.producers[0].node_type and node2.producers[0].node_type not in ["+", "-"]:
+    if node2.producers[0].node_type and \
+       node2.producers[0].node_type not in ["+", "-"]:
         return False
 
     if node1.producers[0].node_type:
@@ -628,7 +635,6 @@ class DirectedAcyclicGraph(object):
 
         for idx, child in enumerate(children):
 
-            print str(child), type(child)
             if isinstance(child, Fortran2003.Name):
                 var = Variable()
                 var.load(child, mapping)
