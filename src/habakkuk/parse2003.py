@@ -183,6 +183,7 @@ class Variable(object):
             self._orig_name = self._name
             self._full_orig_name = str(node).replace(" ", "")
             self._is_array_ref = True
+            array_index_vars = []
             # Ensure we use the name map when naming this variable
             if mapping and self._full_orig_name in mapping:
                 self._name = mapping[self._full_orig_name]
@@ -191,7 +192,10 @@ class Variable(object):
                 # This node is an array section which means that it has
                 # one index specified using ':'
                 self._index_exprns = str(node.items[1])
-                array_index_vars = []
+            elif isinstance(node.items[1], Array_Section):
+                # An Array reference cannot itself contain an array
+                # section so this must be a function call
+                self._is_array_ref = False
             elif isinstance(node.items[1], Section_Subscript_List):
                 # Obtain the expression for each index of the array ref
                 for item in node.items[1].items:
@@ -225,9 +229,9 @@ class Variable(object):
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = self._index_exprns[-1]
             else:
-                print type(node.items[1])
-                raise ParseError("Unrecognised array-index expression: {0}".
-                                 format(str(node)))
+                raise ParseError(
+                    "Unrecognised array-index expression (type={0}): {1}".
+                    format(type(node.items[1]), str(node)))
 
             for var in array_index_vars:
                 if isinstance(var, str):
