@@ -598,6 +598,7 @@ def test_node_dot_colours():
     os.remove(dot_file)
 
 
+@pytest.mark.xfail(reason="Test not yet implemented")
 def test_exclude_int_nodes_from_dot():
     ''' Check that we can turn-off output of integer nodes in dot '''
     assert False
@@ -626,12 +627,15 @@ def test_rm_scalar_tmps_array_accesses():
     dag = dag_from_strings(
         ["iku = miku(ji,jj)", "ikup1 = miku(ji,jj) + 1",
          "ikv = mikv(ji,jj)", "ikvp1 = mikv(ji,jj) + 1",
-         "ze3wu  = (gdepw_0(ji+1,jj,iku+1) - gdept_0(ji+1,jj,iku)) - (gdepw_0(ji,jj,iku+1) - gdept_0(ji,jj,iku))",
-         "ze3wv  = (gdepw_0(ji,jj+1,ikv+1) - gdept_0(ji,jj+1,ikv)) - (gdepw_0(ji,jj,ikv+1) - gdept_0(ji,jj,ikv))",
-         "pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - gdep3w_0(ji,jj,iku)"])
-    dag.to_dot()
+         "ze3wu  = (gdepw_0(ji+1,jj,ikup1) - gdept_0(ji+1,jj,iku)) - "
+         "(gdepw_0(ji,jj,iku+1) - gdept_0(ji,jj,iku))",
+         "ze3wv  = (gdepw_0(ji,jj+1,ikvp1) - gdept_0(ji,jj+1,ikv)) - "
+         "(gdepw_0(ji,jj,ikv+1) - gdept_0(ji,jj,ikv))",
+         "pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - "
+         "gdep3w_0(ji,jj,iku)"])
     dag.rm_scalar_temporaries()
-    assert 0
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "index" not in node_names
 
 
 def test_no_flops(capsys):
@@ -714,6 +718,7 @@ def test_flop_count_sin():
     assert nflops == OPERATORS["SIN"]["flops"]
 
 
+@pytest.mark.xfail(reason="Test not yet implemented")
 def test_flop_count_ignore_ints():
     ''' Check that flop_count() correctly ignores integer operations '''
     assert False
