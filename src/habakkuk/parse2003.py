@@ -153,14 +153,11 @@ class Variable(object):
         output of the f2003 parser. If lhs is True then this variable
         appears on the LHS of an assignment and thus represents a new
         entity in a DAG. '''
-        from habakkuk.fparser.Fortran2003 import Name, Part_Ref, \
-            Real_Literal_Constant, Section_Subscript_List, \
-            Int_Literal_Constant, Level_2_Expr, Array_Section, \
-            Char_Literal_Constant, Logical_Literal_Constant, Data_Ref
+        from habakkuk.fparser import Fortran2003
 
         _is_constant = False
 
-        if isinstance(node, Name):
+        if isinstance(node, Fortran2003.Name):
             # This node is simply the name of a variable
             name = str(node)
             self._orig_name = name[:]
@@ -171,13 +168,14 @@ class Variable(object):
                 self._name = name
             self._is_array_ref = False
 
-        elif isinstance(node, Data_Ref):
+        elif isinstance(node, Fortran2003.Data_Ref):
             # Reference to a component of a derived type
             self._name = str(node).replace(" ","")
             self._orig_name = self._name
             self._is_array_ref = False
 
-        elif isinstance(node, Part_Ref) or isinstance(node, Array_Section):
+        elif isinstance(node, Fortran2003.Part_Ref) or \
+             isinstance(node, Fortran2003.Array_Section):
             # This node might be an array access or a function call
             self._name = str(node.items[0])
             self._orig_name = self._name
@@ -188,15 +186,15 @@ class Variable(object):
             if mapping and self._full_orig_name in mapping:
                 self._name = mapping[self._full_orig_name]
 
-            if isinstance(node, Array_Section):
+            if isinstance(node, Fortran2003.Array_Section):
                 # This node is an array section which means that it has
                 # one index specified using ':'
                 self._index_exprns = str(node.items[1])
-            elif isinstance(node.items[1], Array_Section):
+            elif isinstance(node.items[1], Fortran2003.Array_Section):
                 # An Array reference cannot itself contain an array
                 # section so this must be a function call
                 self._is_array_ref = False
-            elif isinstance(node.items[1], Section_Subscript_List):
+            elif isinstance(node.items[1], Fortran2003.Section_Subscript_List):
                 # Obtain the expression for each index of the array ref
                 for item in node.items[1].items:
                     self._index_exprns.append(str(item).replace(" ", ""))
@@ -204,14 +202,15 @@ class Variable(object):
                 # This recurses down and finds the names of all of
                 # the *variables* in the array-index expression
                 # (i.e. ignoring whether they are "+1" etc.)
-                array_index_vars = walk(node.items[1].items, Name)
-            elif (isinstance(node.items[1], Name) or
-                  isinstance(node.items[1], Int_Literal_Constant) or
-                  isinstance(node.items[1], Data_Ref)):
+                array_index_vars = walk(node.items[1].items, Fortran2003.Name)
+            elif (isinstance(node.items[1], Fortran2003.Name) or
+                  isinstance(node.items[1],
+                             Fortran2003.Int_Literal_Constant) or
+                  isinstance(node.items[1], Fortran2003.Data_Ref)):
                 # There's only a single array index/argument
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = [node.items[1]]
-            elif isinstance(node.items[1], Level_2_Expr):
+            elif isinstance(node.items[1], Fortran2003.Level_2_Expr):
                 # Array index expression itself contains an array access - i.e.
                 # this is an indirect access.
                 self._index_exprns.append(
@@ -221,13 +220,17 @@ class Variable(object):
                 # a(map(i)) then we will store 'map' and 'i' as the
                 # array-index variables. This needs to be extended to
                 # properly support indirect array accesses.
-                array_index_vars = walk(node.items[1].items, Name)
-            elif isinstance(node.items[1], Part_Ref):
+                array_index_vars = walk(node.items[1].items,
+                                        Fortran2003.Name)
+            elif isinstance(node.items[1], Fortran2003.Part_Ref):
                 # Array index expression is itself an array access
                 # TODO don't flatten the array expression into a string
                 # so that we can handle loop-unrolling for such cases
                 self._index_exprns.append(str(node.items[1]).replace(" ", ""))
                 array_index_vars = self._index_exprns[-1]
+            elif isinstance(node.items[1], Fortran2003.Add_Operand):
+                # Array index expression is something like "2*i"
+                array_index_vars = walk(node.items[1].items, Fortran2003.Name)
             else:
                 raise ParseError(
                     "Unrecognised array-index expression (type={0}): {1}".
@@ -250,10 +253,10 @@ class Variable(object):
                     # use it as it is
                     self._index_vars.append(name)
 
-        elif (isinstance(node, Real_Literal_Constant) or
-              isinstance(node, Int_Literal_Constant) or
-              isinstance(node, Char_Literal_Constant) or
-              isinstance(node, Logical_Literal_Constant)):
+        elif (isinstance(node, Fortran2003.Real_Literal_Constant) or
+              isinstance(node, Fortran2003.Int_Literal_Constant) or
+              isinstance(node, Fortran2003.Char_Literal_Constant) or
+              isinstance(node, Fortran2003.Logical_Literal_Constant)):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
