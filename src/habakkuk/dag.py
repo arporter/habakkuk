@@ -671,11 +671,8 @@ class DirectedAcyclicGraph(object):
                                                array_index)
                 else:
                     from parse2003 import walk
-                    section_list = []
-                    for item in child.items[1:]:
-                        if hasattr(item, "items"):
-                            section_list += walk(item.items,
-                                                 Fortran2003.Array_Section)
+                    section_list = walk(child.items,
+                                        Fortran2003.Array_Section)
                     if section_list:
                         # An array reference won't include an array
                         # section in the index expression so this must
