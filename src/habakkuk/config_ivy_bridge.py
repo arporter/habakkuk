@@ -25,6 +25,8 @@ OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
              "*": {"latency": 5, "cost": 1, "flops": 1},
              "MIN": {"latency": 0, "cost": 1, "flops": 0},
              "MAX": {"latency": 0, "cost": 1, "flops": 0},
+             "INT": {"latency": 0, "cost": 1, "flops": 0},
+             "DBLE": {"latency": 0, "cost": 1, "flops": 0},
              # TODO how to handle an intrinsic when the cost depends
              # on the argument?
              "SUM": {"latency": 0, "cost": 1, "flops": 1},
@@ -44,9 +46,9 @@ CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1,
                        "SUM": 0, "TAN": 0, "TANH": 0, "SQRT": 0,
                        # The CMP instruction can execute on 0, 1 or 5
                        # so specify 5 here as 0 and 1 are likely to be busy
-                       "MAX": 5, "MIN": 5, "ABS": 5,
+                       "MAX": 5, "MIN": 5, "ABS": 5, "DBLE": 1,
                        # String manipulation is integer
-                       "TRIM": 1, "NINT": 1, "COUNT": 1}
+                       "TRIM": 1, "INT": 1, "NINT": 1, "COUNT": 1}
 
 # Size of a cache line in bytes
 CACHE_LINE_BYTES = 64
@@ -57,7 +59,7 @@ EXAMPLE_CLOCK_GHZ = 3.85
 # Fortran intrinsics that we recognise. All uppercase.
 FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "**", "MAX", "MIN", "EXP",
                       "TRIM", "NINT", "SUM", "TAN", "TANH", "SQRT", "ABS",
-                      "COUNT"]
+                      "COUNT", "INT", "DBLE"]
 
 # Whether this microarchitecture supports the Fused Multiply Add op
 # TODO check on this before we attempt to generate FMAs.
