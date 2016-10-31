@@ -765,10 +765,24 @@ def test_fn_call_contains_array_slice():
     ''' Check that we correctly identify a Part_Ref that itself
     contains an array slice as being a function call rather than
     an array reference '''
-    dag = dag_from_strings(["aprod = my_fn(x(:))"])
+    dag = dag_from_strings(["aprod = my_fn(x(:))", "bprod = an_array(:)"])
     for node in dag._nodes.itervalues():
         if "my_fn" in node.name:
             assert node.node_type == "call"
+        if "an_array" in node.name:
+            assert node.node_type == "array_ref"
+
+
+def test_part_ref_is_call():
+    ''' Check that we identify a Part_Ref containing one or more array
+    sections as a function call rather than an array reference '''
+    dag = dag_from_strings(["area = glob_sum( e1e2t(:,:) * tmask(:,:,1))",
+                            "bob = x(:) + y(1:3)"])
+    for node in dag._nodes.itervalues():
+        if "glob_sum" in node.name:
+            gsum_node = node
+            break
+    assert gsum_node.node_type == "call"
 
 
 def test_assign_dtype_components():
@@ -783,4 +797,3 @@ def test_assign_dtype_components():
         if "sladatqc" in node.name:
             count += 1
     assert count == 4
-
