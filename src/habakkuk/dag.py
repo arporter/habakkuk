@@ -1153,6 +1153,14 @@ class DirectedAcyclicGraph(object):
                        perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                        max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
+    def verify_acyclic(self):
+        ''' Check that the graph is acyclic. If it isn't then something
+        has gone wrong. '''
+        for onode in self.output_nodes():
+            node_list = [onode]
+            for node in onode.producers:
+                node.walk(ancestor_list=node_list)
+
     def generate_schedule(self, sched_to_dot=False):
         '''Create a schedule mapping operations to hardware
 

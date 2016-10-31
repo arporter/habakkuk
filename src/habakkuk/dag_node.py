@@ -220,7 +220,8 @@ class DAGNode(object):
         if there isn't one '''
         return self._variable
 
-    def walk(self, node_type=None, top_down=False, depth=0):
+    def walk(self, node_type=None, top_down=False, depth=0,
+             ancestor_list=None):
         ''' Walk down the tree from this node and generate a list of all
         nodes of type node_type (excluding this node). If no node type is
         supplied then return all descendents '''
@@ -232,6 +233,16 @@ class DAGNode(object):
             raise DAGError(
                 "Max recursion depth ({0}) exceeded when walking tree".
                 format(MAX_RECURSION_DEPTH))
+        # If a list of ancestors has been provided then check that none
+        # of this node's producers are in it
+        if ancestor_list:
+            for child in self._producers:
+                if child in ancestor_list:
+                    raise DAGError("Cyclic dependency: node '{0}' has node "
+                                   "'{1}'  as both a producer and an ancestor"
+                                   .format(str(self), str(child)))
+                else:
+                    ancestor_list.append(child)
         local_list = []
         if top_down:
             # Add the children of this node before recursing down
@@ -239,10 +250,12 @@ class DAGNode(object):
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
             for child in self._producers:
-                local_list += child.walk(node_type, top_down, depth+1)
+                local_list += child.walk(node_type, top_down, depth+1,
+                                         ancestor_list)
         else:
             for child in self._producers:
-                local_list += child.walk(node_type, top_down, depth+1)
+                local_list += child.walk(node_type, top_down, depth+1,
+                                         ancestor_list)
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
         return local_list
