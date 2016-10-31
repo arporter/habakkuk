@@ -9,8 +9,8 @@ VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref", "call"]
 
 INDENT_STR = "  "
 # At what depth to abort attempting to recursively walk down a graph
-# (hitting this indicates a bug!)
-MAX_RECURSION_DEPTH = 40
+# (hitting this probably indicates a bug!)
+MAX_RECURSION_DEPTH = 80
 
 
 class DAGError(Exception):
