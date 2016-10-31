@@ -238,6 +238,7 @@ class DAGNode(object):
         if ancestor_list:
             for child in self._producers:
                 if child in ancestor_list:
+                    print "->".join(["{0}({1})".format(node.name, node.node_type) for node in ancestor_list])
                     raise DAGError("Cyclic dependency: node '{0}' has node "
                                    "'{1}'  as both a producer and an ancestor"
                                    .format(str(self), str(child)))
