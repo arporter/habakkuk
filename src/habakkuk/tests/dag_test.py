@@ -768,3 +768,14 @@ def test_fn_call_contains_array_slice():
     for node in dag._nodes.itervalues():
         if "my_fn" in node.name:
             assert node.node_type == "call"
+
+
+def test_assign_dtype_components():
+    ''' Test that we can generate a dag for an assignment involving references
+    to components of derived types '''
+    dag = dag_from_strings(["zphi = sladatqc%rphi(jobs)",
+                            "sladatqc%rmod(jobs,1) = sladatqc%rext(jobs,1) "
+                            "- sladatqc%rext(jobs,2)"])
+    print dag._nodes
+    dag.verify_acyclic()
+    dag.calc_critical_path()
