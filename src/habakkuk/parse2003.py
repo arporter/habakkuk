@@ -29,7 +29,6 @@ def get_child(root_node, node_type):
     ''' Searches for the immediate child of root_node that is of the
     specified type '''
     for node in root_node.content:
-        print type(node)
         if isinstance(node, node_type):
             return node
     raise ParseError("Node {0} has no child of type {1}".
