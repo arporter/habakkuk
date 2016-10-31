@@ -776,6 +776,10 @@ def test_assign_dtype_components():
     dag = dag_from_strings(["zphi = sladatqc%rphi(jobs)",
                             "sladatqc%rmod(jobs,1) = sladatqc%rext(jobs,1) "
                             "- sladatqc%rext(jobs,2)"])
-    print dag._nodes
     dag.verify_acyclic()
-    dag.calc_critical_path()
+    count = 0
+    for node in dag._nodes.itervalues():
+        if "sladatqc" in node.name:
+            count += 1
+    assert count == 4
+

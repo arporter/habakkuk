@@ -815,8 +815,14 @@ class DirectedAcyclicGraph(object):
                 node_list += self.make_dag(parent, child.items, mapping)
             elif isinstance(child, Fortran2003.Data_Ref):
                 # Have an expression that is something like 
-                # ssnd(ji) % clname so we carry on down to the children
-                node_list += self.make_dag(parent, child.items, mapping)
+                # ssnd(ji) % clname. Make a node to represent it.
+                dvar = Variable()
+                dvar.load(child, mapping)
+                tmp_node = self.get_node(parent, variable=dvar)
+                node_list.append(tmp_node)
+                # TODO handle case where the component of the derived type
+                # is itself an array, e.g. ssnd % clname(ji,jj)
+                #node_list += self.make_dag(tmp_node, [child.items[1]], mapping)
             elif isinstance(child, Fortran2003.Equiv_Operand):
                 # A logical expression c.f.
                 #  kinfo == OASIS_Recvd .OR. kinfo == OASIS_FromRest
