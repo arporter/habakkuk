@@ -50,7 +50,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 
     digraph.add_assignments(assignments, mapping)
 
-    if loop:
+    if loop and loop.var_name:
         for _ in range(1, unroll_factor):
             # Increment the loop counter and then add to the DAG again
             digraph.add_assignments(

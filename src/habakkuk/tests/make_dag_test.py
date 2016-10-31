@@ -71,6 +71,18 @@ def test_basic_loop_unroll():
     assert "label=\"aprod(i')\", color=\"blue\"" in loop_graph
 
 
+def test_unroll_no_loop_var(capsys):
+    ''' Check that we generate the expected DAG when we encounter a
+    loop for which we have no loop variable '''
+    options = Options()
+    options.unroll_factor = 2
+    make_dag.dag_of_files(
+        options, [os.path.join(BASE_PATH, "uncontrolled_loop.f90")])
+    result, _ = capsys.readouterr()
+    assert "1 FLOPs in total" in result
+    assert "1 distinct cache-line ref" in result
+
+
 def test_main_routine_no_file_err():
     ''' Test that we raise expected error if the user doesn't supply the name
     of a Fortran file to process '''

@@ -57,11 +57,16 @@ class Loop(object):
         for node in parsed_loop.content:
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk(node.items, Name)
-                self._var_name = str(var_name[0])
+                if var_name:
+                    self._var_name = str(var_name[0])
+                else:
+                    # Loop is just "DO" with no loop control
+                    self._var_name = None
 
     @property
     def var_name(self):
-        ''' Return a string containing the name of the loop variable '''
+        ''' Return a string containing the name of the loop variable or
+        None if there isn't one '''
         return self._var_name
 
 
