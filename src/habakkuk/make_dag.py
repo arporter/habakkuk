@@ -4,7 +4,7 @@
     for each subroutine it contains. '''
 
 from habakkuk.dag import DirectedAcyclicGraph
-from parse2003 import walk
+from parse2003 import walk_ast
 
 # TODO swap to using argparse since optparse is deprecated
 from optparse import OptionParser
@@ -31,11 +31,11 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 
     # Find all of the assignment statements in the code block
     if hasattr(parent_node, "items"):
-        assignments = walk(parent_node.items, Assignment_Stmt)
+        assignments = walk_ast(parent_node.items, [Assignment_Stmt])
         if isinstance(parent_node, Assignment_Stmt):
             assignments.append(parent_node)
     elif hasattr(parent_node, "content"):
-        assignments = walk(parent_node.content, Assignment_Stmt)
+        assignments = walk_ast(parent_node.content, [Assignment_Stmt])
 
     if not assignments:
         # If this subroutine has no assignment statements
@@ -85,7 +85,7 @@ def dag_of_files(options, args):
         try:
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
-            routines = walk(program.content, Subroutine_Subprogram)
+            routines = walk_ast(program.content, [Subroutine_Subprogram])
             # Add the main program as a routine to analyse - take care
             # here as the Fortran source file might not contain a
             # main program (might just be a subroutine in a module)
@@ -99,10 +99,8 @@ def dag_of_files(options, args):
             # Create a DAG for each (sub)routine
             for subroutine in routines:
                 # Get the name of this (sub)routine
-                if isinstance(subroutine, Subroutine_Subprogram):
-                    substmt = walk(subroutine.content, Subroutine_Stmt)
-                elif isinstance(subroutine, Main_Program):
-                    substmt = walk(subroutine.content, Program_Stmt)
+                substmt = walk_ast(subroutine.content,
+                                   [Subroutine_Stmt, Program_Stmt])
                 sub_name = str(substmt[0].get_name())
 
                 # Find the section of the tree containing the execution part
@@ -115,7 +113,8 @@ def dag_of_files(options, args):
                     continue
 
                 # Make a list of all Do loops in the routine
-                loops = walk(exe_part.content, Block_Nonlabel_Do_Construct)
+                loops = walk_ast(exe_part.content,
+                                 [Block_Nonlabel_Do_Construct])
                 digraphs = []
 
                 if not loops:
@@ -130,8 +129,8 @@ def dag_of_files(options, args):
                     for loop in loops:
 
                         # Check that we are an innermost loop
-                        inner_loops = walk(loop.content,
-                                           Block_Nonlabel_Do_Construct)
+                        inner_loops = walk_ast(loop.content,
+                                               [Block_Nonlabel_Do_Construct])
                         if inner_loops:
                             # We're not so skip
                             continue

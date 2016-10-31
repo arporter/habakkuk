@@ -2,15 +2,15 @@
     the f2003 parser '''
 
 
-def walk(children, my_type, indent=0, debug=False):
+def walk_ast(children, my_types, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
     are listed under 'content'.  Returns a list of all nodes with the
-    specified type. '''
+    specified type(s). '''
     local_list = []
     for child in children:
         if debug:
             print indent*"  " + "child type = ", type(child)
-        if isinstance(child, my_type):
+        if type(child) in my_types:
             local_list.append(child)
 
         # Depending on their level in the tree produced by fparser2003,
@@ -18,9 +18,9 @@ def walk(children, my_type, indent=0, debug=False):
         # listed under .items. If a node has neither then it has no
         # children.
         if hasattr(child, "content"):
-            local_list += walk(child.content, my_type, indent+1, debug)
+            local_list += walk_ast(child.content, my_types, indent+1, debug)
         elif hasattr(child, "items"):
-            local_list += walk(child.items, my_type, indent+1, debug)
+            local_list += walk_ast(child.items, my_types, indent+1, debug)
 
     return local_list
 
@@ -56,7 +56,7 @@ class Loop(object):
         from habakkuk.fparser.Fortran2003 import Nonlabel_Do_Stmt, Name
         for node in parsed_loop.content:
             if isinstance(node, Nonlabel_Do_Stmt):
-                var_name = walk(node.items, Name)
+                var_name = walk_ast(node.items, [Name])
                 if var_name:
                     self._var_name = str(var_name[0])
                 else:
@@ -206,7 +206,8 @@ class Variable(object):
                 # This recurses down and finds the names of all of
                 # the *variables* in the array-index expression
                 # (i.e. ignoring whether they are "+1" etc.)
-                array_index_vars = walk(node.items[1].items, Fortran2003.Name)
+                array_index_vars = walk_ast(node.items[1].items,
+                                            [Fortran2003.Name])
             elif (isinstance(node.items[1], Fortran2003.Name) or
                   isinstance(node.items[1],
                              Fortran2003.Int_Literal_Constant) or
@@ -224,8 +225,8 @@ class Variable(object):
                 # a(map(i)) then we will store 'map' and 'i' as the
                 # array-index variables. This needs to be extended to
                 # properly support indirect array accesses.
-                array_index_vars = walk(node.items[1].items,
-                                        Fortran2003.Name)
+                array_index_vars = walk_ast(node.items[1].items,
+                                            [Fortran2003.Name])
             elif isinstance(node.items[1], Fortran2003.Part_Ref):
                 # Array index expression is itself an array access
                 # TODO don't flatten the array expression into a string
@@ -234,9 +235,11 @@ class Variable(object):
                 array_index_vars = self._index_exprns[-1]
             elif isinstance(node.items[1], Fortran2003.Add_Operand):
                 # Array index expression is something like "2*i"
-                array_index_vars = walk(node.items[1].items, Fortran2003.Name)
+                array_index_vars = walk_ast(node.items[1].items,
+                                            [Fortran2003.Name])
             elif isinstance(node.items[1], Fortran2003.Parenthesis):
-                array_index_vars = walk(node.items[1].items, Fortran2003.Name)
+                array_index_vars = walk_ast(node.items[1].items,
+                                            [Fortran2003.Name])
             else:
                 raise ParseError(
                     "Unrecognised array-index expression (type={0}): {1}".
