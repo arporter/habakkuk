@@ -681,15 +681,30 @@ class DirectedAcyclicGraph(object):
                                                child.items[1:], mapping,
                                                array_index)
                 else:
-                    from parse2003 import walk
-                    section_list = walk(child.items,
-                                        Fortran2003.Array_Section)
+                    from parse2003 import walk_ast
+                    # item[0] is the Name of this Part_Ref so we can skip that
+                    section_list = walk_ast(child.items[1:],
+                                             [Fortran2003.Array_Section])
+                    if not section_list:
+                        part_ref_list = walk_ast(child.items[1:],
+                                                 [Fortran2003.Part_Ref])
+                        for part_ref in part_ref_list:
+                            section_list += walk_ast(
+                                part_ref.items[1:],
+                                [Fortran2003.Subscript_Triplet])
+                            if section_list:
+                                break
+
                     if section_list:
                         # An array reference won't include an array
                         # section in the index expression so this must
-                        # be a call to a routine
+                        # be a call to a routine. We make each such
+                        # call a unique node. 
+                        # TODO remove this restriction by checking the args
+                        # passed to the call.
                         tmp_node = self.get_node(parent,
                                                  name=str(child.items[0]),
+                                                 unique=True,
                                                  node_type="call")
                         node_list.append(tmp_node)
                         node_list += self.make_dag(tmp_node,
