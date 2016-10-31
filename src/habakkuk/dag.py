@@ -577,7 +577,12 @@ class DirectedAcyclicGraph(object):
                 # cache lines required by 1.
                 for idx, access1 in enumerate(array_refs[array][:-1]):
                     for access2 in array_refs[array][idx+1:]:
-                        if differ_by_constant(access1[0], access2[0]):
+                        # If a full slice of an array is accessed (e.g.
+                        # my_array(:) then we don't have a node
+                        # describing the index expression.
+                        # TODO I think we should have such a node
+                        if (access1 and access2) and \
+                           differ_by_constant(access1[0], access2[0]):
                             count -= 1
                 cline_count += count
         return cline_count
@@ -1081,14 +1086,17 @@ class DirectedAcyclicGraph(object):
         cost = schedule_cost(nsteps, schedule)
         print "  Estimate using computed schedule:"
         print "    Cost of schedule as a whole = {0} cycles".format(cost)
-        sched_flops_per_hz = float(total_flops)/float(cost)
-        print ("    FLOPS from schedule (ignoring memory accesses) = "
-               "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
-        if num_cache_ref:
-            # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
-            sched_mem_bw = float(mem_traffic_bytes) / float(cost)
-            print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
-                   "bytes/s".format(sched_mem_bw))
+        if nsteps:
+            sched_flops_per_hz = float(total_flops)/float(cost)
+            print ("    FLOPS from schedule (ignoring memory accesses) = "
+                   "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
+            if num_cache_ref:
+                # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
+                sched_mem_bw = float(mem_traffic_bytes) / float(cost)
+                print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                       "bytes/s".format(sched_mem_bw))
+        else:
+            sched_flops_per_hz = 0
 
         # Given that each execution port can run in parallel with the
         # others, the time taken to do the graph will be the time
@@ -1110,9 +1118,15 @@ class DirectedAcyclicGraph(object):
         for port in port_cost:
             if port_cost[port] > net_cost:
                 net_cost = port_cost[port]
-        perfect_sched_flops_per_hz = float(total_flops)/float(net_cost)
+        if net_cost:
+            perfect_sched_flops_per_hz = float(total_flops)/float(net_cost)
+        else:
+            perfect_sched_flops_per_hz = 0
+
         if num_cache_ref:
             perfect_sched_mem_bw = float(mem_traffic_bytes) / float(net_cost)
+        else:
+            perfect_sched_mem_bw = 0
 
         print "  Estimate using perfect schedule:"
         print ("    Cost if all ops on different execution ports are "
