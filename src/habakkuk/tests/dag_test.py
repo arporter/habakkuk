@@ -524,8 +524,8 @@ def test_node_type_setter():
     print str(err)
     assert ("node_type must be one of ['COUNT', 'COS', 'LOG', 'MIN', 'SUM', "
             "'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', 'IACHAR', "
-            "'TAN', 'TRIM', 'SIGN', 'ABS', '**', 'ACOS', 'INT', 'MAX', "
-            "'SQRT', 'DBLE', 'constant', 'array_ref', 'call'] but got "
+            "'TAN', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', 'ACOS', 'INT', "
+            "'MAX', 'SQRT', 'DBLE', 'constant', 'array_ref', 'call'] but got "
             "'not-a-type'" in str(err))
 
 

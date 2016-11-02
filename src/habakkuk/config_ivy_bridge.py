@@ -17,6 +17,7 @@ OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
              "SIN": {"latency": 0, "cost": 49, "flops": 40},
              "COS": {"latency": 0, "cost": 49, "flops": 40},
              "ACOS": {"latency": 0, "cost": 49, "flops": 40},
+             "ATAN": {"latency": 0, "cost": 49, "flops": 40},
              "TAN": {"latency": 0, "cost": 49, "flops": 40},
              "TANH": {"latency": 0, "cost": 49, "flops": 40},
              "/": {"latency": 15, "cost": 8, "flops": 1},
@@ -47,7 +48,7 @@ CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1,
                        # Which port the intrinsics will utilise
                        "**": 0, "SIN": 0, "COS": 0, "ACOS": 0, "SIGN": 1,
                        "EXP": 0, "LOG": 0,
-                       "SUM": 0, "TAN": 0, "TANH": 0, "SQRT": 0,
+                       "SUM": 0, "ATAN": 0, "TAN": 0, "TANH": 0, "SQRT": 0,
                        # The CMP instruction can execute on 0, 1 or 5
                        # so specify 5 here as 0 and 1 are likely to be busy
                        "MAX": 5, "MIN": 5, "ABS": 5, "DBLE": 1,
@@ -68,7 +69,7 @@ FORTRAN_STRING_INTRINSICS = ["TRIM", "COUNT", "IACHAR"]
 
 # Fortran intrinsics that we recognise. All uppercase.
 FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "ACOS", "**", "MAX", "MIN", "EXP",
-                      "NINT", "SUM", "TAN", "TANH", "SQRT", "ABS", "LOG",
+                      "NINT", "SUM", "ATAN", "TAN", "TANH", "SQRT", "ABS", "LOG",
                       "INT", "DBLE"] + FORTRAN_STRING_INTRINSICS
 
 # Whether this microarchitecture supports the Fused Multiply Add op
