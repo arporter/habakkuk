@@ -782,7 +782,20 @@ def test_part_ref_is_call():
         if "glob_sum" in node.name:
             gsum_node = node
             break
+    assert gsum_node
     assert gsum_node.node_type == "call"
+
+
+def test_string_ref_is_call():
+    ''' Check that a Part_Ref that contains a string is identified as a
+    function call '''
+    dag = dag_from_strings(["area = my_file('name')"])
+    for node in dag._nodes.itervalues():
+        if "my_file" in node.name:
+            file_node = node
+            break
+    assert file_node
+    assert file_node.node_type == "call"
 
 
 def test_assign_dtype_components():

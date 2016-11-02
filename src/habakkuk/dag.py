@@ -682,10 +682,17 @@ class DirectedAcyclicGraph(object):
                                                array_index)
                 else:
                     from parse2003 import walk_ast
+                    # First check to see whether this Part_Ref itself contains
+                    # an Array_Section or a character string. If it does then
+                    # we can immediately assume that it is a function call.
                     # item[0] is the Name of this Part_Ref so we can skip that
-                    section_list = walk_ast(child.items[1:],
-                                             [Fortran2003.Array_Section])
+                    section_list = walk_ast(
+                        child.items[1:],
+                        [Fortran2003.Array_Section,
+                         Fortran2003.Char_Literal_Constant])
                     if not section_list:
+                        # It didn't - does it contain any Part_Refs that then
+                        # have Subscript_Triplets?
                         part_ref_list = walk_ast(child.items[1:],
                                                  [Fortran2003.Part_Ref])
                         for part_ref in part_ref_list:
@@ -693,6 +700,8 @@ class DirectedAcyclicGraph(object):
                                 part_ref.items[1:],
                                 [Fortran2003.Subscript_Triplet])
                             if section_list:
+                                # We've found one so that means it must be
+                                # a function call
                                 break
 
                     if section_list:

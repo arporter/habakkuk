@@ -15,11 +15,11 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_walk_debug(capsys):
     ''' Test the walk method with debug=True '''
     from habakkuk.fparser.readfortran import FortranFileReader
-    from habakkuk.parse2003 import walk
+    from habakkuk.parse2003 import walk_ast
     reader = FortranFileReader(os.path.join(BASE_PATH,
                                             "time_step_mod_simple.f90"))
     program = Fortran2003.Program(reader)
-    names = walk(program.content, Fortran2003.Name, debug=True)
+    names = walk_ast(program.content, [Fortran2003.Name], debug=True)
     result, _ = capsys.readouterr()
     assert (
         "child type =  <class 'habakkuk.fparser.Fortran2003.Module'>"
