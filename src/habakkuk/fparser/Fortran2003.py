@@ -390,8 +390,8 @@ class BinaryOpBase(Base):
     <binary-op-base> = <lhs> <op> <rhs>
     <op> is searched from right by default.
     """
-    def match(lhs_cls, op_pattern, rhs_cls, string, right=True, exclude_op_pattern = None,
-              is_add = False):
+    def match(lhs_cls, op_pattern, rhs_cls, string, right=True,
+              exclude_op_pattern = None, is_add = False):
         line, repmap = string_replace_map(string)
         if isinstance(op_pattern, str):
             if right:
@@ -416,6 +416,7 @@ class BinaryOpBase(Base):
         if exclude_op_pattern is not None:
             if exclude_op_pattern.match(op):
                 return
+
         lhs_obj = lhs_cls(repmap(lhs))
         rhs_obj = rhs_cls(repmap(rhs))
         return lhs_obj, op.replace(' ',''), rhs_obj
@@ -496,16 +497,29 @@ class BracketBase(Base):
     <bracket-base> = <left-bracket-base> <something> <right-bracket>
     """
     def match(brackets, cls, string, require_cls=True):
-        i = len(brackets)/2
-        left = brackets[:i]
-        right = brackets[-i:]
+        bracket_len = len(brackets)/2
+        left = brackets[:bracket_len]
+        right = brackets[-bracket_len:]
         if string.startswith(left) and string.endswith(right):
-            line = string[i:-i].strip()
+            # We may have something like "(a + b)*(a - b)" so have
+            # to check - we start with one open bracket. If we reach
+            # zero open brackets before we get to the end then the
+            # opening bracket at the start of the string does not
+            # correspond to the closing bracket at the end of it.
+            num_open = 1
+            for idx in range(bracket_len, len(string)-bracket_len):
+                if string[idx:idx+bracket_len] == left:
+                    num_open += 1
+                elif string[idx:idx+bracket_len] == right:
+                    num_open -= 1
+                if num_open == 0:
+                    return
+            line = string[bracket_len:-bracket_len].strip()
             if not line:
                 if require_cls:
                     return
-                return left,None,right
-            return left,cls(line),right
+                return left, None, right
+            return left, cls(line), right
         return
     match = staticmethod(match)
     def tostr(self):
