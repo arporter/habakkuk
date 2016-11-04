@@ -67,8 +67,9 @@ def dag_of_files(options, args):
     from habakkuk.fparser.api import Fortran2003
     from habakkuk.fparser.readfortran import FortranFileReader
     from habakkuk.fparser.Fortran2003 import Main_Program, Program_Stmt, \
-        Subroutine_Subprogram, \
-        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part
+        Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
+        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
+        Name
     from parse2003 import Loop, get_child, ParseError
 
     apply_fma_transformation = not options.no_fma
@@ -85,7 +86,8 @@ def dag_of_files(options, args):
         try:
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
-            routines = walk_ast(program.content, [Subroutine_Subprogram])
+            routines = walk_ast(program.content, [Subroutine_Subprogram,
+                                                  Function_Subprogram])
             # Add the main program as a routine to analyse - take care
             # here as the Fortran source file might not contain a
             # main program (might just be a subroutine in a module)
@@ -100,8 +102,14 @@ def dag_of_files(options, args):
             for subroutine in routines:
                 # Get the name of this (sub)routine
                 substmt = walk_ast(subroutine.content,
-                                   [Subroutine_Stmt, Program_Stmt])
-                sub_name = str(substmt[0].get_name())
+                                   [Subroutine_Stmt, Function_Stmt,
+                                    Program_Stmt])
+                if isinstance(substmt[0], Function_Stmt):
+                    for item in substmt[0].items:
+                        if isinstance(item, Name):
+                            sub_name = str(item)
+                else:
+                    sub_name = str(substmt[0].get_name())
 
                 # Find the section of the tree containing the execution part
                 # of the code
