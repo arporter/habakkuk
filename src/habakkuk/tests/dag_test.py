@@ -810,3 +810,18 @@ def test_assign_dtype_components():
         if "sladatqc" in node.name:
             count += 1
     assert count == 4
+
+
+def test_long_line(capsys):
+    ''' Test Habakkuk against Fortran containing a function with a
+    fairly complex parenthesised expression. '''
+    options = Options()
+    options.no_fma = True
+
+    make_dag.dag_of_files(options,
+                          [os.path.join(BASE_PATH, "fn_parentheses.f90")])
+    result, _ = capsys.readouterr()
+    print result
+    assert "Stats for DAG fspott:" in result
+    assert "9 FLOPs in total." in result
+    assert "4 multiplication operators." in result
