@@ -174,8 +174,13 @@ class Variable(object):
 
         elif isinstance(node, Fortran2003.Data_Ref):
             # Reference to a component of a derived type
-            self._name = str(node).replace(" ","")
-            self._orig_name = self._name
+            name = str(node).replace(" ","")
+            self._orig_name = name[:]
+            self._full_orig_name = self._orig_name
+            if mapping and name in mapping:
+                self._name = mapping[name]
+            else:
+                self._name = name
             self._is_array_ref = False
 
         elif isinstance(node, Fortran2003.Part_Ref) or \
