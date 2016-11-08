@@ -342,7 +342,6 @@ class DirectedAcyclicGraph(object):
                                       [assign.items[0]],
                                       mapping, array_index=all_integer)
             lhs_node = new_nodes[0]
-
             # Copy over the dependencies from the temporary node
             for node in tmp_node.producers:
                 lhs_node.add_producer(node)
@@ -748,8 +747,8 @@ class DirectedAcyclicGraph(object):
                                 # array-index expression
                                 tmpnode = array_node
                             else:
-                                # Array is not within an array-index expression so
-                                # we create a node to represent each index
+                                # Array is not within an array-index expression
+                                # so we create a node to represent each index
                                 # expression
                                 tmpnode = self.get_node(
                                     array_node,
