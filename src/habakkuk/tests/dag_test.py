@@ -522,11 +522,11 @@ def test_node_type_setter():
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
     print str(err)
-    assert ("node_type must be one of ['COUNT', 'COS', 'LOG', 'MIN', 'SUM', "
-            "'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', 'IACHAR', "
-            "'TAN', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', 'ACOS', 'INT', "
-            "'MAX', 'SQRT', 'DBLE', 'constant', 'array_ref', 'call'] but got "
-            "'not-a-type'" in str(err))
+    assert ("node_type must be one of ['REAL', 'COUNT', 'COS', 'LOG', 'MIN', "
+            "'SUM', 'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', "
+            "'IACHAR', 'TAN', 'PRESENT', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', "
+            "'ACOS', 'INT', 'MAX', 'SQRT', 'DBLE', 'MOD', 'constant', "
+            "'array_ref', 'call'] but got 'not-a-type'" in str(err))
 
 
 def test_node_is_op():
@@ -812,7 +812,7 @@ def test_assign_dtype_components():
     assert count == 4
 
 
-def test_long_line(capsys):
+def test_parentheses_in_function(capsys):
     ''' Test Habakkuk against Fortran containing a function with a
     fairly complex parenthesised expression. '''
     options = Options()
@@ -825,3 +825,15 @@ def test_long_line(capsys):
     assert "Stats for DAG fspott:" in result
     assert "9 FLOPs in total." in result
     assert "4 multiplication operators." in result
+
+
+def test_repeat_assign_derived_type_array(capsys):
+    ''' Test for assignment to an array element in a derived type '''
+    dag = dag_from_strings(
+        ["itmp = sd(jf)%nrec_a(1)",
+         "sd(jf)%nrec_a(1) = sd(jf)%nreclast",
+         "sd(jf)%nrec_b(1) = sd(jf)%nrec_a(1)",
+         "sd(jf)%nrec_a(1) = itmp"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    dag.verify_acyclic()
+    assert "sd(jf)%nrec_a(1)'" in node_names
