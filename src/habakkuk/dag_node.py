@@ -89,6 +89,13 @@ class DAGNode(object):
         an integer (or operates on integers) '''
         return self._integer
 
+    @is_integer.setter
+    def is_integer(self, flag):
+        ''' Setter for the is_integer property of the node. Required because
+        we may only determine that a node represents an integer quantity
+        after we have first encountered it. '''
+        self._integer = flag
+
     @property
     def dependencies_satisfied(self):
         ''' Returns true if all dependencies of this node are satisfied '''
