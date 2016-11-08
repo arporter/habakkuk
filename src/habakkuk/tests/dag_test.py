@@ -440,6 +440,19 @@ def test_repeated_assign_diff_elements():
     assert graph.count("aprod") == 3
 
 
+def test_repeated_assign_index():
+    ''' Test naming of nodes when an array is repeated assigned to and one of
+    its indices has been assigned to more than once too. '''
+    dag = dag_from_strings(
+        ["ik = mbkt(ji,jj)",
+         "ik = mikt(ji,jj)",
+         "ptsd(ji,jj,ik,jp_tem) = (1.-zl) * ptsd(ji,jj,ik,jp_tem) + "
+         "zl * ptsd(ji,jj,ik+1,jp_tem)"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    print node_names
+    assert "ptsd(ji,jj,ik',jp_tem)'" in node_names
+
+
 def test_node_display(capsys):
     ''' Test the display method of DAGNode '''
     dag = dag_from_strings(["aprod = var1 * var2 * var3",
@@ -725,6 +738,25 @@ def test_flop_count_ignore_ints():
     dag = dag_from_strings(["a(i) = b(i) + c(i+1) + d(2*i)"])
     nflops = flop_count(dag._nodes)
     assert nflops == 2
+
+
+def test_adj_ref_same_cache_line():
+    ''' Check that two accesses to adjacent locations in memory are counted
+    as a single cache-line '''
+    dag = dag_from_strings(
+        ["pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - "
+         "gdep3w_0(ji,jj,iku)"])
+    dag.to_dot()
+    assert dag.cache_lines() == 2
+
+
+def test_index_product_same_cache_line():
+    ''' Check that two accesses to adjacent locations in memory are counted
+    as a single cache-line, even when a product is involved '''
+    dag = dag_from_strings(
+        ["pgzui  (ji,jj) = (gdep3w_0(2*ji+1,jj,iku) + ze3wu) - "
+         "gdep3w_0(2*ji,jj,iku)"])
+    assert dag.cache_lines() == 2
 
 
 def test_indirect_1darray_access_difft_cache_lines():
