@@ -6127,7 +6127,7 @@ class Data_Edit_Desc(Base): # R1005
                 i1,i2 = line.split('.',1)
                 i1 = i1.rstrip()
                 i2 = i2.lstrip()
-                return c, W(i1), M(i2), NoneInt_Literal_Constant
+                return c, W(i1), M(i2), None, Int_Literal_Constant
             return c,W(line), None, None
         if c=='L':
             line = string[1:].lstrip()
