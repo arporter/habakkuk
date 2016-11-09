@@ -108,12 +108,22 @@ class Variable(object):
     def full_orig_name(self):
         ''' Returns a string containing the full original name of this
         variable - i.e.  including any array indexing '''
+        return self._full_orig_name
+
+    # TODO decide on a name for this routine!
+    @property
+    def indexed_name(self):
+        ''' Returns a string containing the original base name but with
+        the index expression allowing for any updates to the index
+        variables, e.g. my_array(ji,jj') '''
         return self._orig_name + self._index_str
 
     @property
     def full_name(self):
         ''' Returns a string containing the full name of this
-        variable - i.e.  including any array indexing '''
+        variable - i.e.  including any array indexing and any "'" chars
+        due to repeated assignment to this variable resulting in new
+        nodes in the DAG. '''
         return self._name + self._index_str
 
     @property
@@ -191,9 +201,6 @@ class Variable(object):
             self._full_orig_name = str(node).replace(" ", "")
             self._is_array_ref = True
             array_index_vars = []
-            # Ensure we use the name map when naming this variable
-            if mapping and self._full_orig_name in mapping:
-                self._name = mapping[self._full_orig_name]
 
             if isinstance(node, Fortran2003.Array_Section):
                 # This node is an array section which means that it has
@@ -250,6 +257,8 @@ class Variable(object):
                     "Unrecognised array-index expression (type={0}): {1}".
                     format(type(node.items[1]), str(node)))
 
+            # Now that we've captured the array-index expressions we can
+            # apply the naming map to them
             for var in array_index_vars:
                 if isinstance(var, str):
                     name = var
@@ -266,6 +275,11 @@ class Variable(object):
                     # This variable name is not in our name map so we
                     # use it as it is
                     self._index_vars.append(name)
+            # Finally, having ensured that we're naming the index variables
+            # correctly, we can apply the naming map to the full array
+            # reference
+            if mapping and self.indexed_name in mapping:
+                self._name = mapping[self.indexed_name]
 
         elif (isinstance(node, Fortran2003.Real_Literal_Constant) or
               isinstance(node, Fortran2003.Int_Literal_Constant) or
@@ -283,8 +297,8 @@ class Variable(object):
         # Add this variable name to the map if it's not already present and
         # this instance is not on the LHS of an assignment. (Because if it is
         # then we handle its naming at a higher level)
-        if not lhs and not _is_constant and self.full_orig_name not in mapping:
-            mapping[self.full_orig_name] = self.orig_name
+        if not lhs and not _is_constant and self.indexed_name not in mapping:
+            mapping[self.indexed_name] = self.orig_name
 
     @property
     def orig_name(self):
@@ -294,7 +308,8 @@ class Variable(object):
 
     @property
     def name(self):
-        ''' Return the name of this variable as a string '''
+        ''' Return the name of this variable as a string. Includes any "'"
+        chars appended due to repeated assignment to this variable. '''
         return self._name
 
     @property
