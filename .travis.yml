@@ -6,8 +6,8 @@ before_install:
   - pip install coveralls
 install:
   - "pip install ."
-script: py.test
-  - coverage run --source habakkuk -m py.test
+script:
+  - coverage run --source=habakkuk -m py.test
   - coverage report -m
 after_success:
   - coveralls
