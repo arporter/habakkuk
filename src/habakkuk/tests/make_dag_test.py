@@ -63,6 +63,7 @@ def test_basic_loop_unroll():
         loop_graph = fout.read()
     # TODO need to find some way of testing the connectivity of the nodes,
     # not just their existence
+    print loop_graph
     assert "label=\"2.0\", color=\"green\"" in loop_graph
     assert "label=\"i\", color=\"black\"" in loop_graph
     assert "label=\"i'\", color=\"black\"" in loop_graph

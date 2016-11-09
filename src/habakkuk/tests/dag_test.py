@@ -450,7 +450,8 @@ def test_repeated_assign_index():
          "zl * ptsd(ji,jj,ik+1,jp_tem)"])
     node_names = [node.name for node in dag._nodes.itervalues()]
     print node_names
-    assert "ptsd(ji,jj,ik',jp_tem)'" in node_names
+    assert "ptsd'(ji,jj,ik',jp_tem)" in node_names
+    assert "ptsd(ji,jj,ik',jp_tem)" in node_names
 
 
 def test_node_display(capsys):
