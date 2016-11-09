@@ -44,7 +44,7 @@ def subgraph_matches(node1, node2):
     # if node1.node_type == "/":
     #    if node1.operands[0] != node2.operands[0]:
     #        matches = False
-    elif node1.node_type == "FMA":
+    if node1.node_type == "FMA":
         # Check that the two nodes being multiplied are the same
         if node1.operands[0] not in node2.operands or \
            node1.operands[1] not in node2.operands:
@@ -59,53 +59,76 @@ def subgraph_matches(node1, node2):
                 found = True
                 break
         if not found:
-            matches = False
+            return False
     return matches
 
 
 def differ_by_constant(node1, node2):
     ''' Returns True if the two expressions represented by node1 and node2
     differ only by a numerical constant. '''
+
     # Are the two expressions identical?
     if subgraph_matches(node1, node2):
         return True
 
-    # Check that both nodes have producers
-    if not (node1.producers and node2.producers):
+    # Check that one or both nodes have producers otherwise we have
+    # two entirely different nodes
+    if not (node1.producers or node2.producers):
         return False
 
-    # If top-level node is not addition/subtraction/a scalar then the
-    # two expressions cannot differ by just a constant
-    if node1.producers[0].node_type and \
-       node1.producers[0].node_type not in ["+", "-"]:
-        return False
-    if node2.producers[0].node_type and \
-       node2.producers[0].node_type not in ["+", "-"]:
+    # If the top-level node is not a variable then it must be either "+" or
+    # "-" if the two expressions are to differ by just a constant
+    node1_is_pm = False
+    node2_is_pm = False
+
+    if node1.node_type:
+        node1_is_pm = node1.node_type in  ["+", "-"]
+    if node2.node_type:
+        node2_is_pm = node2.node_type in  ["+", "-"]
+
+    if not (node1_is_pm or node2_is_pm):
         return False
 
-    if node1.producers[0].node_type:
-        children1 = node1.producers[0].producers
+    if node1_is_pm and node2_is_pm:
+        #  node1=="+" and node2=="-" (e.g. "ji + 1" and "ji - 1")
+        #    Both sets of producers must contain a Constant and the producer
+        #    that is not a Constant must be the same for both nodes
+        found = False
+        for node in node1.producers:
+            if node.node_type == "constant":
+                found = True
+            else:
+                non_constant1 = node
+        if not found:
+            return False
+        found = False
+        for node in node2.producers:
+            if node.node_type == "constant":
+                found = True
+            else:
+                non_constant2 = node
+        if not found:
+            return False
+
     else:
-        children1 = [node1.producers[0]]
-    if node2.producers[0].node_type:
-        children2 = node2.producers[0].producers
-    else:
-        children2 = [node2.producers[0]]
-
-    # Examine the operands of the addition/subtraction and identify the
-    # difference
-    for child1 in children1:
-        for child2 in children2:
-            # Look for the sub-graphs that differ
-            if not subgraph_matches(child1, child2):
-                node_set1 = set(child1.walk())
-                node_set2 = set(child2.walk())
-                # The list of nodes that are not shared by the two sub-graphs
-                unshared_nodes = node_set1 ^ node_set2
-                for node in unshared_nodes:
-                    if node.node_type not in ["+", "-", "constant"]:
-                        return False
-    return True
+        #  node{1,2}=="+-" and node{2,1}==var (e.g. "ji + 1" and "ji")
+        #    The node that is an operator must have one producer that is a
+        #    Constant and the other producer must match the other node.
+        if node1_is_pm:
+            producers = node1.producers
+            non_constant1 = node2
+        else:
+            producers = node2.producers
+            non_constant1 = node1
+        found = False
+        for node in producers:
+            if node.node_type == "constant":
+                found = True
+            else:
+                non_constant2 = node
+        if not found:
+            return False
+    return subgraph_matches(non_constant1, non_constant2)
 
 
 def ready_ops_from_list(nodes):
@@ -312,6 +335,8 @@ class DirectedAcyclicGraph(object):
             # assignment statement. This is because any references
             # to this variable in that assignment are to the previous
             # version of it, not the one being assigned to.
+            print "ARPDBG lhs full name = {0}".format(lhs_var.full_orig_name)
+            print mapping
             if lhs_var.full_orig_name in mapping:
                 mapping[lhs_var.full_orig_name] += "'"
             else:
@@ -333,6 +358,7 @@ class DirectedAcyclicGraph(object):
                             # variable being assigned to.
                             mapping[lhs_var.full_orig_name] += "'"
                             break
+            print "new mapping:", mapping
 
             # Create the LHS node proper now that we've updated the
             # naming map. We use make_dag() to do this so that we
@@ -389,6 +415,11 @@ class DirectedAcyclicGraph(object):
                 if parent:
                     parent.add_producer(node)
                     node.add_consumer(parent)
+                # If this node is now flagged as being integer we update
+                # it with this information. This enables us to handle the
+                # case where array indices are set within the body of a loop
+                if is_integer:
+                    node.is_integer = True
             else:
                 # Create a new node and store it in our list so we
                 # can refer back to it in future if needed
@@ -441,8 +472,12 @@ class DirectedAcyclicGraph(object):
         These are outputs of the DAG. '''
         node_list = []
         for node in self._nodes.itervalues():
+            print "ARPDBG node = {0}".format(node.name)
             if not node.has_consumer:
+                print "  ARPDBG does not have any consumers"
                 node_list.append(node)
+            else:
+                print "  ARPDBG, consumers: ", [cnode.name for cnode in node._consumers]
         return node_list
 
     def input_nodes(self):
@@ -627,6 +662,7 @@ class DirectedAcyclicGraph(object):
                     opnode = self.get_node(parent, mapping, name=child,
                                            unique=True, node_type=my_type,
                                            is_integer=array_index)
+                    node_list.append(opnode)
                     # Make this operation the parent of the rest of the nodes
                     # making up the expression
                     parent = opnode
@@ -741,47 +777,43 @@ class DirectedAcyclicGraph(object):
                             arg_list = child.items[1:]
                         for idx, item in enumerate(arg_list):
 
-                            if array_index:
-                                # We are down within an array-index expression
-                                # so we don't create a node to represent each
-                                # array-index expression
-                                tmpnode = array_node
-                            else:
-                                # Array is not within an array-index expression
-                                # so we create a node to represent each index
-                                # expression
-                                tmpnode = self.get_node(
-                                    array_node,
-                                    name="index{0}".format(idx+1),
-                                    is_integer=True, unique=True)
-                                # We don't know whether tmpnode is new
-                                # or a pre-existing node. If the
-                                # latter then we don't want to add to
-                                # the existing array_index_nodes list
-                                if len(array_node.array_index_nodes) < \
-                                   len(arg_list):
-                                    if idx > 0:
-                                        # Just store a string representation
-                                        # for any index expression other than
-                                        # the first
-                                        # TODO make this more robust by storing
-                                        # node reference and comparing
-                                        # sub-graphs
-                                        array_node.array_index_nodes.append(
-                                            str(item))
+                            child_nodes = self.make_dag(array_node, [item],
+                                                        mapping,
+                                                        array_index=True)
+                            node_list += child_nodes
+
+                            # We don't know whether array_node is new
+                            # or a pre-existing node. If the
+                            # latter then we don't want to add to
+                            # the existing array_index_nodes list
+                            if len(array_node.array_index_nodes) < \
+                               len(arg_list):
+                                if idx > 0:
+                                    # Just store a string representation
+                                    # for any index expression other than
+                                    # the first
+                                    # TODO make this more robust by storing
+                                    # node reference and comparing
+                                    # sub-graphs
+                                    array_node.array_index_nodes.append(
+                                        str(item))
+                                else:
+                                    # For the first array index we store the
+                                    # parent node of the whole index
+                                    # expression. This permits us to
+                                    # subsequently reason about array
+                                    # accesses that differ only in the
+                                    # first index and therefore might share
+                                    # a cache line.
+                                    if child_nodes:
+                                        tmpnode = child_nodes[0]
                                     else:
-                                        # For the first array index we store the
-                                        # parent node of the whole index
-                                        # expression. This permits us to
-                                        # subsequently reason about array
-                                        # accesses that differ only in the
-                                        # first index and therefore might share
-                                        # a cache line.
-                                        array_node.array_index_nodes.append(
-                                            tmpnode)
-                            node_list += self.make_dag(tmpnode, [item],
-                                                       mapping,
-                                                       array_index=True)
+                                        tmpnode = self.get_node(
+                                            array_node, name=str(item),
+                                            is_integer=True, unique=True)
+                                    array_node.array_index_nodes.append(
+                                        tmpnode)
+
             elif isinstance(child, Fortran2003.Array_Section):
                 arrayvar = Variable()
                 arrayvar.load(child, mapping)
@@ -917,7 +949,7 @@ class DirectedAcyclicGraph(object):
         ''' Returns a list of the nodes that have > 1 consumer '''
         multiple_consumers = []
         for node in self._nodes.itervalues():
-            if len(node.consumers) > 1:
+            if len(node.consumers) > 1 and not node.is_integer:
                 multiple_consumers.append(node)
         return multiple_consumers
 
@@ -1006,6 +1038,7 @@ class DirectedAcyclicGraph(object):
         outfile.write("strict digraph {\n")
 
         for node in self.output_nodes():
+            print "Writing to dot for output node: {0}".format(node.name)
             node.to_dot(outfile, show_weights)
 
         # Write the critical path
