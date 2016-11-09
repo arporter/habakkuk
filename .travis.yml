@@ -1,5 +1,12 @@
 language: python
 python:
-- 2.7
-install: "pip install ."
+  - 2.7
+# command to install dependencies
+before_install:
+  - pip install coveralls
+install:
+  - "pip install ."
 script: py.test
+  - coverage run --source src/habakkuk -m py.test
+  - coverage report -m
+
