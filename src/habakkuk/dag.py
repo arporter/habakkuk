@@ -335,30 +335,27 @@ class DirectedAcyclicGraph(object):
             # assignment statement. This is because any references
             # to this variable in that assignment are to the previous
             # version of it, not the one being assigned to.
-            print "ARPDBG lhs full name = {0}".format(lhs_var.full_orig_name)
-            print mapping
-            if lhs_var.full_orig_name in mapping:
-                mapping[lhs_var.full_orig_name] += "'"
+            if lhs_var.indexed_name in mapping:
+                mapping[lhs_var.indexed_name] += "'"
             else:
                 # The LHS variable wasn't already in the map - we use the full
                 # variable expression (including any array indices) as the
                 # dictionary key. We only store the base of the variable name
                 # as the dictionary entry (so that when we assign to array
                 # elements, the resulting node is named eg. array'(i,j)).
-                mapping[lhs_var.full_orig_name] = lhs_var.orig_name
+                mapping[lhs_var.indexed_name] = lhs_var.orig_name
 
                 for node in rhs_node_list:
                     if node.variable:
-                        if node.variable.full_orig_name == \
-                           lhs_var.full_orig_name:
+                        if node.variable.indexed_name == \
+                           lhs_var.indexed_name:
                             # If the LHS variable appeared on the RHS
                             # of this assignment then we must append a
                             # ' character to its name. This then means
                             # we get a new node representing the
                             # variable being assigned to.
-                            mapping[lhs_var.full_orig_name] += "'"
+                            mapping[lhs_var.indexed_name] += "'"
                             break
-            print "new mapping:", mapping
 
             # Create the LHS node proper now that we've updated the
             # naming map. We use make_dag() to do this so that we
@@ -404,7 +401,8 @@ class DirectedAcyclicGraph(object):
                     node_name = name
             else:
                 # Use the supplied variable object to generate the name
-                # of this node
+                # of this node. The name of this variable has already
+                # been re-mapped when it was created.
                 node_name = variable.full_name
             # Node is not necessarily unique so check whether we
             # already have one with the supplied name
@@ -472,12 +470,8 @@ class DirectedAcyclicGraph(object):
         These are outputs of the DAG. '''
         node_list = []
         for node in self._nodes.itervalues():
-            print "ARPDBG node = {0}".format(node.name)
             if not node.has_consumer:
-                print "  ARPDBG does not have any consumers"
                 node_list.append(node)
-            else:
-                print "  ARPDBG, consumers: ", [cnode.name for cnode in node._consumers]
         return node_list
 
     def input_nodes(self):
@@ -1038,7 +1032,6 @@ class DirectedAcyclicGraph(object):
         outfile.write("strict digraph {\n")
 
         for node in self.output_nodes():
-            print "Writing to dot for output node: {0}".format(node.name)
             node.to_dot(outfile, show_weights)
 
         # Write the critical path
