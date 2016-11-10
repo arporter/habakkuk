@@ -77,3 +77,6 @@ an image of the DAG, e.g.:
 
     cat triple_product_test.gv | dot -Tpng > triple.png
 
+## Code Metrics ##
+
+[![Coverage Status](https://coveralls.io/repos/github/arporter/habakkuk/badge.svg)](https://coveralls.io/github/arporter/habakkuk)
