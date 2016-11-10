@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     setup(
         name='Habakkuk',
-        version='0.1.1',
+        version='0.1.0',
         description='Performance prediction for Fortran kernels.',
         long_description=open('README.md').read(),
         author='Andrew R Porter',
@@ -48,7 +48,6 @@ if __name__ == "__main__":
         classifiers=['Development Status :: 3 - Alpha',
                      'Environment :: Console',
                      'Programming Language :: Python',
-                     'Programming Language :: Python :: 2.6',
                      'Programming Language :: Python :: 2.7',
                      'Topic :: Scientific/Engineering',
                      'Topic :: Utilities',
