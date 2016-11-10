@@ -951,11 +951,14 @@ class DirectedAcyclicGraph(object):
         ''' Walk through the graph and remove all but one of any
         duplicated sub-graphs that represent FLOPs'''
 
-        multiple_consumers = self.nodes_with_multiple_consumers()
+        _found_duplicate = True
+        
+        while _found_duplicate:
 
-        found_duplicate = (len(multiple_consumers) > 0)
-
-        while found_duplicate:
+            # Update list of nodes with > 1 consumer
+            multiple_consumers = self.nodes_with_multiple_consumers()
+            if len(multiple_consumers) == 0:
+                break
 
             # Each node with > 1 consumer represents a possible duplication
             for multi_node in multiple_consumers[:]:
@@ -967,11 +970,14 @@ class DirectedAcyclicGraph(object):
                         matching_nodes.append(node2)
 
                 if not matching_nodes:
-                    found_duplicate = False
+                    # None of the multiple consumers of the current node
+                    # represents duplicate computation so skip on to the
+                    # next node.
+                    _found_duplicate = False
                     continue
 
                 # We've found one or more nodes that match node1
-                found_duplicate = True
+                _found_duplicate = True
 
                 # Create a new node to store the result of this
                 # duplicated operation
@@ -994,7 +1000,7 @@ class DirectedAcyclicGraph(object):
                 new_node.add_producer(node1)
                 node1.add_consumer(new_node)
 
-                for node2 in matching_nodes:
+                for node2 in matching_nodes[:]:
                     # Add the new node as a dependency for those nodes
                     # that previously had node2 as a producer
                     for pnode in node2.consumers[:]:
@@ -1007,9 +1013,10 @@ class DirectedAcyclicGraph(object):
                     # they have consumers besides node2.
                     self.delete_sub_graph(node2)
 
-                # Update list of nodes with > 1 consumer
-                multiple_consumers = self.nodes_with_multiple_consumers()
+                # Break out of this loop so that we restart our loop over
+                # nodes with multiple consumers
                 break
+
 
     @property
     def critical_path(self):

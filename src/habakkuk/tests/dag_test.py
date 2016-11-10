@@ -636,6 +636,27 @@ def test_prune_duplicates():
     assert node_names.count("+") == 1
 
 
+def test_prune_duplicate_array_refs():
+    ''' Test that we are able to identify and remove nodes representing
+    duplicate computation when array references are involved '''
+    dag = dag_from_strings(
+        ["zu = 8._wp * ( un(ji-1,jj  ,jk) * un(ji-1,jj  ,jk) "
+         "+ un(ji  ,jj  ,jk) * un(ji  ,jj  ,jk) ) "
+         "+ ( un(ji-1,jj-1,jk) + un(ji-1,jj+1,jk) ) * "
+         "  ( un(ji-1,jj-1,jk) + un(ji-1,jj+1,jk) ) "
+         "+ ( un(ji  ,jj-1,jk) + un(ji  ,jj+1,jk) ) * "
+         "  ( un(ji  ,jj-1,jk) + un(ji  ,jj+1,jk) )"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "un(ji-1,jj-1,jk)" in node_names
+    dag.prune_duplicate_nodes()
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    # The pruning should have resulted in the introduction of just
+    # two intermediate nodes
+    assert "sub_exp0" in node_names
+    assert "sub_exp1" in node_names
+    assert "sub_exp2" not in node_names
+
+
 def test_rm_scalar_tmps_array_accesses():
     ''' Check that we can successfully remove scalar temporaries when
     we have array accesses '''
