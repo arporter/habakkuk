@@ -63,12 +63,25 @@ def test_basic_loop_unroll():
         loop_graph = fout.read()
     # TODO need to find some way of testing the connectivity of the nodes,
     # not just their existence
+    print loop_graph
     assert "label=\"2.0\", color=\"green\"" in loop_graph
     assert "label=\"i\", color=\"black\"" in loop_graph
-    assert "label=\"i+1\", color=\"black\"" in loop_graph
+    assert "label=\"i'\", color=\"black\"" in loop_graph
     assert "label=\"*\", color=\"red\", shape=\"box\"" in loop_graph
     assert "label=\"aprod(i)\", color=\"blue\"" in loop_graph
-    assert "label=\"aprod(i+1)\", color=\"blue\"" in loop_graph
+    assert "label=\"aprod(i')\", color=\"blue\"" in loop_graph
+
+
+def test_unroll_no_loop_var(capsys):
+    ''' Check that we generate the expected DAG when we encounter a
+    loop for which we have no loop variable '''
+    options = Options()
+    options.unroll_factor = 2
+    make_dag.dag_of_files(
+        options, [os.path.join(BASE_PATH, "uncontrolled_loop.f90")])
+    result, _ = capsys.readouterr()
+    assert "1 FLOPs in total" in result
+    assert "1 distinct cache-line ref" in result
 
 
 def test_main_routine_no_file_err():
@@ -132,3 +145,28 @@ def test_main_routine_invalid_fortran():
     print str(err)
     assert "Parse Error: Parsing " in str(err)
     assert "Is the file valid Fortran?" in str(err)
+
+
+def test_array_deref_count(capsys):
+    ''' Check that we cope with indirectly-addressed array
+    references '''
+    from habakkuk.make_dag import runner
+    args = [os.path.join(PWD, "test_files/gather.f90")]
+    runner(args)
+    result, _ = capsys.readouterr()
+    print result
+    assert "4 array references" in result
+    assert "4 distinct cache-line references" in result
+
+
+def test_multiple_array_accesses(capsys):
+    ''' Check that we cope with the array accesses in a real-world
+    NEMO example '''
+    from habakkuk.make_dag import runner
+    args = [os.path.join(PWD, "test_files/zpshde_loop6.f90")]
+    runner(args)
+    result, _ = capsys.readouterr()
+    print result
+    assert "14 addition operators" in result
+    assert "38 FLOPs in total"
+    assert "33 distinct cache-line references" in result

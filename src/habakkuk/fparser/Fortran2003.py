@@ -282,9 +282,12 @@ content : tuple
             # check names of start and end statements:
             start_stmt = content[0]
             end_stmt = content[-1]
-            if isinstance(end_stmt, endcls_all) and hasattr(end_stmt, 'get_name') and hasattr(start_stmt, 'get_name'):
+            if isinstance(end_stmt, endcls_all) and \
+               hasattr(end_stmt, 'get_name') and \
+               hasattr(start_stmt, 'get_name'):
                 if end_stmt.get_name() is not None:
-                    if start_stmt.get_name() != end_stmt.get_name():
+                    if start_stmt.get_name().string.lower() != \
+                       end_stmt.get_name().string.lower():
                         end_stmt.item.reader.error('expected <%s-name> is %s but got %s. Ignoring.'\
                                                    % (end_stmt.get_type().lower(), start_stmt.get_name(), end_stmt.get_name()))
                 else:
@@ -387,8 +390,8 @@ class BinaryOpBase(Base):
     <binary-op-base> = <lhs> <op> <rhs>
     <op> is searched from right by default.
     """
-    def match(lhs_cls, op_pattern, rhs_cls, string, right=True, exclude_op_pattern = None,
-              is_add = False):
+    def match(lhs_cls, op_pattern, rhs_cls, string, right=True,
+              exclude_op_pattern = None, is_add = False):
         line, repmap = string_replace_map(string)
         if isinstance(op_pattern, str):
             if right:
@@ -413,6 +416,7 @@ class BinaryOpBase(Base):
         if exclude_op_pattern is not None:
             if exclude_op_pattern.match(op):
                 return
+
         lhs_obj = lhs_cls(repmap(lhs))
         rhs_obj = rhs_cls(repmap(rhs))
         return lhs_obj, op.replace(' ',''), rhs_obj
@@ -493,16 +497,29 @@ class BracketBase(Base):
     <bracket-base> = <left-bracket-base> <something> <right-bracket>
     """
     def match(brackets, cls, string, require_cls=True):
-        i = len(brackets)/2
-        left = brackets[:i]
-        right = brackets[-i:]
+        bracket_len = len(brackets)/2
+        left = brackets[:bracket_len]
+        right = brackets[-bracket_len:]
         if string.startswith(left) and string.endswith(right):
-            line = string[i:-i].strip()
+            # We may have something like "(a + b)*(a - b)" so have
+            # to check - we start with one open bracket. If we reach
+            # zero open brackets before we get to the end then the
+            # opening bracket at the start of the string does not
+            # correspond to the closing bracket at the end of it.
+            num_open = 1
+            for idx in range(bracket_len, len(string)-bracket_len):
+                if string[idx:idx+bracket_len] == left:
+                    num_open += 1
+                elif string[idx:idx+bracket_len] == right:
+                    num_open -= 1
+                if num_open == 0:
+                    return
+            line = string[bracket_len:-bracket_len].strip()
             if not line:
                 if require_cls:
                     return
-                return left,None,right
-            return left,cls(line),right
+                return left, None, right
+            return left, cls(line), right
         return
     match = staticmethod(match)
     def tostr(self):
@@ -4124,8 +4141,12 @@ class Masked_Elsewhere_Stmt(StmtBase): # R749
     use_names = ['Mask_Expr', 'Where_Construct_Name']
     @staticmethod
     def match(string):
-        if string[:9].upper()!='ELSEWHERE': return
-        line = string[9:].lstrip()
+        if string[:9].upper()!='ELSEWHERE' and \
+           string[:10].upper() != "ELSE WHERE":
+            return
+        idx = string[:10].upper().index("WHERE")
+        line = string[idx+5:].lstrip()
+
         if not line.startswith('('): return
         i = line.rfind(')')
         if i==-1: return
@@ -4153,7 +4174,14 @@ class Elsewhere_Stmt(StmtBase, WORDClsBase): # R750
     use_names = ['Where_Construct_Name']
     @staticmethod
     def match(string):
-        return WORDClsBase.match('ELSEWHERE', Where_Construct_Name, string)
+        if string[:9].upper() != 'ELSEWHERE' and \
+           string[:10].upper() != "ELSE WHERE":
+            return
+        idx = string[:10].upper().index("WHERE")
+        line = string[idx+5:].lstrip()
+        if line:
+            return "ELSEWHERE", Where_Construct_Name(line)
+        return "ELSEWHERE", None
 
     def get_end_name(self):
         name = self.items[1]
@@ -6010,7 +6038,27 @@ class Data_Edit_Desc_C1002(Base):
                 i2 = i2.lstrip()
                 return c, W(i1), M(i2), None
             return c,W(line), None, None
-        if c in ['E','F','G']:
+        if c in ['E']:
+            line = string[1:].lstrip()
+            c2 = line[0].upper()
+            if c2 in ['S', 'N']:
+                line = line[1:].lstrip()
+            else:
+                c2 = ""
+            if line.count('.')==1:
+                i1,i2 = line.split('.',1)
+                i1 = i1.rstrip()
+                i2 = i2.lstrip()
+                return c+c2, W(i1), D(i2), None
+            elif line.count('.')==2:
+                i1,i2,i3 = line.split('.',2)
+                i1 = i1.rstrip()
+                i2 = i2.lstrip()
+                i3 = i3.lstrip()
+                return c+c2, W(i1), D(i2), E(i3)
+            else:
+                return
+        if c in ['F','G']:
             line = string[1:].lstrip()
             if line.count('.')==1:
                 i1,i2 = line.split('.',1)
@@ -6079,7 +6127,7 @@ class Data_Edit_Desc(Base): # R1005
                 i1,i2 = line.split('.',1)
                 i1 = i1.rstrip()
                 i2 = i2.lstrip()
-                return c, W(i1), M(i2), NoneInt_Literal_Constant
+                return c, W(i1), M(i2), None, Int_Literal_Constant
             return c,W(line), None, None
         if c=='L':
             line = string[1:].lstrip()

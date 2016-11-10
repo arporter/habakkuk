@@ -271,7 +271,6 @@ def splitparen(line,paren='()'):
             break
         nofslashes = 0
         l = []
-        l_append = l.append
         if stopchar is None:
             # search for parenthesis start
             while 1:
@@ -283,7 +282,7 @@ def splitparen(line,paren='()'):
                     nofslashes += 1
                 else:
                     nofslashes = 0
-                l_append(char)
+                l.append(char)
                 try:
                     char = line[i]; i += 1
                 except IndexError:
@@ -293,18 +292,21 @@ def splitparen(line,paren='()'):
             nofstarts = 0
             while 1:
                 if char==stopchar and not nofslashes % 2 and nofstarts==1:
-                    l_append(char)
+                    l.append(char)
                     stopchar = None
                     break
+
                 if char=='\\':
                     nofslashes += 1
                 else:
                     nofslashes = 0
+
                 if char==startchar:
                     nofstarts += 1
                 elif char==endchar:
                     nofstarts -= 1
-                l_append(char)
+
+                l.append(char)
                 try:
                     char = line[i]; i += 1
                 except IndexError:

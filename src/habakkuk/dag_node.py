@@ -5,12 +5,12 @@
 from habakkuk.config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 
 # Valid types for a node in the DAG
-VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref"]
+VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref", "call"]
 
-INDENT_STR = "     "
+INDENT_STR = "  "
 # At what depth to abort attempting to recursively walk down a graph
-# (hitting this indicates a bug!)
-MAX_RECURSION_DEPTH = 40
+# (hitting this probably indicates a bug!)
+MAX_RECURSION_DEPTH = 120
 
 
 class DAGError(Exception):
@@ -26,7 +26,8 @@ class DAGError(Exception):
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
 
-    def __init__(self, parent=None, name=None, digraph=None, variable=None):
+    def __init__(self, parent=None, name=None, digraph=None, variable=None,
+                 is_integer=False):
         # Keep a reference back to the digraph object containing
         # this node
         self._digraph = digraph
@@ -42,6 +43,9 @@ class DAGNode(object):
             parent.add_producer(self)
         # The type of this node
         self._node_type = None
+        # Whether or not this node represents an integer quantity (as
+        # opposed to the default of floating point)
+        self._integer = is_integer
         # The name of this node - used to label the node in DOT. This
         # name is not necessarily the same as the name of the variable
         # in the Fortran code: if it has been assigned to then it becomes
@@ -66,10 +70,31 @@ class DAGNode(object):
         # Whether the quantity represented by this node is ready to
         # be consumed (if an operator then that means it has been
         # executed). Used when generating a schedule for the DAG.
-        self._ready = False
+        # Since we're not interested in integer operations we mark
+        # this node as ready if it represents an integer quantity.
+        if self._integer:
+            self._ready = True
+        else:
+            self._ready = False
+        # If this node represents an array access then this list contains
+        # a list of parent nodes, one for each array index expression
+        self.array_index_nodes = []
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_integer(self):
+        ''' Returns True if the quantity represented by this node is
+        an integer (or operates on integers) '''
+        return self._integer
+
+    @is_integer.setter
+    def is_integer(self, flag):
+        ''' Setter for the is_integer property of the node. Required because
+        we may only determine that a node represents an integer quantity
+        after we have first encountered it. '''
+        self._integer = flag
 
     @property
     def dependencies_satisfied(self):
@@ -115,7 +140,8 @@ class DAGNode(object):
 
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''
-        print indent*INDENT_STR, self.name
+        prefix = indent*INDENT_STR
+        print prefix+"\- "+self.name
         for child in self._producers:
             child.display(indent=indent+1)
 
@@ -158,9 +184,12 @@ class DAGNode(object):
     @property
     def has_producer(self):
         ''' Returns true if this node has one or more
-        dependencies/producers '''
-        if self._producers:
-            return True
+        dependencies/producers. By default we ignore nodes representing
+        integer quantities since they are only part of array-index
+        expressions. '''
+        for prod in self._producers:
+            if not prod.is_integer:
+                return True
         return False
 
     @property
@@ -198,10 +227,11 @@ class DAGNode(object):
         if there isn't one '''
         return self._variable
 
-    def walk(self, node_type=None, top_down=False, depth=0):
+    def walk(self, node_type=None, top_down=False, depth=0,
+             ancestor_list=None):
         ''' Walk down the tree from this node and generate a list of all
-        nodes of type node_type. If no node type is supplied then return
-        all descendents '''
+        nodes of type node_type (excluding this node). If no node type is
+        supplied then return all descendents '''
         if depth > MAX_RECURSION_DEPTH:
             print "Current node = ", str(self)
             print "Producers:"
@@ -210,6 +240,19 @@ class DAGNode(object):
             raise DAGError(
                 "Max recursion depth ({0}) exceeded when walking tree".
                 format(MAX_RECURSION_DEPTH))
+        # If a list of ancestors has been provided then check that none
+        # of this node's producers are in it
+        if ancestor_list:
+            for child in self._producers:
+                if child in ancestor_list:
+                    print "->".join(
+                        ["{0}({1})".format(node.name, node.node_type)
+                         for node in ancestor_list])
+                    raise DAGError("Cyclic dependency: node '{0}' has node "
+                                   "'{1}'  as both a producer and an ancestor"
+                                   .format(str(self), str(child)))
+                else:
+                    ancestor_list.append(child)
         local_list = []
         if top_down:
             # Add the children of this node before recursing down
@@ -217,10 +260,12 @@ class DAGNode(object):
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
             for child in self._producers:
-                local_list += child.walk(node_type, top_down, depth+1)
+                local_list += child.walk(node_type, top_down, depth+1,
+                                         ancestor_list)
         else:
             for child in self._producers:
-                local_list += child.walk(node_type, top_down, depth+1)
+                local_list += child.walk(node_type, top_down, depth+1,
+                                         ancestor_list)
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
         return local_list
@@ -228,7 +273,7 @@ class DAGNode(object):
     @property
     def weight(self):
         ''' Returns the (exclusive) weight/cost of this node '''
-        if not self._node_type:
+        if not self._node_type or self._integer:
             return 0
         else:
             if self._node_type in OPERATORS:
@@ -258,8 +303,8 @@ class DAGNode(object):
         for child in self._producers:
             fma_count += child.fuse_multiply_adds()
 
-        # If this node is an addition
-        if self._node_type == "+":
+        # If this node is a floating-point addition
+        if self._node_type == "+" and not self._integer:
             # Loop over a copy of the list of producers as this loop
             # modifies the original
             for child in self._producers[:]:
@@ -296,23 +341,32 @@ class DAGNode(object):
 
     def critical_path(self, path):
         ''' Compute the critical (most expensive) path from this node '''
-        # Add ourself to the path
+        # Add ourself to the path unless we represent an integer
+        # quantity in which case we terminate the path.
+        if self.is_integer:
+            return
         path.append(self)
-        # Find the child with the greatest inclusive weight
+        # Find the child with the greatest inclusive weight that doesn't
+        # represent an integer quantity
         max_weight = -0.01
         node = None
         for child in self._producers:
-            if child.incl_weight > max_weight:
+            if not child.is_integer and child.incl_weight > max_weight:
                 max_weight = child.incl_weight
                 node = child
         # Move down to that child
         if node:
             node.critical_path(path)
 
-    def to_dot(self, fileobj, show_weight):
+    def to_dot(self, fileobj, show_weight, include_integer_nodes=True):
         ''' Generate representation in the DOT language '''
+
+        if not include_integer_nodes and self.is_integer:
+            # Don't output nodes representing integer quantities
+            return
+
         for child in self._producers:
-            child.to_dot(fileobj, show_weight)
+            child.to_dot(fileobj, show_weight, include_integer_nodes)
 
         nodestr = "{0} [label=\"{1}".format(self.node_id,
                                             self.name)
@@ -349,12 +403,18 @@ class DAGNode(object):
 
         # Set node fill colours in order to animate the execution
         # schedule
-        if self._ready:
-            # Node has been executed/updated
-            nodestr += ", style=\"filled\", fillcolor=\"grey\""
-        elif self.dependencies_satisfied:
-            # Node is ready to be executed/updated
-            nodestr += ", style=\"filled\", fillcolor=\"green\""
+        if self._integer:
+            # Node represents an integer quantity and does not take
+            # part in schedule. Use X11 colour 'Green Yellow' for such
+            # nodes
+            nodestr += ", style=\"filled\", fillcolor=\"#ADFF2F\""
+        else:
+            if self._ready:
+                # Node has been executed/updated
+                nodestr += ", style=\"filled\", fillcolor=\"grey\""
+            elif self.dependencies_satisfied:
+                # Node is ready to be executed/updated
+                nodestr += ", style=\"filled\", fillcolor=\"green\""
 
         nodestr += "]\n"
 
@@ -362,5 +422,7 @@ class DAGNode(object):
         if self._consumers:
             fileobj.write(self.node_id+" -> {\n")
             for child in self._consumers:
+                if not include_integer_nodes and child.is_integer:
+                    continue
                 fileobj.write(" "+child.node_id)
             fileobj.write("}\n")

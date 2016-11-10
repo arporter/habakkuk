@@ -4,7 +4,7 @@
     for each subroutine it contains. '''
 
 from habakkuk.dag import DirectedAcyclicGraph
-from parse2003 import walk
+from parse2003 import walk_ast
 
 # TODO swap to using argparse since optparse is deprecated
 from optparse import OptionParser
@@ -31,11 +31,11 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 
     # Find all of the assignment statements in the code block
     if hasattr(parent_node, "items"):
-        assignments = walk(parent_node.items, Assignment_Stmt)
+        assignments = walk_ast(parent_node.items, [Assignment_Stmt])
         if isinstance(parent_node, Assignment_Stmt):
             assignments.append(parent_node)
     elif hasattr(parent_node, "content"):
-        assignments = walk(parent_node.content, Assignment_Stmt)
+        assignments = walk_ast(parent_node.content, [Assignment_Stmt])
 
     if not assignments:
         # If this subroutine has no assignment statements
@@ -50,21 +50,13 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 
     digraph.add_assignments(assignments, mapping)
 
-    if loop:
+    if loop and loop.var_name:
         for _ in range(1, unroll_factor):
             # Increment the loop counter and then add to the DAG again
-            mapping[loop.var_name] += "+1"
+            digraph.add_assignments(
+                [Assignment_Stmt("{0} = {0} + 1".format(loop.var_name))],
+                mapping)
             digraph.add_assignments(assignments, mapping)
-
-    # Correctness check - if we've ended up with e.g. my_var' as a key
-    # in our name-mapping dictionary then something has gone wrong.
-    for name in mapping:
-        if "'" in name:
-            from parse2003 import ParseError
-            raise ParseError(
-                "Found {0} in name map but names with ' characters "
-                "appended should only appear in the value part of "
-                "the dictionary")
 
     return digraph
 
@@ -75,8 +67,9 @@ def dag_of_files(options, args):
     from habakkuk.fparser.api import Fortran2003
     from habakkuk.fparser.readfortran import FortranFileReader
     from habakkuk.fparser.Fortran2003 import Main_Program, Program_Stmt, \
-        Subroutine_Subprogram, \
-        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part
+        Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
+        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
+        Name
     from parse2003 import Loop, get_child, ParseError
 
     apply_fma_transformation = not options.no_fma
@@ -86,13 +79,15 @@ def dag_of_files(options, args):
     show_weights = options.show_weights
 
     for filename in args:
+        print "Habakkuk processing file '{0}'".format(filename)
         reader = FortranFileReader(filename)
         if options.mode != 'auto':
             reader.set_mode_from_str(options.mode)
         try:
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
-            routines = walk(program.content, Subroutine_Subprogram)
+            routines = walk_ast(program.content, [Subroutine_Subprogram,
+                                                  Function_Subprogram])
             # Add the main program as a routine to analyse - take care
             # here as the Fortran source file might not contain a
             # main program (might just be a subroutine in a module)
@@ -106,18 +101,28 @@ def dag_of_files(options, args):
             # Create a DAG for each (sub)routine
             for subroutine in routines:
                 # Get the name of this (sub)routine
-                if isinstance(subroutine, Subroutine_Subprogram):
-                    substmt = walk(subroutine.content, Subroutine_Stmt)
-                elif isinstance(subroutine, Main_Program):
-                    substmt = walk(subroutine.content, Program_Stmt)
-                sub_name = str(substmt[0].get_name())
+                substmt = walk_ast(subroutine.content,
+                                   [Subroutine_Stmt, Function_Stmt,
+                                    Program_Stmt])
+                if isinstance(substmt[0], Function_Stmt):
+                    for item in substmt[0].items:
+                        if isinstance(item, Name):
+                            sub_name = str(item)
+                else:
+                    sub_name = str(substmt[0].get_name())
 
                 # Find the section of the tree containing the execution part
                 # of the code
-                exe_part = get_child(subroutine, Execution_Part)
+                try:
+                    exe_part = get_child(subroutine, Execution_Part)
+                except ParseError:
+                    # This subroutine has no execution part so we skip it
+                    # TODO log this event
+                    continue
 
                 # Make a list of all Do loops in the routine
-                loops = walk(exe_part.content, Block_Nonlabel_Do_Construct)
+                loops = walk_ast(exe_part.content,
+                                 [Block_Nonlabel_Do_Construct])
                 digraphs = []
 
                 if not loops:
@@ -132,8 +137,8 @@ def dag_of_files(options, args):
                     for loop in loops:
 
                         # Check that we are an innermost loop
-                        inner_loops = walk(loop.content,
-                                           Block_Nonlabel_Do_Construct)
+                        inner_loops = walk_ast(loop.content,
+                                               [Block_Nonlabel_Do_Construct])
                         if inner_loops:
                             # We're not so skip
                             continue

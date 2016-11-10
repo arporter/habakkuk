@@ -33,8 +33,10 @@ def test_schedule_too_long():
     os.remove(tmp_file)
     os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
     for i in range(6):
-        os.remove(os.path.join(os.getcwd(),
-                               "long_sched_test_step{0}.gv".format(i)))
+        step_file = os.path.join(os.getcwd(),
+                                 "long_sched_test_step{0}.gv".format(i))
+        if os.path.isfile(step_file):
+            os.remove(step_file)
     assert "Unexpectedly long schedule" in str(err)
 
 

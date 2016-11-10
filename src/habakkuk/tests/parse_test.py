@@ -15,11 +15,11 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_walk_debug(capsys):
     ''' Test the walk method with debug=True '''
     from habakkuk.fparser.readfortran import FortranFileReader
-    from habakkuk.parse2003 import walk
+    from habakkuk.parse2003 import walk_ast
     reader = FortranFileReader(os.path.join(BASE_PATH,
                                             "time_step_mod_simple.f90"))
     program = Fortran2003.Program(reader)
-    names = walk(program.content, Fortran2003.Name, debug=True)
+    names = walk_ast(program.content, [Fortran2003.Name], debug=True)
     result, _ = capsys.readouterr()
     assert (
         "child type =  <class 'habakkuk.fparser.Fortran2003.Module'>"
@@ -47,7 +47,7 @@ def test_variable_scalar_index_expr():
 
 
 def test_variable_index_exprn_minus1():
-    ''' Test the code that attempts to simply array-index expressions
+    ''' Test the code that attempts to simplify array-index expressions
     when the net increment to an index is negative '''
     dag = dag_from_strings(["a(i) = 2.0 * b(i)"])
     anode = dag._nodes["a(i)"]
@@ -82,6 +82,7 @@ def test_indirect_array_access1():
     node_names = [node.name for node in dag._nodes.itervalues()]
     print node_names
     assert "b(map(i))" in node_names
+    assert "map(i)" in node_names
 
 
 def test_indirect_array_access2():
@@ -92,6 +93,7 @@ def test_indirect_array_access2():
     node_names = [node.name for node in dag._nodes.itervalues()]
     print node_names
     assert "b(map(i)+j)" in node_names
+    assert "map(i)" in node_names
 
 
 def test_load_unrecognised_array_access():

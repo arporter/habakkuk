@@ -77,6 +77,17 @@ def test_critical_path_no_input():
     assert "Failed to find input node for critical path" in str(err)
 
 
+def test_critical_path_length():
+    ''' Test that computed critical path is correct '''
+    dag = dag_from_strings(["var1 = 3.0 + 2.0", "aprod(i+1) = 2.0 * var1"])
+    dag.calc_critical_path()
+    path = dag.critical_path
+    assert path.cycles() == 2
+    node_names = [node.name for node in path.nodes]
+    assert "var1" in node_names
+    assert "aprod(i+1)" in node_names
+
+
 def test_dag_get_node_err():
     ''' Check that we raise expected error when calling get_node() without
     a name or a variable '''
@@ -429,6 +440,20 @@ def test_repeated_assign_diff_elements():
     assert graph.count("aprod") == 3
 
 
+def test_repeated_assign_index():
+    ''' Test naming of nodes when an array is repeated assigned to and one of
+    its indices has been assigned to more than once too. '''
+    dag = dag_from_strings(
+        ["ik = mbkt(ji,jj)",
+         "ik = mikt(ji,jj)",
+         "ptsd(ji,jj,ik,jp_tem) = (1.-zl) * ptsd(ji,jj,ik,jp_tem) + "
+         "zl * ptsd(ji,jj,ik+1,jp_tem)"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    print node_names
+    assert "ptsd'(ji,jj,ik',jp_tem)" in node_names
+    assert "ptsd(ji,jj,ik',jp_tem)" in node_names
+
+
 def test_node_display(capsys):
     ''' Test the display method of DAGNode '''
     dag = dag_from_strings(["aprod = var1 * var2 * var3",
@@ -440,12 +465,12 @@ def test_node_display(capsys):
     result, _ = capsys.readouterr()
     print result
     expected = (
-        " aprod\n"
-        "      *\n"
-        "           *\n"
-        "                var1\n"
-        "                var2\n"
-        "           var3\n")
+        "\- aprod\n"
+        "  \- *\n"
+        "    \- *\n"
+        "      \- var1\n"
+        "      \- var2\n"
+        "    \- var3\n")
     assert expected in result
 
 
@@ -488,6 +513,20 @@ def test_node_rm_consumer():
     assert " as a consumer!" in str(err)
 
 
+def test_node_int_consumers():
+    ''' Test the DAGNode.has_producer/consumer methods '''
+    dag = dag_from_strings(["i = 2", "aprod(i) = 2.0"])
+    anode = dag._nodes["aprod(i)"]
+    assert anode.has_producer
+    assert not anode.has_consumer
+    for node in dag._nodes.itervalues():
+        if node.name == "2.0":
+            twonode = node
+            break
+    assert not twonode.has_producer
+    assert twonode.has_consumer
+
+
 def test_node_type_setter():
     ''' Test the node-type setter method of DAGNode '''
     dag = dag_from_strings(["aprod = var1 * var2",
@@ -496,9 +535,12 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    assert ("node_type must be one of ['COS', '**', 'MIN', 'MAX', '+', '*', "
-            "'-', 'SIN', '/', 'SIGN', 'constant', 'array_ref'] but got "
-            "'not-a-type'" in str(err))
+    print str(err)
+    assert ("node_type must be one of ['REAL', 'COUNT', 'COS', 'LOG', 'MIN', "
+            "'SUM', 'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', "
+            "'IACHAR', 'TAN', 'PRESENT', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', "
+            "'ACOS', 'INT', 'MAX', 'SQRT', 'DBLE', 'MOD', 'constant', "
+            "'array_ref', 'call'] but got 'not-a-type'" in str(err))
 
 
 def test_node_is_op():
@@ -571,6 +613,12 @@ def test_node_dot_colours():
     os.remove(dot_file)
 
 
+@pytest.mark.xfail(reason="Test not yet implemented")
+def test_exclude_int_nodes_from_dot():
+    ''' Check that we can turn-off output of integer nodes in dot '''
+    assert False
+
+
 def test_prune_duplicates():
     ''' Test that we are able to identify and remove nodes representing
     duplicate computation '''
@@ -586,6 +634,44 @@ def test_prune_duplicates():
     assert node_names.count("*") == 2
     assert node_names.count("/") == 1
     assert node_names.count("+") == 1
+
+
+def test_prune_duplicate_array_refs():
+    ''' Test that we are able to identify and remove nodes representing
+    duplicate computation when array references are involved '''
+    dag = dag_from_strings(
+        ["zu = 8._wp * ( un(ji-1,jj  ,jk) * un(ji-1,jj  ,jk) "
+         "+ un(ji  ,jj  ,jk) * un(ji  ,jj  ,jk) ) "
+         "+ ( un(ji-1,jj-1,jk) + un(ji-1,jj+1,jk) ) * "
+         "  ( un(ji-1,jj-1,jk) + un(ji-1,jj+1,jk) ) "
+         "+ ( un(ji  ,jj-1,jk) + un(ji  ,jj+1,jk) ) * "
+         "  ( un(ji  ,jj-1,jk) + un(ji  ,jj+1,jk) )"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "un(ji-1,jj-1,jk)" in node_names
+    dag.prune_duplicate_nodes()
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    # The pruning should have resulted in the introduction of just
+    # two intermediate nodes
+    assert "sub_exp0" in node_names
+    assert "sub_exp1" in node_names
+    assert "sub_exp2" not in node_names
+
+
+def test_rm_scalar_tmps_array_accesses():
+    ''' Check that we can successfully remove scalar temporaries when
+    we have array accesses '''
+    dag = dag_from_strings(
+        ["iku = miku(ji,jj)", "ikup1 = miku(ji,jj) + 1",
+         "ikv = mikv(ji,jj)", "ikvp1 = mikv(ji,jj) + 1",
+         "ze3wu  = (gdepw_0(ji+1,jj,ikup1) - gdept_0(ji+1,jj,iku)) - "
+         "(gdepw_0(ji,jj,iku+1) - gdept_0(ji,jj,iku))",
+         "ze3wv  = (gdepw_0(ji,jj+1,ikvp1) - gdept_0(ji,jj+1,ikv)) - "
+         "(gdepw_0(ji,jj,ikv+1) - gdept_0(ji,jj,ikv))",
+         "pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - "
+         "gdep3w_0(ji,jj,iku)"])
+    dag.rm_scalar_temporaries()
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    assert "index" not in node_names
 
 
 def test_no_flops(capsys):
@@ -624,7 +710,8 @@ def test_unrecognised_child():
     children = [anode]
     with pytest.raises(DAGError) as err:
         dag.make_dag(anode, children, {})
-    assert "Unrecognised child type:" in str(err)
+    assert ("Unrecognised child; type = <class 'habakkuk.dag_node.DAGNode'>"
+            in str(err))
 
 
 def test_flop_count_err():
@@ -665,3 +752,142 @@ def test_flop_count_sin():
     dag = dag_from_strings(["aprod = sin(var1)"])
     nflops = flop_count(dag._nodes)
     assert nflops == OPERATORS["SIN"]["flops"]
+
+
+def test_flop_count_ignore_ints():
+    ''' Check that flop_count() correctly ignores integer operations '''
+    from habakkuk.dag import flop_count
+    dag = dag_from_strings(["a(i) = b(i) + c(i+1) + d(2*i)"])
+    nflops = flop_count(dag._nodes)
+    assert nflops == 2
+
+
+def test_adj_ref_same_cache_line():
+    ''' Check that two accesses to adjacent locations in memory are counted
+    as a single cache-line '''
+    dag = dag_from_strings(
+        ["pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - "
+         "gdep3w_0(ji,jj,iku)"])
+    dag.to_dot()
+    assert dag.cache_lines() == 2
+
+
+def test_index_product_same_cache_line():
+    ''' Check that two accesses to adjacent locations in memory are counted
+    as a single cache-line, even when a product is involved '''
+    dag = dag_from_strings(
+        ["pgzui  (ji,jj) = (gdep3w_0(2*ji+1,jj,iku) + ze3wu) - "
+         "gdep3w_0(2*ji,jj,iku)"])
+    assert dag.cache_lines() == 2
+
+
+def test_indirect_1darray_access_difft_cache_lines():
+    ''' Check that we correctly identify two indirect array accesses as
+    (probably) belonging to two different cache lines '''
+    dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
+    assert dag.cache_lines() == 3
+
+
+def test_indirect_2darray_access_difft_cache_lines():
+    ''' Check that we correctly identify 3 indirect array accesses as
+    (probably) belonging to different cache lines '''
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i)"])
+    assert dag.cache_lines() == 4
+
+
+def test_indirect_2darray_access_same_cache_lines():
+    ''' Check that we identify two indirect array accesses that differ only
+    by a constant (in the first index) as (probably) belonging to the same
+    cache line '''
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i) + b(map(i)+j+1, i)"])
+    assert dag.cache_lines() == 4
+
+
+def test_array_ref_contains_array_ref():
+    ''' Check that we correctly identify a Part_Ref that itself
+    contains an array slice as being a function call rather than
+    an array reference '''
+    dag = dag_from_strings(["aprod = my_array(x(1,2))"])
+    for node in dag._nodes.itervalues():
+        if "my_array" in node.name:
+            assert node.node_type == "array_ref"
+
+
+def test_fn_call_contains_array_slice():
+    ''' Check that we correctly identify a Part_Ref that itself
+    contains an array slice as being a function call rather than
+    an array reference '''
+    dag = dag_from_strings(["aprod = my_fn(x(:))", "bprod = an_array(:)"])
+    for node in dag._nodes.itervalues():
+        if "my_fn" in node.name:
+            assert node.node_type == "call"
+        if "an_array" in node.name:
+            assert node.node_type == "array_ref"
+
+
+def test_part_ref_is_call():
+    ''' Check that we identify a Part_Ref containing one or more array
+    sections as a function call rather than an array reference '''
+    dag = dag_from_strings(["area = glob_sum( e1e2t(:,:) * tmask(:,:,1))",
+                            "bob = x(:) + y(1:3)"])
+    for node in dag._nodes.itervalues():
+        if "glob_sum" in node.name:
+            gsum_node = node
+            break
+    assert gsum_node
+    assert gsum_node.node_type == "call"
+
+
+def test_string_ref_is_call():
+    ''' Check that a Part_Ref that contains a string is identified as a
+    function call '''
+    dag = dag_from_strings(["area = my_file('name')"])
+    for node in dag._nodes.itervalues():
+        if "my_file" in node.name:
+            file_node = node
+            break
+    assert file_node
+    assert file_node.node_type == "call"
+
+
+def test_assign_dtype_components():
+    ''' Test that we can generate a dag for an assignment involving references
+    to components of derived types '''
+    dag = dag_from_strings(["zphi = sladatqc%rphi(jobs)",
+                            "sladatqc%rmod(jobs,1) = sladatqc%rext(jobs,1) "
+                            "- sladatqc%rext(jobs,2)"])
+    dag.verify_acyclic()
+    count = 0
+    for node in dag._nodes.itervalues():
+        if "sladatqc" in node.name:
+            count += 1
+    assert count == 4
+
+
+def test_parentheses_in_function(capsys):
+    ''' Test Habakkuk against Fortran containing a function with a
+    fairly complex parenthesised expression. '''
+    options = Options()
+    options.no_fma = True
+
+    make_dag.dag_of_files(options,
+                          [os.path.join(BASE_PATH, "fn_parentheses.f90")])
+    result, _ = capsys.readouterr()
+    print result
+    assert "Stats for DAG fspott:" in result
+    assert "9 FLOPs in total." in result
+    assert "4 multiplication operators." in result
+
+
+def test_repeat_assign_derived_type_array(capsys):
+    ''' Test for assignment to an array element in a derived type '''
+    dag = dag_from_strings(
+        ["itmp = sd(jf)%nrec_a(1)",
+         "sd(jf)%nrec_a(1) = sd(jf)%nreclast",
+         "sd(jf)%nrec_b(1) = sd(jf)%nrec_a(1)",
+         "sd(jf)%nrec_a(1) = itmp"])
+    node_names = [node.name for node in dag._nodes.itervalues()]
+    dag.verify_acyclic()
+    assert "sd(jf)%nrec_a(1)'" in node_names
