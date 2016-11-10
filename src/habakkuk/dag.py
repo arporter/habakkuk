@@ -82,9 +82,9 @@ def differ_by_constant(node1, node2):
     node2_is_pm = False
 
     if node1.node_type:
-        node1_is_pm = node1.node_type in  ["+", "-"]
+        node1_is_pm = node1.node_type in ["+", "-"]
     if node2.node_type:
-        node2_is_pm = node2.node_type in  ["+", "-"]
+        node2_is_pm = node2.node_type in ["+", "-"]
 
     if not (node1_is_pm or node2_is_pm):
         return False
@@ -492,14 +492,14 @@ class DirectedAcyclicGraph(object):
             if node.node_type == node_type:
                 if include_integers:
                     node_list.add(node)
-                else: 
+                else:
                     if not node.is_integer:
                         node_list.add(node)
             nodes = node.walk(node_type)
             for new_node in nodes:
                 if include_integers:
                     node_list.add(new_node)
-                else: 
+                else:
                     if not new_node.is_integer:
                         node_list.add(new_node)
         if node_type not in OPERATORS:
@@ -579,8 +579,8 @@ class DirectedAcyclicGraph(object):
                 # Now check the array accesses that we've found to match in
                 # all bar the first dimension
                 for index_str in index_exprns:
-                    # Construct a list of the accesses whose non-rank-1 indexing
-                    # matches the hash in index_str
+                    # Construct a list of the accesses whose non-rank-1
+                    # indexing matches the hash in index_str
                     match_list = []
                     for idx, access in enumerate(array_refs[array]):
                         if access_hash[idx] == index_str:
@@ -710,7 +710,7 @@ class DirectedAcyclicGraph(object):
                                                child.items[1:], mapping,
                                                array_index)
                 else:
-                    from parse2003 import walk_ast
+                    from habakkuk.parse2003 import walk_ast
                     # First check to see whether this Part_Ref itself contains
                     # an Array_Section or a character string. If it does then
                     # we can immediately assume that it is a function call.
@@ -737,7 +737,7 @@ class DirectedAcyclicGraph(object):
                         # An array reference won't include an array
                         # section in the index expression so this must
                         # be a call to a routine. We make each such
-                        # call a unique node. 
+                        # call a unique node.
                         # TODO remove this restriction by checking the args
                         # passed to the call.
                         tmp_node = self.get_node(parent,
@@ -826,12 +826,12 @@ class DirectedAcyclicGraph(object):
                                            array_index)
             elif array_index and isinstance(child,
                                             Fortran2003.Subscript_Triplet):
-                # We've got a ':' as part of an array index expression - 
+                # We've got a ':' as part of an array index expression -
                 # don't generate a node for this.
                 pass
-            elif isinstance(child, Fortran2003.And_Operand) or \
-                 isinstance(child, Fortran2003.Or_Operand):
-                # We have an expression that is something like 
+            elif (isinstance(child, Fortran2003.And_Operand) or
+                  isinstance(child, Fortran2003.Or_Operand)):
+                # We have an expression that is something like
                 # .NOT. sdjf % ln_clim
                 # and can just carry-on down to the children
                 node_list += self.make_dag(parent, child.items, mapping,
@@ -856,14 +856,14 @@ class DirectedAcyclicGraph(object):
                 tmp_node = self.get_node(parent, name=str(child.items[0]))
                 node_list.append(tmp_node)
                 node_list += self.make_dag(tmp_node, child.items[2:], mapping)
-            elif isinstance(child, Fortran2003.Level_3_Expr) or \
-                 isinstance(child, Fortran2003.Level_4_Expr):
-                # Have an expression that is something like 
-                # TRIM(ssnd(ji) % clname) // '_cat' // cli2. Carry on 
+            elif (isinstance(child, Fortran2003.Level_3_Expr) or
+                  isinstance(child, Fortran2003.Level_4_Expr)):
+                # Have an expression that is something like
+                # TRIM(ssnd(ji) % clname) // '_cat' // cli2. Carry on
                 # down to the children
                 node_list += self.make_dag(parent, child.items, mapping)
             elif isinstance(child, Fortran2003.Data_Ref):
-                # Have an expression that is something like 
+                # Have an expression that is something like
                 # ssnd(ji) % clname. Make a node to represent it.
                 dvar = Variable()
                 dvar.load(child, mapping)
@@ -871,7 +871,8 @@ class DirectedAcyclicGraph(object):
                 node_list.append(tmp_node)
                 # TODO handle case where the component of the derived type
                 # is itself an array, e.g. ssnd % clname(ji,jj)
-                #node_list += self.make_dag(tmp_node, [child.items[1]], mapping)
+                # node_list += self.make_dag(tmp_node,
+                #                            [child.items[1]], mapping)
             elif isinstance(child, Fortran2003.Equiv_Operand):
                 # A logical expression c.f.
                 #  kinfo == OASIS_Recvd .OR. kinfo == OASIS_FromRest
@@ -952,7 +953,7 @@ class DirectedAcyclicGraph(object):
         duplicated sub-graphs that represent FLOPs'''
 
         _found_duplicate = True
-        
+
         while _found_duplicate:
 
             # Update list of nodes with > 1 consumer
@@ -1016,7 +1017,6 @@ class DirectedAcyclicGraph(object):
                 # Break out of this loop so that we restart our loop over
                 # nodes with multiple consumers
                 break
-
 
     @property
     def critical_path(self):
