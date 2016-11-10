@@ -685,9 +685,6 @@ class DirectedAcyclicGraph(object):
                 const_var = Variable()
                 const_var.load(child, mapping)
                 tmpnode = self.get_node(parent, variable=const_var,
-                                        # TODO I don't think this
-                                        # should be unique
-                                        unique=True,
                                         node_type="constant",
                                         is_integer=array_index)
                 if is_division and idx == 2:
