@@ -188,7 +188,7 @@ class DAGNode(object):
         integer quantities since they are only part of array-index
         expressions. '''
         for prod in self._producers:
-            if not prod._integer:
+            if not prod.is_integer:
                 return True
         return False
 
