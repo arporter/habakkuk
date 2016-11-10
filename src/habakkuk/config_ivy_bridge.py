@@ -10,7 +10,8 @@
 # run-time. Costs and FLOP-counts for these are obtained by running
 # micro-benchmarks (dl_microbench) using a tool such as likwid.
 OPERATORS = {"**": {"latency": 0, "cost": 75, "flops": 28},
-             # TODO measure actual values for EXP, TAN*, SQRT, ABS on ivy bridge
+             # TODO measure actual values for EXP, TAN*, SQRT, ABS
+             # on ivy bridge
              "SQRT": {"latency": 0, "cost": 75, "flops": 28},
              "EXP": {"latency": 0, "cost": 50, "flops": 20},
              "LOG": {"latency": 0, "cost": 50, "flops": 20},
