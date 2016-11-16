@@ -93,10 +93,9 @@ def dag_of_files(options, args):
             # main program (might just be a subroutine in a module)
             try:
                 main_prog = get_child(program, Main_Program)
-            except ParseError:
-                main_prog = None
-            if main_prog:
                 routines.append(main_prog)
+            except ParseError:
+                pass
 
             # Create a DAG for each (sub)routine
             for subroutine in routines:
@@ -172,6 +171,8 @@ def dag_of_files(options, args):
 
                     if rm_scalar_temporaries:
                         digraph.rm_scalar_temporaries()
+
+                    digraph.update_integer_nodes()
 
                     # Work out the critical path through this graph
                     digraph.calc_critical_path()

@@ -891,3 +891,21 @@ def test_repeat_assign_derived_type_array(capsys):
     node_names = [node.name for node in dag._nodes.itervalues()]
     dag.verify_acyclic()
     assert "sd(jf)%nrec_a(1)'" in node_names
+
+
+def test_propagate_ints():
+    ''' Test that operations are correctly identified as being integer
+    if their arguments are integer '''
+    dag = dag_from_strings(
+        ["nbidta(ib2, igrd, ib_bdy2) =-ib_bdy2",
+         "nbjdta(ib2, igrd, ib_bdy2) =-ib_bdy2",
+         "nbidta(ib1, igrd, ib_bdy1) =-ib_bdy1",
+         "nbjdta(ib1, igrd, ib_bdy1) =-ib_bdy1"])
+    sub_list = []
+    for node in dag._nodes.itervalues():
+        if node.node_type == "-":
+            sub_list.append(node)
+            assert not node.is_integer
+    dag.update_integer_nodes()
+    for node in sub_list:
+        assert node.is_integer

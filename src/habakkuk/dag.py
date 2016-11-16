@@ -945,6 +945,11 @@ class DirectedAcyclicGraph(object):
                 multiple_consumers.append(node)
         return multiple_consumers
 
+    def update_integer_nodes(self):
+        ''' Walk through the graph and ensure that information on which
+        nodes are integer is propagated as far as possible '''
+        return
+
     def prune_duplicate_nodes(self):
         ''' Walk through the graph and remove all but one of any
         duplicated sub-graphs that represent FLOPs'''
