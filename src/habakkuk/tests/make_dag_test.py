@@ -138,7 +138,6 @@ def test_main_routine_invalid_fortran(capsys):
     ''' Check that we print the expected error if given a source file that
     is not valid Fortran '''
     from habakkuk.make_dag import runner
-    from habakkuk.parse2003 import ParseError
     args = [os.path.join(PWD, "make_dag_test.py")]
     runner(args)
     result, _ = capsys.readouterr()

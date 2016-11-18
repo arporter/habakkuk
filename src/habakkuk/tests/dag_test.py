@@ -881,7 +881,7 @@ def test_parentheses_in_function(capsys):
     assert "4 multiplication operators." in result
 
 
-def test_repeat_assign_derived_type_array(capsys):
+def test_repeat_assign_derived_type_array():
     ''' Test for assignment to an array element in a derived type '''
     dag = dag_from_strings(
         ["itmp = sd(jf)%nrec_a(1)",
