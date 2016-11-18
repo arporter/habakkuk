@@ -300,6 +300,7 @@ def test_basic_fma(tmpdir, capsys):
                           [os.path.join(BASE_PATH, "fma_test.f90")])
     result, _ = capsys.readouterr()
     print result
+    assert "Ivybridge architecture does not have FMA" in result
 
 
 def test_array_readwrite_no_fma(tmpdir, capsys):
@@ -353,7 +354,9 @@ def test_array_assign(tmpdir, capsys):
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH,
                                         "first_line_array_assign.f90")])
-    _, _ = capsys.readouterr()
+    result, _ = capsys.readouterr()
+    print result
+    assert "Stats for DAG" in result
 
 
 def test_repeated_assign_array(tmpdir, capsys):
