@@ -959,7 +959,8 @@ class DirectedAcyclicGraph(object):
                     for cnode in node.consumers:
                         # TODO only propagate changes if cnode
                         # represents an operator.
-                        if cnode.is_integer or cnode.node_type not in OPERATORS:
+                        if cnode.is_integer or \
+                           cnode.node_type not in OPERATORS:
                             # The consumer of this integer node is already
                             # marked as being an integer so skip onto the next
                             # consumer.

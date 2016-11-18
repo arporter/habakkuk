@@ -9,7 +9,6 @@ from parse2003 import walk_ast
 # TODO swap to using argparse since optparse is deprecated
 from optparse import OptionParser
 from habakkuk.fparser.script_options import set_f2003_options
-import sys
 
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
