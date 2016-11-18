@@ -945,6 +945,46 @@ class DirectedAcyclicGraph(object):
                 multiple_consumers.append(node)
         return multiple_consumers
 
+    def update_integer_nodes(self):
+        ''' Walk through the graph and ensure that information on which
+        nodes are integer is propagated as far as possible '''
+        while True:
+            dag_updated = False
+            for node in self._nodes.itervalues():
+                if node.is_integer:
+                    # This node is integer. Look at the node(s) that consume
+                    # it. If they are not already marked as being integer
+                    # but have all-integer producers then they must also be
+                    # integer.
+                    for cnode in node.consumers:
+                        # TODO only propagate changes if cnode
+                        # represents an operator.
+                        if cnode.is_integer or \
+                           cnode.node_type not in OPERATORS:
+                            # The consumer of this integer node is already
+                            # marked as being an integer so skip onto the next
+                            # consumer.
+                            continue
+                        all_integer = True
+                        # This node is not marked as being integer. Are all of
+                        # its producers integer?
+                        for pnode in cnode.producers:
+                            if not pnode.is_integer:
+                                all_integer = False
+                                break
+                        if all_integer:
+                            # All producers are integer so mark this node
+                            # as being integer
+                            cnode.is_integer = True
+                            # Must now re-start our search
+                            dag_updated = True
+                            break
+                    if dag_updated:
+                        break
+            if not dag_updated:
+                break
+        return
+
     def prune_duplicate_nodes(self):
         ''' Walk through the graph and remove all but one of any
         duplicated sub-graphs that represent FLOPs'''

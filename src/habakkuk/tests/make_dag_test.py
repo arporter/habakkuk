@@ -134,17 +134,16 @@ def test_main_routine_prune_scalar_temporaries():
     assert os.path.isfile(graph_file)
 
 
-def test_main_routine_invalid_fortran():
-    ''' Check that we raise the expected error if given a source file that
+def test_main_routine_invalid_fortran(capsys):
+    ''' Check that we print the expected error if given a source file that
     is not valid Fortran '''
     from habakkuk.make_dag import runner
-    from habakkuk.parse2003 import ParseError
     args = [os.path.join(PWD, "make_dag_test.py")]
-    with pytest.raises(ParseError) as err:
-        runner(args)
-    print str(err)
-    assert "Parse Error: Parsing " in str(err)
-    assert "Is the file valid Fortran?" in str(err)
+    runner(args)
+    result, _ = capsys.readouterr()
+    print result
+    assert "failed at line #2" in result
+    assert "Is the file valid Fortran?" in result
 
 
 def test_array_deref_count(capsys):

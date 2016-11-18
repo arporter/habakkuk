@@ -9,7 +9,6 @@ from parse2003 import walk_ast
 # TODO swap to using argparse since optparse is deprecated
 from optparse import OptionParser
 from habakkuk.fparser.script_options import set_f2003_options
-import sys
 
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
@@ -93,10 +92,9 @@ def dag_of_files(options, args):
             # main program (might just be a subroutine in a module)
             try:
                 main_prog = get_child(program, Main_Program)
-            except ParseError:
-                main_prog = None
-            if main_prog:
                 routines.append(main_prog)
+            except ParseError:
+                pass
 
             # Create a DAG for each (sub)routine
             for subroutine in routines:
@@ -173,6 +171,8 @@ def dag_of_files(options, args):
                     if rm_scalar_temporaries:
                         digraph.rm_scalar_temporaries()
 
+                    digraph.update_integer_nodes()
+
                     # Work out the critical path through this graph
                     digraph.calc_critical_path()
 
@@ -193,10 +193,12 @@ def dag_of_files(options, args):
                             print "No opportunities to fuse multiply-adds"
 
         except Fortran2003.NoMatchError:
-            raise ParseError(
-                "Parsing '{0}' (starting at {1}) failed at {2}. "
-                "Is the file valid Fortran?".
-                format(filename, reader.fifo_item[0], reader.fifo_item[-1]))
+            # TODO log this error
+            print "Parsing '{0}' (starting at {1}) failed at {2}. "\
+                "Is the file valid Fortran?".\
+                format(filename, reader.fifo_item[0], reader.fifo_item[-1])
+            # Carry on to next file
+            continue
 
 
 def runner(argv):
