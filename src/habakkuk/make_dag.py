@@ -194,10 +194,12 @@ def dag_of_files(options, args):
                             print "No opportunities to fuse multiply-adds"
 
         except Fortran2003.NoMatchError:
-            raise ParseError(
-                "Parsing '{0}' (starting at {1}) failed at {2}. "
-                "Is the file valid Fortran?".
-                format(filename, reader.fifo_item[0], reader.fifo_item[-1]))
+            # TODO log this error
+            print "Parsing '{0}' (starting at {1}) failed at {2}. "\
+                "Is the file valid Fortran?".\
+                format(filename, reader.fifo_item[0], reader.fifo_item[-1])
+            # Carry on to next file
+            continue
 
 
 def runner(argv):
