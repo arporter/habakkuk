@@ -37,6 +37,8 @@ def test_empty_routine(capsys):
 def test_basic_loop(tmpdir):
     ''' Check that we correctly generate a DAG for a subroutine containing
     a simple loop '''
+    # Run test in a temporary directory
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(
         Options(), [os.path.join(BASE_PATH, "basic_loop.f90")])
     graph_file = os.path.join(os.getcwd(), "basic_loop_routine_loop1.gv")
