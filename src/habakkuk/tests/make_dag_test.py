@@ -34,9 +34,11 @@ def test_empty_routine(capsys):
             "skipping" in result)
 
 
-def test_basic_loop():
+def test_basic_loop(tmpdir):
     ''' Check that we correctly generate a DAG for a subroutine containing
     a simple loop '''
+    # Run test in a temporary directory
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(
         Options(), [os.path.join(BASE_PATH, "basic_loop.f90")])
     graph_file = os.path.join(os.getcwd(), "basic_loop_routine_loop1.gv")
@@ -49,11 +51,13 @@ def test_basic_loop():
     assert "label=\"aprod(i)\", color=\"blue\"" in loop_graph
 
 
-def test_basic_loop_unroll():
+def test_basic_loop_unroll(tmpdir):
     ''' Check that we correctly generate a DAG for a subroutine containing
     a simple loop that we unroll once '''
     options = Options()
     options.unroll_factor = 2
+    # Run test in a temporary directory
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(
         options, [os.path.join(BASE_PATH, "basic_loop.f90")])
     graph_file = os.path.join(os.getcwd(),
@@ -72,11 +76,13 @@ def test_basic_loop_unroll():
     assert "label=\"aprod(i')\", color=\"blue\"" in loop_graph
 
 
-def test_unroll_no_loop_var(capsys):
+def test_unroll_no_loop_var(tmpdir, capsys):
     ''' Check that we generate the expected DAG when we encounter a
     loop for which we have no loop variable '''
     options = Options()
     options.unroll_factor = 2
+    # Run test in a temporary directory
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(
         options, [os.path.join(BASE_PATH, "uncontrolled_loop.f90")])
     result, _ = capsys.readouterr()
@@ -105,12 +111,13 @@ def test_main_routine_file_not_present_err():
         "The specified source file ('not_a_file') does not exist" in str(err))
 
 
-def test_main_routine_valid_file():
+def test_main_routine_valid_file(tmpdir):
     ''' Test that we can run the main routine of Habakkuk and that we get
     the expected dag written to file '''
     from habakkuk.make_dag import runner
     f90_file = os.path.join(BASE_PATH, "basic_loop.f90")
     args = [f90_file]
+    os.chdir(str(tmpdir.mkdir("tmp")))
     runner(args)
     graph_file = os.path.join(os.getcwd(), "basic_loop_routine_loop1.gv")
     assert os.path.isfile(graph_file)
@@ -122,11 +129,12 @@ def test_main_routine_valid_file():
     assert "label=\"aprod(i)\", color=\"blue\"" in graph
 
 
-def test_main_routine_prune_scalar_temporaries():
+def test_main_routine_prune_scalar_temporaries(tmpdir):
     ''' Test that we can run the main routine of Habakkuk and request
     that any nodes representing scalar temporaries be pruned from the dag
     that is constructed '''
     from habakkuk.make_dag import runner
+    os.chdir(str(tmpdir.mkdir("tmp")))
     args = ["--rm-scalar-tmps",
             os.path.join(PWD, "test_files/two_different_duplicate_op.f90")]
     runner(args)
@@ -146,10 +154,11 @@ def test_main_routine_invalid_fortran(capsys):
     assert "Is the file valid Fortran?" in result
 
 
-def test_array_deref_count(capsys):
+def test_array_deref_count(tmpdir, capsys):
     ''' Check that we cope with indirectly-addressed array
     references '''
     from habakkuk.make_dag import runner
+    os.chdir(str(tmpdir.mkdir("tmp")))
     args = [os.path.join(PWD, "test_files/gather.f90")]
     runner(args)
     result, _ = capsys.readouterr()
@@ -158,10 +167,11 @@ def test_array_deref_count(capsys):
     assert "4 distinct cache-line references" in result
 
 
-def test_multiple_array_accesses(capsys):
+def test_multiple_array_accesses(tmpdir, capsys):
     ''' Check that we cope with the array accesses in a real-world
     NEMO example '''
     from habakkuk.make_dag import runner
+    os.chdir(str(tmpdir.mkdir("tmp")))
     args = [os.path.join(PWD, "test_files/zpshde_loop6.f90")]
     runner(args)
     result, _ = capsys.readouterr()

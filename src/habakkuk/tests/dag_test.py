@@ -273,9 +273,10 @@ def test_rm_scalar_tmps():
     assert node_names.count("*") == 2
 
 
-def test_basic_scalar_dag(capsys):
+def test_basic_scalar_dag(tmpdir, capsys):
     ''' Test basic operation with some simple Fortran containing the
     product of three scalar variables '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH, "triple_product.f90")])
     result, _ = capsys.readouterr()
@@ -289,22 +290,26 @@ def test_basic_scalar_dag(capsys):
 
 @pytest.mark.xfail(reason="Currently only Intel Ivybridge microarchitecture "
                    "is supported and that doesn't have an FMA")
-def test_basic_fma(capsys):
+def test_basic_fma(tmpdir, capsys):
     ''' Test basic operation of tool's ability to spot opportunities for
     fused multiply-add instructions '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     options = Options()
     options.no_fma = False
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "fma_test.f90")])
     result, _ = capsys.readouterr()
     print result
+    assert "Ivybridge architecture does not have FMA" in result
 
 
-def test_array_readwrite_no_fma(capsys):
+def test_array_readwrite_no_fma(tmpdir, capsys):
     ''' Test the analysis of code of the form x(i) = a + x(i) without
     attempting to spot opportunities for Fused Multiply Adds '''
     options = Options()
     options.no_fma = True
+
+    os.chdir(str(tmpdir.mkdir("tmp")))
 
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "shallow_loop11.f90")])
@@ -320,10 +325,12 @@ def test_array_readwrite_no_fma(capsys):
 
 @pytest.mark.xfail(reason="Currently only Intel Ivybridge microarchitecture "
                    "is supported and that doesn't have an FMA")
-def test_array_readwrite_with_fma(capsys):
+def test_array_readwrite_with_fma(tmpdir, capsys):
     ''' Test the analysis of code of the form x(i) = a + x(i) '''
     options = Options()
     options.no_fma = False
+
+    os.chdir(str(tmpdir.mkdir("tmp")))
 
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "shallow_loop11.f90")])
@@ -340,18 +347,22 @@ def test_array_readwrite_with_fma(capsys):
 @pytest.mark.xfail(reason="parser fails to generate a "
                    "Fortran2003.Execution_Part object when first executable "
                    "statement is an assignment to an array element")
-def test_array_assign(capsys):
+def test_array_assign(tmpdir, capsys):
     ''' Test that the parser copes if the first executable statement is an
     array assignment '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH,
                                         "first_line_array_assign.f90")])
-    _, _ = capsys.readouterr()
+    result, _ = capsys.readouterr()
+    print result
+    assert "Stats for DAG" in result
 
 
-def test_repeated_assign_array(capsys):
+def test_repeated_assign_array(tmpdir, capsys):
     ''' Test that we get correctly-named nodes when it is an array reference
     that is repeatedly assigned to. '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH,
                                         "repeated_array_assign.f90")])
@@ -367,9 +378,10 @@ def test_repeated_assign_array(capsys):
     assert node2 in graph
 
 
-def test_repeated_assign_1darray_slice():
+def test_repeated_assign_1darray_slice(tmpdir):
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH,
                                         "repeated_array_assign.f90")])
@@ -389,9 +401,10 @@ def test_repeated_assign_1darray_slice_from_string():
     assert "a(:)" in node_names
 
 
-def test_repeated_assign_2darray_slice():
+def test_repeated_assign_2darray_slice(tmpdir):
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH,
                                         "repeated_array_assign.f90")])
@@ -402,10 +415,11 @@ def test_repeated_assign_2darray_slice():
     assert "label=\"aprod'(:,j)\", color=\"blue\"" in graph
 
 
-def test_write_back_array(capsys):
+def test_write_back_array(tmpdir, capsys):
     ''' Test that we get correctly-named nodes when it is an array reference
     that is read from and written to in the first statement we encounter
     it. '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH,
                                         "repeated_array_assign.f90")])
@@ -424,9 +438,10 @@ def test_write_back_array(capsys):
     assert graph.count("aprod") == 3
 
 
-def test_repeated_assign_diff_elements():
+def test_repeated_assign_diff_elements(tmpdir):
     ''' Test that we get correctly-named nodes when different elements of
     the same array are accessed in a code fragment '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(
         Options(),
         [os.path.join(BASE_PATH,
@@ -595,8 +610,9 @@ def test_node_weight_intrinsic():
     assert sin_node.weight == OPERATORS["SIN"]["cost"]
 
 
-def test_node_dot_colours():
+def test_node_dot_colours(tmpdir):
     ''' Check that the dot output has nodes coloured correctly '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     dag = dag_from_strings(["var1 = sin(2.0)",
                             "aprod = var1 * var2",
                             "bprod = var1 * var2 / aprod",
@@ -610,7 +626,6 @@ def test_node_dot_colours():
     assert "label=\"SIN (w=0)\", color=\"gold\"" in graph
     assert "label=\"var1 (w=0)\", color=\"black\"" in graph
     assert "label=\"* (w=0)\", color=\"red\", shape=\"box\"" in graph
-    os.remove(dot_file)
 
 
 @pytest.mark.xfail(reason="Test not yet implemented")
@@ -684,9 +699,10 @@ def test_no_flops(capsys):
     assert "DAG contains no FLOPs so skipping performance estimate" in result
 
 
-def test_mult_operand():
+def test_mult_operand(tmpdir):
     ''' Test that we handle the case where the Fortran parser generates
     a Mult_Operand object '''
+    os.chdir(str(tmpdir.mkdir("tmp")))
     make_dag.dag_of_files(
         Options(), [os.path.join(BASE_PATH,
                                  "pert_pressure_gradient_kernel_mod.F90")])
@@ -866,11 +882,13 @@ def test_assign_dtype_components():
     assert count == 4
 
 
-def test_parentheses_in_function(capsys):
+def test_parentheses_in_function(tmpdir, capsys):
     ''' Test Habakkuk against Fortran containing a function with a
     fairly complex parenthesised expression. '''
     options = Options()
     options.no_fma = True
+
+    os.chdir(str(tmpdir.mkdir("tmp")))
 
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "fn_parentheses.f90")])
