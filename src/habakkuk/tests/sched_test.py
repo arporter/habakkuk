@@ -6,7 +6,7 @@ import pytest
 import os
 from habakkuk.fparser import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph, DAGError
-from test_utilities import Options
+from test_utilities import Options, dag_from_strings
 
 
 def test_schedule_too_long():
@@ -196,3 +196,12 @@ def test_max_min_addition_schedule(capsys):
             in result)
     assert ("Cost if all ops on different execution ports are perfectly "
             "overlapped = 2 cycles" in result)
+
+
+def test_div_mul_overlap():
+    ''' Check that we correctly overlap independent division and
+    multiplication operations '''
+    dag = dag_from_strings(["a = b * c", "d = b/c"])
+    dag.calc_critical_path()
+    path = dag.critical_path
+    assert path.cycles() == 2
