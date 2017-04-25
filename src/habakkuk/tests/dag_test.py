@@ -6,7 +6,7 @@ import pytest
 from test_utilities import dag_from_strings, Options
 from habakkuk import make_dag
 from habakkuk.dag_node import DAGError
-from habakkuk.fparser import Fortran2003
+from fparser import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph
 
 # constants
