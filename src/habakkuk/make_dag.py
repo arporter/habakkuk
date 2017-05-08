@@ -6,8 +6,6 @@
 from habakkuk.dag import DirectedAcyclicGraph
 from parse2003 import walk_ast
 
-# TODO swap to using argparse since optparse is deprecated
-from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 
 
@@ -205,6 +203,11 @@ def runner(argv):
     ''' The top-level routine that runs Habakkuk. Parses the command-line
     arguments passed in to this routine. '''
     import os
+    # TODO swap to using argparse since optparse is deprecated
+    # This requires fparser be updated first (see #26)
+    from optparse import OptionParser
+    #from argparse import ArgumentParser
+    #parser = ArgumentParser(description="Estimate performance of Fortran code")
     parser = OptionParser()
     set_f2003_options(parser)
     parser.add_option("--no-prune",
@@ -243,9 +246,12 @@ def runner(argv):
 
     # Check that we've been passed the name of an existing file
     if not args:
-        raise IOError("The name of a Fortran source file must be provided.")
+        parser.print_help()
+        print "\nThe name of a Fortran source file must be provided."
+        exit(1)
     if not os.path.isfile(args[0]):
-        raise IOError("The specified source file ('{0}') does not exist"
-                      .format(args[0]))
+        print "The specified source file ('{0}') does not exist".\
+            format(args[0])
+        exit(1)
 
     dag_of_files(options, args)
