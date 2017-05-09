@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
-'''A python script to parse one or more Fortran source files and
-    produce a DAG for each subroutine/loop they contain.'''
+''' Top-level driver script for Habakkuk. '''
 
-from habakkuk.make_dag import runner
-from fparser.script_options import set_f2003_options
-# TODO swap to using argparse since optparse is deprecated
-from optparse import OptionParser
 import sys
+from habakkuk.make_dag import runner
 
 if __name__ == "__main__":
     try:
