@@ -4,7 +4,7 @@
     for each subroutine it contains. '''
 
 from habakkuk.dag import DirectedAcyclicGraph
-from parse2003 import walk_ast
+from habakkuk.parse2003 import walk_ast
 
 from fparser.script_options import set_f2003_options
 
@@ -67,7 +67,7 @@ def dag_of_files(options, args):
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
         Name
-    from parse2003 import Loop, get_child, ParseError
+    from habakkuk.parse2003 import Loop, get_child, ParseError
 
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
@@ -206,8 +206,9 @@ def runner(argv):
     # TODO swap to using argparse since optparse is deprecated
     # This requires fparser be updated first (see #26)
     from optparse import OptionParser
-    #from argparse import ArgumentParser
-    #parser = ArgumentParser(description="Estimate performance of Fortran code")
+    # from argparse import ArgumentParser
+    # parser = ArgumentParser(description=
+    #                         "Estimate performance of Fortran code")
     parser = OptionParser()
     set_f2003_options(parser)
     parser.add_option("--no-prune",

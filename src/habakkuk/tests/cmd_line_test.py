@@ -2,7 +2,6 @@
     command-line arguments '''
 
 import os
-import pytest
 import subprocess
 
 # constants - set the location of the Habakkuk script (so that we
@@ -11,6 +10,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 while "src" in _DIR:
     (_DIR, _) = os.path.split(_DIR)
 HABAKKUK_SCRIPT = os.path.join(_DIR, 'bin', 'habakkuk')
+
 
 def test_usage_message():
     ''' Check that we get a usage message if no command-line arguments
@@ -54,4 +54,3 @@ def test_help_message():
         "                        No. of times to unroll a loop. (Applied to "
         "every loop\n"
         "                        that is encountered.)") in output
-
