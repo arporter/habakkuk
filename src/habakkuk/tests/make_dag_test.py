@@ -108,7 +108,7 @@ def test_main_routine_file_not_present_err():
     with pytest.raises(IOError) as err:
         runner(args)
     assert (
-        "The specified source file ('not_a_file') does not exist" in str(err))
+        "The specified source file ('not_a_file') cannot be found" in str(err))
 
 
 def test_main_routine_valid_file(tmpdir):

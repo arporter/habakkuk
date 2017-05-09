@@ -4,10 +4,8 @@
     for each subroutine it contains. '''
 
 from habakkuk.dag import DirectedAcyclicGraph
-from parse2003 import walk_ast
+from habakkuk.parse2003 import walk_ast
 
-# TODO swap to using argparse since optparse is deprecated
-from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 
 
@@ -69,7 +67,7 @@ def dag_of_files(options, args):
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
         Name
-    from parse2003 import Loop, get_child, ParseError
+    from habakkuk.parse2003 import Loop, get_child, ParseError
 
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
@@ -205,6 +203,12 @@ def runner(argv):
     ''' The top-level routine that runs Habakkuk. Parses the command-line
     arguments passed in to this routine. '''
     import os
+    # TODO swap to using argparse since optparse is deprecated
+    # This requires fparser be updated first (see #26)
+    from optparse import OptionParser
+    # from argparse import ArgumentParser
+    # parser = ArgumentParser(description=
+    #                         "Estimate performance of Fortran code")
     parser = OptionParser()
     set_f2003_options(parser)
     parser.add_option("--no-prune",
@@ -243,9 +247,11 @@ def runner(argv):
 
     # Check that we've been passed the name of an existing file
     if not args:
+        parser.print_help()
         raise IOError("The name of a Fortran source file must be provided.")
-    if not os.path.isfile(args[0]):
-        raise IOError("The specified source file ('{0}') does not exist"
-                      .format(args[0]))
+    for arg in args:
+        if not os.path.isfile(arg):
+            raise IOError("The specified source file ('{0}') cannot be found".
+                          format(arg))
 
     dag_of_files(options, args)
