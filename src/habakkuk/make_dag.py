@@ -250,7 +250,7 @@ def runner(argv):
         print "\nThe name of a Fortran source file must be provided."
         exit(1)
     if not os.path.isfile(args[0]):
-        print "The specified source file ('{0}') does not exist".\
+        print "The specified source file ('{0}') cannot be found".\
             format(args[0])
         exit(1)
 

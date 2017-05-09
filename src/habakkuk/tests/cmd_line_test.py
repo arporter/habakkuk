@@ -5,9 +5,20 @@ import os
 import pytest
 import subprocess
 
-def test_usage_message(capsys):
+def test_usage_message():
     ''' Check that we get a usage message if no command-line arguments
     are supplied '''
-    out = subprocess.check_output(['habakkuk'])
-    print out
-    assert "Usage: habakkuk [options] <Fortran files>" in out
+    (output, _) = subprocess.Popen(['habakkuk'],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT).communicate()
+    assert "Usage: habakkuk [options] <Fortran files>" in output
+
+
+def test_missing_file():
+    ''' Check that we get the expected message if the user specifies a
+    Fortran source file that cannot be found '''
+    (output, _) = subprocess.Popen(['habakkuk', 'not_a_file.f90'],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT).communicate()
+    assert "The specified source file ('not_a_file.f90') cannot be found" in \
+        output
