@@ -249,8 +249,9 @@ def runner(argv):
     if not args:
         parser.print_help()
         raise IOError("The name of a Fortran source file must be provided.")
-    if not os.path.isfile(args[0]):
-        raise IOError("The specified source file ('{0}') cannot be found".
-                      format(args[0]))
+    for arg in args:
+        if not os.path.isfile(arg):
+            raise IOError("The specified source file ('{0}') cannot be found".
+                          format(arg))
 
     dag_of_files(options, args)

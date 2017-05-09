@@ -11,6 +11,9 @@ while "src" in _DIR:
     (_DIR, _) = os.path.split(_DIR)
 HABAKKUK_SCRIPT = os.path.join(_DIR, 'bin', 'habakkuk')
 
+PWD = os.path.dirname(os.path.abspath(__file__))
+BASE_PATH = os.path.join(PWD, "test_files")
+
 
 def test_usage_message():
     ''' Check that we get a usage message if no command-line arguments
@@ -25,7 +28,16 @@ def test_usage_message():
 def test_missing_file():
     ''' Check that we get the expected message if the user specifies a
     Fortran source file that cannot be found '''
+    # One argument given and it cannot be found...
     (output, _) = subprocess.Popen([HABAKKUK_SCRIPT, 'not_a_file.f90'],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT).communicate()
+    assert "The specified source file ('not_a_file.f90') cannot be found" in \
+        output
+    # and now when it is the second of two files that does not exist...
+    (output, _) = subprocess.Popen([HABAKKUK_SCRIPT,
+                                    os.path.join(BASE_PATH, "basic_loop.f90"),
+                                    'not_a_file.f90'],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "The specified source file ('not_a_file.f90') cannot be found" in \
