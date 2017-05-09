@@ -247,11 +247,9 @@ def runner(argv):
     # Check that we've been passed the name of an existing file
     if not args:
         parser.print_help()
-        print "\nThe name of a Fortran source file must be provided."
-        exit(1)
+        raise IOError("The name of a Fortran source file must be provided.")
     if not os.path.isfile(args[0]):
-        print "The specified source file ('{0}') cannot be found".\
-            format(args[0])
-        exit(1)
+        raise IOError("The specified source file ('{0}') cannot be found".
+                      format(args[0]))
 
     dag_of_files(options, args)

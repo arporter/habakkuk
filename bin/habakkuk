@@ -10,4 +10,8 @@ from optparse import OptionParser
 import sys
 
 if __name__ == "__main__":
-    runner(sys.argv[1:])
+    try:
+        runner(sys.argv[1:])
+    except IOError as err:
+        print str(err)
+        exit(1)
