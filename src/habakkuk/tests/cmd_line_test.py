@@ -18,7 +18,6 @@ BASE_PATH = os.path.join(PWD, "test_files")
 def test_usage_message():
     ''' Check that we get a usage message if no command-line arguments
     are supplied '''
-    print HABAKKUK_SCRIPT
     (output, _) = subprocess.Popen([HABAKKUK_SCRIPT],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
