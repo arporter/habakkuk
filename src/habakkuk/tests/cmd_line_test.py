@@ -8,7 +8,7 @@ import subprocess
 def test_usage_message():
     ''' Check that we get a usage message if no command-line arguments
     are supplied '''
-    (output, _) = subprocess.Popen(['habakkuk'],
+    (output, _) = subprocess.Popen(['../../../bin/habakkuk'],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "Usage: habakkuk [options] <Fortran files>" in output
@@ -17,8 +17,33 @@ def test_usage_message():
 def test_missing_file():
     ''' Check that we get the expected message if the user specifies a
     Fortran source file that cannot be found '''
-    (output, _) = subprocess.Popen(['habakkuk', 'not_a_file.f90'],
+    (output, _) = subprocess.Popen(['../../../bin/habakkuk', 'not_a_file.f90'],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "The specified source file ('not_a_file.f90') cannot be found" in \
         output
+
+
+def test_help_message():
+    ''' Check that a help message is produced when the --help flag is
+    supplied '''
+    (output, _) = subprocess.Popen(['../../../bin/habakkuk', '--help'],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT).communicate()
+    assert (
+        "Options:\n"
+        "  -h, --help            show this help message and exit\n"
+        "  --task=TASK           Specify parsing result task. Default: show.\n"
+        "  --no-prune            Do not attempt to prune duplicate "
+        "operations from the\n"
+        "                        graph\n"
+        "  --no-fma              Do not attempt to generate fused "
+        "multiply-add\n"
+        "                        operations\n"
+        "  --rm-scalar-tmps      Remove scalar temporaries from the DAG\n"
+        "  --show-weights        Display node weights in the DAG\n"
+        "  --unroll=UNROLL_FACTOR\n"
+        "                        No. of times to unroll a loop. (Applied to "
+        "every loop\n"
+        "                        that is encountered.)") in output
+
