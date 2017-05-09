@@ -5,10 +5,18 @@ import os
 import pytest
 import subprocess
 
+# constants - set the location of the Habakkuk script (so that we
+# don't just pick-up the one on our PATH)
+_DIR = os.path.dirname(os.path.abspath(__file__))
+while "src" in _DIR:
+    (_DIR, _) = os.path.split(_DIR)
+HABAKKUK_SCRIPT = os.path.join(_DIR, 'bin', 'habakkuk')
+
 def test_usage_message():
     ''' Check that we get a usage message if no command-line arguments
     are supplied '''
-    (output, _) = subprocess.Popen(['../../../bin/habakkuk'],
+    print HABAKKUK_SCRIPT
+    (output, _) = subprocess.Popen([HABAKKUK_SCRIPT],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "Usage: habakkuk [options] <Fortran files>" in output
@@ -17,7 +25,7 @@ def test_usage_message():
 def test_missing_file():
     ''' Check that we get the expected message if the user specifies a
     Fortran source file that cannot be found '''
-    (output, _) = subprocess.Popen(['../../../bin/habakkuk', 'not_a_file.f90'],
+    (output, _) = subprocess.Popen([HABAKKUK_SCRIPT, 'not_a_file.f90'],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "The specified source file ('not_a_file.f90') cannot be found" in \
@@ -27,7 +35,7 @@ def test_missing_file():
 def test_help_message():
     ''' Check that a help message is produced when the --help flag is
     supplied '''
-    (output, _) = subprocess.Popen(['../../../bin/habakkuk', '--help'],
+    (output, _) = subprocess.Popen([HABAKKUK_SCRIPT, '--help'],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert (
