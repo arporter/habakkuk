@@ -13,7 +13,7 @@ BASE_PATH = os.path.join(PWD, "test_files")
 def test_dag_of_code_block_items():
     ''' Test the dag_of_code_block() function when the supplied
     parent node has only items and not content '''
-    from habakkuk.fparser import Fortran2003
+    from fparser import Fortran2003
     from habakkuk.make_dag import dag_of_code_block
     assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
     dag = dag_of_code_block(assign, "Test dag")
@@ -108,7 +108,7 @@ def test_main_routine_file_not_present_err():
     with pytest.raises(IOError) as err:
         runner(args)
     assert (
-        "The specified source file ('not_a_file') does not exist" in str(err))
+        "The specified source file ('not_a_file') cannot be found" in str(err))
 
 
 def test_main_routine_valid_file(tmpdir):

@@ -2,7 +2,7 @@
 ''' This module provides support for the construction of a Directed
     Acyclic Graph. '''
 
-from habakkuk.fparser import Fortran2003
+from fparser import Fortran2003
 from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
