@@ -150,8 +150,15 @@ def schedule_cost(nsteps, schedule):
                      to ports
     :return: The estimated cost (in cycles) of the schedule '''
 
-    from config_ivy_bridge import CPU_EXECUTION_PORTS
-    if CPU_EXECUTION_PORTS["/"] == CPU_EXECUTION_PORTS["*"]:
+    # Use a dictionary to store how many multiplications can be
+    # overlapped with each division. The division FLOP is the
+    # key and the number of multiplications the associated entry.
+    # This dictionary is left empty if the microarchitecture does not
+    # support overlapping of multiplications with divisions.
+    overlaps = {}
+    from config_ivy_bridge import CPU_EXECUTION_PORTS, \
+        SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost
+    if SUPPORTS_DIV_MUL_OVERLAP:
         flop_port = CPU_EXECUTION_PORTS["/"]
         for idx, flop in enumerate(schedule[flop_port]):
             if str(flop) == '/':
@@ -166,6 +173,10 @@ def schedule_cost(nsteps, schedule):
                         if schedule[flop_port][step] not in div_producers:
                             # This product is independent of the division
                             # and may therefore be overlapped with it
+                            if flop in overlaps:
+                                overlaps[flop] += 1
+                            else:
+                                overlaps[flop] = 1
                             schedule[flop_port][step] = None
                 # Same again but this time work forwards from the division
                 for step in range(idx+1, nsteps):
@@ -176,6 +187,10 @@ def schedule_cost(nsteps, schedule):
                         if flop not in ancestors:
                             # The division isn't one of them so we can
                             # overlap this operation with it
+                            if flop in overlaps:
+                                overlaps[flop] += 1
+                            else:
+                                overlaps[flop] = 1
                             schedule[flop_port][step] = None
 
     print "Schedule contains {0} steps:".format(nsteps)
@@ -204,8 +219,15 @@ def schedule_cost(nsteps, schedule):
             # If there is an operation on this port at this step of
             # the schedule then calculate its cost...
             if schedule[port][step]:
-                operator = str(schedule[port][step])
-                port_cost = OPERATORS[operator]["cost"]
+                flop = schedule[port][step]
+                operator = str(flop)
+                if operator == "/" and flop in overlaps:
+                    # If the operation is a division *and* we've overlapped
+                    # some multiplications with it then we must look-up
+                    # the cost
+                    port_cost = div_overlap_mul_cost(overlaps[flop])
+                else:
+                    port_cost = OPERATORS[operator]["cost"]
 
                 if False:
                     # Account for operation latency - assume we have to

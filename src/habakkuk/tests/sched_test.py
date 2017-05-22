@@ -200,7 +200,7 @@ def test_max_min_addition_schedule(capsys):
 def test_div_mul_overlap():
     ''' Check that we correctly overlap independent division and
     multiplication operations '''
-    from habakkuk.config_ivy_bridge import OPERATORS
+    from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost
     from habakkuk.dag import schedule_cost
     dag = dag_from_strings(["a = b * c", "d = b/c", "e = c * b"])
     nsteps, schedule = dag.generate_schedule()
@@ -216,3 +216,23 @@ def test_div_mul_overlap():
     nsteps, schedule = dag.generate_schedule()
     cost = schedule_cost(nsteps, schedule)
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
+    # 6 independent multiplications
+    string_list = ["a{0} = b * c".format(idx) for idx in range(6)]
+    string_list += ["d = b/c", "e = d * b"]
+    dag = dag_from_strings(string_list)
+    nsteps, schedule = dag.generate_schedule()
+    cost = schedule_cost(nsteps, schedule)
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
+    # One more independent multiplication takes us to 7
+    string_list += ["e2 = b * b"]
+    dag = dag_from_strings(string_list)
+    nsteps, schedule = dag.generate_schedule()
+    cost = schedule_cost(nsteps, schedule)
+    assert cost == div_overlap_mul_cost(7) + OPERATORS["*"]["cost"]
+    # A (very unlikely) 12 independent multiplications...
+    string_list = ["a{0} = b * c".format(idx) for idx in range(12)]
+    string_list += ["d = b/c", "e = d * b"]
+    dag = dag_from_strings(string_list)
+    nsteps, schedule = dag.generate_schedule()
+    cost = schedule_cost(nsteps, schedule)
+    assert cost == div_overlap_mul_cost(12) + OPERATORS["*"]["cost"]

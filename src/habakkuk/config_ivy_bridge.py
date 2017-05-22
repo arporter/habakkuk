@@ -81,3 +81,24 @@ FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "ACOS", "**", "MAX", "MIN", "EXP",
 # Whether this microarchitecture supports the Fused Multiply Add op
 # TODO check on this before we attempt to generate FMAs.
 SUPPORTS_FMA = False
+
+# Whether this microarchitecture supports overlapping multiplication
+# operations with (independent) division operations. If True then
+# the cost (as a function of the number of overlapped multiplications)
+# is obtained by calling div_overlap_mul_cost()
+SUPPORTS_DIV_MUL_OVERLAP = True
+
+def div_overlap_mul_cost(num_mul):
+    ''' Returns the cost of a division operation as a function of the
+    number of (independent) multiplications with which it is overlapped.
+
+    The values returned by this routine were determined by experiment. See
+    https://bitbucket.org/apeg/dl_microbench for details of the code used
+    to perform the measurements. '''
+    if num_mul < 7:
+        return OPERATORS["/"]["cost"]
+    elif num_mul < 12:
+        return OPERATORS["/"]["cost"] + 5
+    else:
+        return OPERATORS["/"]["cost"] + 5 + \
+            (num_mul - 11)*OPERATORS["*"]["cost"]
