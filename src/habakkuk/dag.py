@@ -143,7 +143,40 @@ def ready_ops_from_list(nodes):
 
 
 def schedule_cost(nsteps, schedule):
-    ''' Calculate the cost (in cycles) of the supplied schedule '''
+    ''' Calculate the cost (in cycles) of the supplied schedule.
+
+    :param int nsteps: No. of steps in the schedule
+    :param schedule: 2D array [port, operation] of operations mapped
+                     to ports
+    :return: The estimated cost (in cycles) of the schedule '''
+
+    from config_ivy_bridge import CPU_EXECUTION_PORTS
+    if CPU_EXECUTION_PORTS["/"] == CPU_EXECUTION_PORTS["*"]:
+        flop_port = CPU_EXECUTION_PORTS["/"]
+        for idx, flop in enumerate(schedule[flop_port]):
+            if str(flop) == '/':
+                # Get the nodes that are inputs to this division
+                # operation
+                div_producers = flop.walk()
+                # Now work backwards from the division and delete any
+                # independent mult operations as they can be overlapped
+                # with the division
+                for step in range(idx-1, -1, -1):
+                    if str(schedule[flop_port][step]) == "*":
+                        if schedule[flop_port][step] not in div_producers:
+                            # This product is independent of the division
+                            # and may therefore be overlapped with it
+                            schedule[flop_port][step] = None
+                # Same again but this time work forwards from the division
+                for step in range(idx+1, nsteps):
+                    if str(schedule[flop_port][step]) == "*":
+                        # Get the nodes that this multiplication is
+                        # dependent upon
+                        ancestors = schedule[flop_port][step].walk()
+                        if flop not in ancestors:
+                            # The division isn't one of them so we can
+                            # overlap this operation with it
+                            schedule[flop_port][step] = None
 
     print "Schedule contains {0} steps:".format(nsteps)
 

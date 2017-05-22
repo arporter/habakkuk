@@ -9,12 +9,13 @@ from habakkuk.dag import DirectedAcyclicGraph, DAGError
 from test_utilities import Options, dag_from_strings
 
 
-def test_schedule_too_long():
+def test_schedule_too_long(monkeypatch):
     ''' Check that we raise the expected error if the computed schedule
     is too long '''
     from habakkuk import dag, make_dag
-    old_max_length = dag.MAX_SCHEDULE_LENGTH
-    dag.MAX_SCHEDULE_LENGTH = 5
+    # Monkeypatch the dag object to override the maximum permitted
+    # schedule length with something much less
+    monkeypatch.setattr(dag, "MAX_SCHEDULE_LENGTH", value=5)
     fortran_text = "".join(
         ["  prod{0} = b{0} + a{0}\n".format(i) for i in range(6)])
     # For some reason the parser fails without the initial b0 = 1.0
@@ -27,8 +28,6 @@ def test_schedule_too_long():
         fout.write(fortran_text)
     with pytest.raises(DAGError) as err:
         make_dag.dag_of_files(Options(), [tmp_file])
-    # Restore the original value
-    dag.MAX_SCHEDULE_LENGTH = old_max_length
     # Delete the files generated during this test
     os.remove(tmp_file)
     os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
@@ -201,7 +200,19 @@ def test_max_min_addition_schedule(capsys):
 def test_div_mul_overlap():
     ''' Check that we correctly overlap independent division and
     multiplication operations '''
-    dag = dag_from_strings(["a = b * c", "d = b/c"])
-    dag.calc_critical_path()
-    path = dag.critical_path
-    assert path.cycles() == 2
+    from habakkuk.config_ivy_bridge import OPERATORS
+    from habakkuk.dag import schedule_cost
+    dag = dag_from_strings(["a = b * c", "d = b/c", "e = c * b"])
+    nsteps, schedule = dag.generate_schedule()
+    cost = schedule_cost(nsteps, schedule)
+    assert cost == OPERATORS["/"]["cost"]
+    # Make the division depend on the result of the first multiplication
+    dag = dag_from_strings(["a = b * c", "d = b/a", "e = c * b"])
+    nsteps, schedule = dag.generate_schedule()
+    cost = schedule_cost(nsteps, schedule)
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
+    # Make the second product depend on the result of the division
+    dag = dag_from_strings(["a = b * c", "d = b/c", "e = d * b"])
+    nsteps, schedule = dag.generate_schedule()
+    cost = schedule_cost(nsteps, schedule)
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
