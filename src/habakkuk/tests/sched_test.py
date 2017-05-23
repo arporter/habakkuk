@@ -12,10 +12,10 @@ from test_utilities import Options, dag_from_strings
 def test_schedule_too_long(monkeypatch):
     ''' Check that we raise the expected error if the computed schedule
     is too long '''
-    from habakkuk import dag, make_dag
+    from habakkuk import dag, make_dag, schedule
     # Monkeypatch the dag object to override the maximum permitted
     # schedule length with something much less
-    monkeypatch.setattr(dag, "MAX_SCHEDULE_LENGTH", value=5)
+    monkeypatch.setattr(schedule, "MAX_SCHEDULE_LENGTH", value=5)
     fortran_text = "".join(
         ["  prod{0} = b{0} + a{0}\n".format(i) for i in range(6)])
     # For some reason the parser fails without the initial b0 = 1.0
@@ -66,18 +66,17 @@ def test_addition_schedule():
     # Now generate the schedule and check that it only has a single
     # step and that the total cost is just the cost of the
     # addition operation
-    nsteps, schedule = dag.generate_schedule()
-    assert nsteps == 1
     from habakkuk.config_ivy_bridge import OPERATORS
-    from habakkuk.dag import schedule_cost
-    cost = schedule_cost(nsteps, schedule)
-    assert cost == OPERATORS["+"]["cost"]
+    from habakkuk.schedule import Schedule
+    schedule = Schedule(dag)
+    assert schedule.nsteps == 1
+    assert schedule.cost == OPERATORS["+"]["cost"]
 
 
 def test_exp_schedule():
     ''' Check that we correctly schedule (the instructions for) the
     '**' intrinsic operation '''
-    from habakkuk.dag import schedule_cost
+    from habakkuk.schedule import Schedule
     from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = b**c")
     dag = DirectedAcyclicGraph("Test_dag")
@@ -98,17 +97,17 @@ def test_exp_schedule():
     assert pow_node.dependencies_satisfied
     # ...but not actually marked as executed...
     assert not pow_node.ready
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     print cost
-    assert nsteps == 1
+    assert schedule.nsteps == 1
     assert cost == OPERATORS["**"]["cost"]
 
 
 def test_sin_schedule():
     ''' Check that we correctly schedule (the instructions for) the
     'sin' intrinsic operation '''
-    from habakkuk.dag import schedule_cost
+    from habakkuk.schedule import Schedule
     from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = sin(b)")
     dag = DirectedAcyclicGraph("Test_dag")
@@ -129,10 +128,10 @@ def test_sin_schedule():
     assert sin_node.dependencies_satisfied
     # ...but not actually marked as executed...
     assert not sin_node.ready
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     print cost
-    assert nsteps == 1
+    assert schedule.nsteps == 1
     assert cost == OPERATORS["SIN"]["cost"]
 
 
@@ -201,38 +200,38 @@ def test_div_mul_overlap():
     ''' Check that we correctly overlap independent division and
     multiplication operations '''
     from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost
-    from habakkuk.dag import schedule_cost
+    from habakkuk.schedule import Schedule
     dag = dag_from_strings(["a = b * c", "d = b/c", "e = c * b"])
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     assert cost == OPERATORS["/"]["cost"]
     # Make the division depend on the result of the first multiplication
     dag = dag_from_strings(["a = b * c", "d = b/a", "e = c * b"])
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
     # Make the second product depend on the result of the division
     dag = dag_from_strings(["a = b * c", "d = b/c", "e = d * b"])
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
     # 6 independent multiplications
     string_list = ["a{0} = b * c".format(idx) for idx in range(6)]
     string_list += ["d = b/c", "e = d * b"]
     dag = dag_from_strings(string_list)
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
     # One more independent multiplication takes us to 7
     string_list += ["e2 = b * b"]
     dag = dag_from_strings(string_list)
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     assert cost == div_overlap_mul_cost(7) + OPERATORS["*"]["cost"]
     # A (very unlikely) 12 independent multiplications...
     string_list = ["a{0} = b * c".format(idx) for idx in range(12)]
     string_list += ["d = b/c", "e = d * b"]
     dag = dag_from_strings(string_list)
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
+    schedule = Schedule(dag)
+    cost = schedule.cost
     assert cost == div_overlap_mul_cost(12) + OPERATORS["*"]["cost"]
