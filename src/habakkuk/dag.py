@@ -7,7 +7,7 @@ from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
 from habakkuk.config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
-    FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
+    FORTRAN_INTRINSICS, CPU_EXECUTION_PORTS
 
 
 def is_subexpression(expr):
@@ -223,6 +223,8 @@ class DirectedAcyclicGraph(object):
         # Counter for duplicate sub-expressions (for naming the node
         # used to store the result)
         self._sub_exp_count = 0
+        # Holds the Schedule for this DAG
+        self._schedule = None
 
     @property
     def name(self):
@@ -1115,13 +1117,10 @@ class DirectedAcyclicGraph(object):
         # Construct a schedule for the execution of the nodes in the DAG,
         # allowing for the microarchitecture of the chosen CPU
         # TODO currently this is picked up from config_ivy_bridge.py
-        from schedule import Schedule
-        schedule = Schedule(self)
-
-        cost = schedule.cost
+        cost = self.schedule.cost
         print "  Estimate using computed schedule:"
         print "    Cost of schedule as a whole = {0} cycles".format(cost)
-        if schedule.nsteps:
+        if self._schedule.nsteps:
             sched_flops_per_hz = float(total_flops)/float(cost)
             print ("    FLOPS from schedule (ignoring memory accesses) = "
                    "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
@@ -1241,3 +1240,11 @@ class DirectedAcyclicGraph(object):
                 unique_available_ops.append(opnode)
 
         return unique_available_ops
+
+    @property
+    def schedule(self):
+        ''' Compute, store and return the execution schedule for this DAG '''
+        if not self._schedule:
+            from habakkuk.schedule import Schedule
+            self._schedule = Schedule(self)
+        return self._schedule
