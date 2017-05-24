@@ -1117,7 +1117,7 @@ class DirectedAcyclicGraph(object):
         # Construct a schedule for the execution of the nodes in the DAG,
         # allowing for the microarchitecture of the chosen CPU
         # TODO currently this is picked up from config_ivy_bridge.py
-        cost = self.schedule.cost
+        cost = self.schedule().cost
         print "  Estimate using computed schedule:"
         print "    Cost of schedule as a whole = {0} cycles".format(cost)
         if self._schedule.nsteps:
@@ -1241,10 +1241,13 @@ class DirectedAcyclicGraph(object):
 
         return unique_available_ops
 
-    @property
-    def schedule(self):
+    def schedule(self, to_dot=False):
         ''' Compute, store and return the execution schedule for this DAG '''
         if not self._schedule:
+            # For reproducible results we first calculate the critical
+            # path.
+            if not self._critical_path:
+                self.calc_critical_path()
             from habakkuk.schedule import Schedule
-            self._schedule = Schedule(self)
+            self._schedule = Schedule(self, to_dot)
         return self._schedule
