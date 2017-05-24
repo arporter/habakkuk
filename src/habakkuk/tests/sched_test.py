@@ -72,7 +72,7 @@ def test_addition_schedule():
     # step and that the total cost is just the cost of the
     # addition operation
     from habakkuk.config_ivy_bridge import OPERATORS
-    schedule = dag.schedule
+    schedule = dag.schedule()
     assert schedule.nsteps == 1
     assert schedule.cost == OPERATORS["+"]["cost"]
 
@@ -100,8 +100,8 @@ def test_exp_schedule():
     assert pow_node.dependencies_satisfied
     # ...but not actually marked as executed...
     assert not pow_node.ready
-    assert dag.schedule.nsteps == 1
-    assert dag.schedule.cost == OPERATORS["**"]["cost"]
+    assert dag.schedule().nsteps == 1
+    assert dag.schedule().cost == OPERATORS["**"]["cost"]
 
 
 def test_sin_schedule():
@@ -127,8 +127,8 @@ def test_sin_schedule():
     assert sin_node.dependencies_satisfied
     # ...but not actually marked as executed...
     assert not sin_node.ready
-    assert dag.schedule.nsteps == 1
-    assert dag.schedule.cost == OPERATORS["SIN"]["cost"]
+    assert dag.schedule().nsteps == 1
+    assert dag.schedule().cost == OPERATORS["SIN"]["cost"]
 
 
 def test_sin_plus_schedule(capsys):
@@ -197,30 +197,69 @@ def test_div_mul_overlap():
     multiplication operations '''
     from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost
     dag = dag_from_strings(["a = b * c", "d = b/c", "e = c * b"])
-    cost = dag.schedule.cost
+    cost = dag.schedule().cost
     assert cost == OPERATORS["/"]["cost"]
     # Make the division depend on the result of the first multiplication
     dag = dag_from_strings(["a = b * c", "d = b/a", "e = c * b"])
-    cost = dag.schedule.cost
+    cost = dag.schedule().cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
     # Make the second product depend on the result of the division
     dag = dag_from_strings(["a = b * c", "d = b/c", "e = d * b"])
-    cost = dag.schedule.cost
+    cost = dag.schedule().cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
     # 6 independent multiplications
     string_list = ["a{0} = b * c".format(idx) for idx in range(6)]
     string_list += ["d = b/c", "e = d * b"]
     dag = dag_from_strings(string_list)
-    cost = dag.schedule.cost
+    cost = dag.schedule().cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
     # One more independent multiplication takes us to 7
     string_list += ["e2 = b * b"]
     dag = dag_from_strings(string_list)
-    cost = dag.schedule.cost
+    cost = dag.schedule().cost
     assert cost == div_overlap_mul_cost(7) + OPERATORS["*"]["cost"]
     # A (very unlikely) 12 independent multiplications...
     string_list = ["a{0} = b * c".format(idx) for idx in range(12)]
     string_list += ["d = b/c", "e = d * b"]
     dag = dag_from_strings(string_list)
-    cost = dag.schedule.cost
+    cost = dag.schedule().cost
     assert cost == div_overlap_mul_cost(12) + OPERATORS["*"]["cost"]
+
+
+def test_sched_to_dot(tmpdir):
+    ''' Check that we correctly generate dot files for each stage
+    of a schedule '''
+    tmpdir.chdir()
+    dag = dag_from_strings(["a = b * c", "d = b/c", "e = d * b"])
+    sched = dag.schedule(to_dot=True)
+    assert sched.nsteps == 3
+    for idx in range(0, sched.nsteps+1):
+        dot_file = os.path.join(str(tmpdir),
+                                "Test dag_step{0}.gv".format(idx))
+        assert os.path.isfile(dot_file)
+    # Check the colouring of some of the nodes in the initial dag
+    dot_file = os.path.join(str(tmpdir),
+                            "Test dag_step0.gv")
+    with open(str(dot_file)) as dfile:
+        dot = dfile.read()
+        assert ('[label="b (w=0)", color="black", shape="ellipse", '
+                'style="filled", fillcolor="grey"]') in dot
+        assert ('[label="/ (w=8)", color="red", shape="box", '
+                'height="0.58", style="filled", fillcolor="green"]') in dot
+        assert ('[label="* (w=1)", color="red", shape="box", '
+                'height="0.51", style="filled", fillcolor="green"]') in dot
+    # The first step in the schedule is a division so that should
+    # now have been done and therefore be filled with grey
+    dot_file = os.path.join(str(tmpdir),
+                            "Test dag_step1.gv")
+    with open(str(dot_file)) as dfile:
+        dot = dfile.read()
+        assert ('[label="/ (w=8)", color="red", shape="box", height="0.58", '
+                'style="filled", fillcolor="grey"]') in dot
+    # After the final step in the schedule all nodes should have been
+    # processed and therefore none should be filled with green
+    dot_file = os.path.join(str(tmpdir),
+                            "Test dag_step3.gv")
+    with open(str(dot_file)) as dfile:
+        dot = dfile.read()
+        assert 'fillcolor="green"' not in dot

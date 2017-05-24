@@ -10,15 +10,15 @@ class Schedule(object):
     ''' Description of the sequence of operations to be executed
     on a core '''
 
-    def __init__(self, dag, sched_to_dot=False):
+    def __init__(self, dag, to_dot=False):
         '''Create a schedule mapping operations to hardware
 
         Creates a schedule describing how the nodes/operations in the DAG
         map onto the available hardware (execution ports on an Intel CPU)
 
         Keyword arguments:
-        sched_to_dot - Whether or not to output each step in the schedule to
-                       a separate dot file to enable visualisation.
+        to_dot - Whether or not to output each step in the schedule to
+                 a separate dot file to enable visualisation.
         '''
         from habakkuk.config_ivy_bridge import NUM_EXECUTION_PORTS, \
             CPU_EXECUTION_PORTS
@@ -28,7 +28,7 @@ class Schedule(object):
             node.mark_ready()
 
         # Output this initial graph
-        if sched_to_dot:
+        if to_dot:
             dag.to_dot(name=dag._name+"_step0.gv")
 
         # Construct a schedule
@@ -62,7 +62,7 @@ class Schedule(object):
                 # Prepare the next slot in the schedule on this port
                 self._slots[port].append(None)
 
-            if sched_to_dot:
+            if to_dot:
                 dag.to_dot(name=dag._name+"_step{0}.gv".format(step+1))
 
             # Update our list of operations that are now ready to be
