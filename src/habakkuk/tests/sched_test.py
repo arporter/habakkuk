@@ -217,13 +217,31 @@ def test_div_mul_overlap():
     string_list += ["e2 = b * b"]
     dag = dag_from_strings(string_list)
     cost = dag.schedule().cost
-    assert cost == div_overlap_mul_cost(7) + OPERATORS["*"]["cost"]
+    overlaps = {"*": 7, "+": 0, "-": 0}
+    assert cost == div_overlap_mul_cost(overlaps) + OPERATORS["*"]["cost"]
     # A (very unlikely) 12 independent multiplications...
     string_list = ["a{0} = b * c".format(idx) for idx in range(12)]
     string_list += ["d = b/c", "e = d * b"]
     dag = dag_from_strings(string_list)
     cost = dag.schedule().cost
-    assert cost == div_overlap_mul_cost(12) + OPERATORS["*"]["cost"]
+    overlaps["*"] = 12
+    assert cost == div_overlap_mul_cost(overlaps) + OPERATORS["*"]["cost"]
+
+
+def test_div_add_overlap():
+    ''' Check that we correctly overlap independent division and addition/
+    subtraction operations '''
+    from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost
+    dag = dag_from_strings(["a = b + c", "d = b/c", "e = c - b"])
+    cost = dag.schedule().cost
+    assert cost == OPERATORS["/"]["cost"]
+    dag = dag_from_strings(["a = b + c", "d = b/c", "e = d - b"])
+    cost = dag.schedule().cost
+    assert cost == OPERATORS["/"]["cost"] + OPERATORS["-"]["cost"]
+    dag = dag_from_strings(["a = b + c", "d = b/c", "e = d - b", "f = e + b"])
+    cost = dag.schedule().cost
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["-"]["cost"] +
+                    OPERATORS["+"]["cost"])
 
 
 def test_sched_to_dot(tmpdir):

@@ -98,11 +98,12 @@ class Schedule(object):
         # This dictionary is left empty if the microarchitecture does not
         # support overlapping of multiplications with divisions.
         overlaps = {}
-        from config_ivy_bridge import CPU_EXECUTION_PORTS, OPERATORS, \
+        from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, OPERATORS, \
             SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, NUM_EXECUTION_PORTS
         if SUPPORTS_DIV_MUL_OVERLAP:
-            flop_port = CPU_EXECUTION_PORTS["/"]
-            for idx, flop in enumerate(self._slots[flop_port]):
+            div_port = CPU_EXECUTION_PORTS["/"]
+            add_port = CPU_EXECUTION_PORTS["+"]
+            for idx, flop in enumerate(self._slots[div_port]):
                 if str(flop) == '/':
                     # Get the nodes that are inputs to this division
                     # operation
@@ -111,29 +112,38 @@ class Schedule(object):
                     # independent mult operations as they can be overlapped
                     # with the division
                     for step in range(idx-1, -1, -1):
-                        if str(self._slots[flop_port][step]) == "*":
-                            if self._slots[flop_port][step] not in div_producers:
-                                # This product is independent of the division
-                                # and may therefore be overlapped with it
-                                if flop in overlaps:
-                                    overlaps[flop] += 1
-                                else:
-                                    overlaps[flop] = 1
-                                self._slots[flop_port][step] = None
+                        for port in [div_port, add_port]:
+                            op = self._slots[port][step]
+                            op_str = str(op)
+                            if op_str in ["*", "+", "-"]:
+                                if op not in div_producers:
+                                    # This op is independent of the division
+                                    # and may therefore be overlapped with it
+                                    if flop not in overlaps:
+                                        overlaps[flop] = {"*": 0, "+": 0,
+                                                          "-": 0}
+                                    overlaps[flop][op_str] += 1
+                                    # Remove it from this slot in the schedule
+                                    self._slots[port][step] = None
+
                     # Same again but this time work forwards from the division
                     for step in range(idx+1, self.nsteps):
-                        if str(self._slots[flop_port][step]) == "*":
-                            # Get the nodes that this multiplication is
-                            # dependent upon
-                            ancestors = self._slots[flop_port][step].walk()
-                            if flop not in ancestors:
-                                # The division isn't one of them so we can
-                                # overlap this operation with it
-                                if flop in overlaps:
-                                    overlaps[flop] += 1
-                                else:
-                                    overlaps[flop] = 1
-                                self._slots[flop_port][step] = None
+                        for port in [div_port, add_port]:
+                            op = self._slots[port][step]
+                            op_str = str(op)
+                            if op_str in ["*", "+", "-"]:
+                                # Get the nodes that this op is
+                                # dependent upon
+                                ancestors = op.walk()
+                                if flop not in ancestors:
+                                    # The division isn't one of them so we can
+                                    # overlap this operation with it
+                                    if flop not in overlaps:
+                                        overlaps[flop] = {"*": 0, "+": 0,
+                                                          "-": 0}
+                                    overlaps[flop][op_str] += 1
+                                    # Remove it from this slot in the schedule
+                                    self._slots[port][step] = None
 
         print "Schedule contains {0} steps:".format(self._nsteps)
 
@@ -199,5 +209,3 @@ class Schedule(object):
             cost += max_cost
             print sched_str
         return cost
-
-        

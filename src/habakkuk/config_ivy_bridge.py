@@ -88,17 +88,38 @@ SUPPORTS_FMA = False
 # is obtained by calling div_overlap_mul_cost()
 SUPPORTS_DIV_MUL_OVERLAP = True
 
-def div_overlap_mul_cost(num_mul):
+def div_overlap_mul_cost(overlaps):
     ''' Returns the cost of a division operation as a function of the
     number of (independent) multiplications with which it is overlapped.
+    overlaps is a dictionary with keys "*", "+" and "-". Corresponding
+    entries are the number of those ops that may be overlapped with a
+    division.
 
     The values returned by this routine were determined by experiment. See
     https://bitbucket.org/apeg/dl_microbench for details of the code used
     to perform the measurements. '''
-    if num_mul < 7:
-        return OPERATORS["/"]["cost"]
-    elif num_mul < 12:
-        return OPERATORS["/"]["cost"] + 5
+    mul_cost = 0
+    pm_cost = 0
+    # Cost when overlapping multiplications with division
+    if overlaps["*"] > 0:
+        if overlaps["*"] < 7:
+            mul_cost = OPERATORS["/"]["cost"]
+        elif overlaps["*"] < 12:
+            mul_cost = OPERATORS["/"]["cost"] + 5
+        else:
+            mul_cost = OPERATORS["/"]["cost"] + 5 + \
+                       (overlaps["*"] - 11)*OPERATORS["*"]["cost"]
+    # Cost when overlapping addition/subtraction with division
+    num_pm = overlaps["+"] + overlaps["-"]
+    if num_pm > 0:
+        if num_pm < 7:
+            pm_cost = OPERATORS["/"]["cost"]
+        else:
+            pm_cost = OPERATORS["/"]["cost"] + 2
+    # Since the * and / are on a different port to the + and - we assume
+    # they don't interact and the cost of this step is just the greater
+    # of the two...
+    if pm_cost > mul_cost:
+        return pm_cost
     else:
-        return OPERATORS["/"]["cost"] + 5 + \
-            (num_mul - 11)*OPERATORS["*"]["cost"]
+        return mul_cost
