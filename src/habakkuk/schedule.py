@@ -99,7 +99,8 @@ class Schedule(object):
         # support overlapping of multiplications with divisions.
         overlaps = {}
         from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, OPERATORS, \
-            SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, NUM_EXECUTION_PORTS
+            SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, \
+            NUM_EXECUTION_PORTS, MAX_DIV_OVERLAP
         if SUPPORTS_DIV_MUL_OVERLAP:
             div_port = CPU_EXECUTION_PORTS["/"]
             add_port = CPU_EXECUTION_PORTS["+"]
@@ -115,23 +116,30 @@ class Schedule(object):
                         for port in [div_port, add_port]:
                             op = self._slots[port][step]
                             op_str = str(op)
-                            if op_str in ["*", "+", "-"]:
+                            if op_str == "-":
+                                # Treat subtraction as addition
+                                op_str = "+"
+                            if str(op) in ["*", "+"]:
                                 if op not in div_producers:
                                     # This op is independent of the division
                                     # and may therefore be overlapped with it
                                     if flop not in overlaps:
-                                        overlaps[flop] = {"*": 0, "+": 0,
-                                                          "-": 0}
-                                    overlaps[flop][op_str] += 1
-                                    # Remove it from this slot in the schedule
-                                    self._slots[port][step] = None
+                                        overlaps[flop] = {"*": 0, "+": 0}
+                                    if overlaps[flop][op_str] < MAX_DIV_OVERLAP[op_str]:
+                                        overlaps[flop][op_str] += 1
+                                        # Remove it from this slot in the
+                                        # schedule
+                                        self._slots[port][step] = None
 
                     # Same again but this time work forwards from the division
                     for step in range(idx+1, self.nsteps):
                         for port in [div_port, add_port]:
                             op = self._slots[port][step]
                             op_str = str(op)
-                            if op_str in ["*", "+", "-"]:
+                            if op_str == "-":
+                                # Treat subtraction as addition
+                                op_str = "+"
+                            if op_str in ["*", "+"]:
                                 # Get the nodes that this op is
                                 # dependent upon
                                 ancestors = op.walk()
@@ -139,11 +147,12 @@ class Schedule(object):
                                     # The division isn't one of them so we can
                                     # overlap this operation with it
                                     if flop not in overlaps:
-                                        overlaps[flop] = {"*": 0, "+": 0,
-                                                          "-": 0}
-                                    overlaps[flop][op_str] += 1
-                                    # Remove it from this slot in the schedule
-                                    self._slots[port][step] = None
+                                        overlaps[flop] = {"*": 0, "+": 0}
+                                    if overlaps[flop][op_str] < MAX_DIV_OVERLAP[op_str]:
+                                        overlaps[flop][op_str] += 1
+                                        # Remove it from this slot in the
+                                        # schedule
+                                        self._slots[port][step] = None
 
         print "Schedule contains {0} steps:".format(self._nsteps)
 

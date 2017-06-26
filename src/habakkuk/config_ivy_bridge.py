@@ -88,10 +88,14 @@ SUPPORTS_FMA = False
 # is obtained by calling div_overlap_mul_cost()
 SUPPORTS_DIV_MUL_OVERLAP = True
 
+# The maximum number of each op type that may be overlapped with a
+# single division op
+MAX_DIV_OVERLAP = {"*": 11, "+": 7}
+
 def div_overlap_mul_cost(overlaps):
     ''' Returns the cost of a division operation as a function of the
     number of (independent) multiplications with which it is overlapped.
-    overlaps is a dictionary with keys "*", "+" and "-". Corresponding
+    overlaps is a dictionary with keys "*" and "+". Corresponding
     entries are the number of those ops that may be overlapped with a
     division.
 
@@ -110,11 +114,11 @@ def div_overlap_mul_cost(overlaps):
             mul_cost = OPERATORS["/"]["cost"] + 5 + \
                        (overlaps["*"] - 11)*OPERATORS["*"]["cost"]
     # Cost when overlapping addition/subtraction with division
-    num_pm = overlaps["+"] + overlaps["-"]
+    num_pm = overlaps["+"]
     if num_pm > 0:
         if num_pm < 7:
             pm_cost = OPERATORS["/"]["cost"]
-        else:
+        else: # TODO need data for cases where have >9 addition ops
             pm_cost = OPERATORS["/"]["cost"] + 2
     # Since the * and / are on a different port to the + and - we assume
     # they don't interact and the cost of this step is just the greater
