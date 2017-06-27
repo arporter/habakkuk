@@ -195,7 +195,8 @@ def test_max_min_addition_schedule(capsys):
 def test_div_mul_overlap():
     ''' Check that we correctly overlap independent division and
     multiplication operations '''
-    from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost
+    from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost, \
+        MAX_DIV_OVERLAP
     dag = dag_from_strings(["a = b * c", "d = b/c", "e = c * b"])
     cost = dag.schedule().cost
     assert cost == OPERATORS["/"]["cost"]
@@ -224,8 +225,11 @@ def test_div_mul_overlap():
     string_list += ["d = b/c", "e = d * b"]
     dag = dag_from_strings(string_list)
     cost = dag.schedule().cost
-    overlaps["*"] = 12
-    assert cost == div_overlap_mul_cost(overlaps) + OPERATORS["*"]["cost"]
+    # We can only overlap so many with the division...
+    overlaps["*"] = MAX_DIV_OVERLAP["*"]
+    # ...and the rest have to be done separately
+    assert cost == div_overlap_mul_cost(overlaps) + \
+        (13 - MAX_DIV_OVERLAP["*"])*OPERATORS["*"]["cost"]
 
 
 def test_div_add_overlap():
