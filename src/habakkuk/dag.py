@@ -1064,7 +1064,7 @@ class DirectedAcyclicGraph(object):
         # Performance estimate using whole graph. This is a lower bound
         # since it ignores all Instruction-Level Parallelism apart from
         # FMAs (if the DAG contains any)...
-        if not total_cycles > 0:
+        if total_cycles <= 0:
             print "  DAG contains no FLOPs so skipping performance estimate."
             return
 
