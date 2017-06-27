@@ -246,6 +246,15 @@ def test_div_add_overlap():
     cost = dag.schedule().cost
     assert cost == (OPERATORS["/"]["cost"] + OPERATORS["-"]["cost"] +
                     OPERATORS["+"]["cost"])
+    string_list = ["a{0} = b + c".format(idx) for idx in range(6)]
+    string_list += ["d = b/c", "e = d - b", "f = e + b"]
+    dag = dag_from_strings(string_list)
+    cost = dag.schedule().cost
+    overlaps = {"*": 0, "+": 6, "-": 0}
+    # All of the 6 initial additions can be overlapped with the division.
+    # The two subsequent addtion/subtractions depend on the result of the
+    # division and have to be done sequentially.
+    assert cost == div_overlap_mul_cost(overlaps) + 2*OPERATORS["+"]["cost"]
 
 
 def test_sched_to_dot(tmpdir):
