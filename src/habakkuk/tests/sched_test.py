@@ -2,19 +2,25 @@
 ''' This module contains tests of the schedule-generation capabilities
     of Habakkuk. '''
 
-import pytest
 import os
+import pytest
 from fparser import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph, DAGError
-from test_utilities import Options
+from test_utilities import Options, dag_from_strings
+
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
 
 
-def test_schedule_too_long():
+def test_schedule_too_long(monkeypatch):
     ''' Check that we raise the expected error if the computed schedule
     is too long '''
-    from habakkuk import dag, make_dag
-    old_max_length = dag.MAX_SCHEDULE_LENGTH
-    dag.MAX_SCHEDULE_LENGTH = 5
+    from habakkuk import make_dag, schedule
+    # Monkeypatch the dag object to override the maximum permitted
+    # schedule length with something much less
+    monkeypatch.setattr(schedule, "MAX_SCHEDULE_LENGTH", value=5)
     fortran_text = "".join(
         ["  prod{0} = b{0} + a{0}\n".format(i) for i in range(6)])
     # For some reason the parser fails without the initial b0 = 1.0
@@ -27,8 +33,6 @@ def test_schedule_too_long():
         fout.write(fortran_text)
     with pytest.raises(DAGError) as err:
         make_dag.dag_of_files(Options(), [tmp_file])
-    # Restore the original value
-    dag.MAX_SCHEDULE_LENGTH = old_max_length
     # Delete the files generated during this test
     os.remove(tmp_file)
     os.remove(os.path.join(os.getcwd(), "long_sched_test.gv"))
@@ -67,18 +71,15 @@ def test_addition_schedule():
     # Now generate the schedule and check that it only has a single
     # step and that the total cost is just the cost of the
     # addition operation
-    nsteps, schedule = dag.generate_schedule()
-    assert nsteps == 1
     from habakkuk.config_ivy_bridge import OPERATORS
-    from habakkuk.dag import schedule_cost
-    cost = schedule_cost(nsteps, schedule)
-    assert cost == OPERATORS["+"]["cost"]
+    schedule = dag.schedule()
+    assert schedule.nsteps == 1
+    assert schedule.cost == OPERATORS["+"]["cost"]
 
 
 def test_exp_schedule():
     ''' Check that we correctly schedule (the instructions for) the
     '**' intrinsic operation '''
-    from habakkuk.dag import schedule_cost
     from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = b**c")
     dag = DirectedAcyclicGraph("Test_dag")
@@ -99,17 +100,13 @@ def test_exp_schedule():
     assert pow_node.dependencies_satisfied
     # ...but not actually marked as executed...
     assert not pow_node.ready
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
-    print cost
-    assert nsteps == 1
-    assert cost == OPERATORS["**"]["cost"]
+    assert dag.schedule().nsteps == 1
+    assert dag.schedule().cost == OPERATORS["**"]["cost"]
 
 
 def test_sin_schedule():
     ''' Check that we correctly schedule (the instructions for) the
     'sin' intrinsic operation '''
-    from habakkuk.dag import schedule_cost
     from habakkuk.config_ivy_bridge import OPERATORS
     assign = Fortran2003.Assignment_Stmt("a = sin(b)")
     dag = DirectedAcyclicGraph("Test_dag")
@@ -130,11 +127,8 @@ def test_sin_schedule():
     assert sin_node.dependencies_satisfied
     # ...but not actually marked as executed...
     assert not sin_node.ready
-    nsteps, schedule = dag.generate_schedule()
-    cost = schedule_cost(nsteps, schedule)
-    print cost
-    assert nsteps == 1
-    assert cost == OPERATORS["SIN"]["cost"]
+    assert dag.schedule().nsteps == 1
+    assert dag.schedule().cost == OPERATORS["SIN"]["cost"]
 
 
 def test_sin_plus_schedule(capsys):
@@ -196,3 +190,107 @@ def test_max_min_addition_schedule(capsys):
             in result)
     assert ("Cost if all ops on different execution ports are perfectly "
             "overlapped = 2 cycles" in result)
+
+
+def test_div_mul_overlap():
+    ''' Check that we correctly overlap independent division and
+    multiplication operations '''
+    from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost, \
+        MAX_DIV_OVERLAP
+    dag = dag_from_strings(["a = b * c", "d = b/c", "e = c * b"])
+    cost = dag.schedule().cost
+    assert cost == OPERATORS["/"]["cost"]
+    # Make the division depend on the result of the first multiplication
+    dag = dag_from_strings(["a = b * c", "d = b/a", "e = c * b"])
+    cost = dag.schedule().cost
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
+    # Make the second product depend on the result of the division
+    dag = dag_from_strings(["a = b * c", "d = b/c", "e = d * b"])
+    cost = dag.schedule().cost
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
+    # 6 independent multiplications
+    string_list = ["a{0} = b * c".format(idx) for idx in range(6)]
+    string_list += ["d = b/c", "e = d * b"]
+    dag = dag_from_strings(string_list)
+    cost = dag.schedule().cost
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["*"]["cost"])
+    # One more independent multiplication takes us to 7
+    string_list += ["e2 = b * b"]
+    dag = dag_from_strings(string_list)
+    cost = dag.schedule().cost
+    overlaps = {"*": 7, "+": 0, "-": 0}
+    assert cost == div_overlap_mul_cost(overlaps) + OPERATORS["*"]["cost"]
+    # A (very unlikely) 12 independent multiplications...
+    string_list = ["a{0} = b * c".format(idx) for idx in range(12)]
+    string_list += ["d = b/c", "e = d * b"]
+    dag = dag_from_strings(string_list)
+    cost = dag.schedule().cost
+    # We can only overlap so many with the division...
+    overlaps["*"] = MAX_DIV_OVERLAP["*"]
+    # ...and the rest have to be done separately
+    assert cost == div_overlap_mul_cost(overlaps) + \
+        (13 - MAX_DIV_OVERLAP["*"])*OPERATORS["*"]["cost"]
+
+
+def test_div_add_overlap():
+    ''' Check that we correctly overlap independent division and addition/
+    subtraction operations '''
+    from habakkuk.config_ivy_bridge import OPERATORS, div_overlap_mul_cost
+    dag = dag_from_strings(["a = b + c", "d = b/c", "e = c - b"])
+    cost = dag.schedule().cost
+    assert cost == OPERATORS["/"]["cost"]
+    dag = dag_from_strings(["a = b + c", "d = b/c", "e = d - b"])
+    cost = dag.schedule().cost
+    assert cost == OPERATORS["/"]["cost"] + OPERATORS["-"]["cost"]
+    dag = dag_from_strings(["a = b + c", "d = b/c", "e = d - b", "f = e + b"])
+    cost = dag.schedule().cost
+    assert cost == (OPERATORS["/"]["cost"] + OPERATORS["-"]["cost"] +
+                    OPERATORS["+"]["cost"])
+    string_list = ["a{0} = b + c".format(idx) for idx in range(6)]
+    string_list += ["d = b/c", "e = d - b", "f = e + b"]
+    dag = dag_from_strings(string_list)
+    cost = dag.schedule().cost
+    overlaps = {"*": 0, "+": 6, "-": 0}
+    # All of the 6 initial additions can be overlapped with the division.
+    # The two subsequent addtion/subtractions depend on the result of the
+    # division and have to be done sequentially.
+    assert cost == div_overlap_mul_cost(overlaps) + 2*OPERATORS["+"]["cost"]
+
+
+def test_sched_to_dot(tmpdir):
+    ''' Check that we correctly generate dot files for each stage
+    of a schedule '''
+    tmpdir.chdir()
+    dag = dag_from_strings(["a = b * c", "d = b/c", "e = d * b"])
+    sched = dag.schedule(to_dot=True)
+    assert sched.nsteps == 3
+    for idx in range(0, sched.nsteps+1):
+        dot_file = os.path.join(str(tmpdir),
+                                "Test dag_step{0}.gv".format(idx))
+        assert os.path.isfile(dot_file)
+    # Check the colouring of some of the nodes in the initial dag
+    dot_file = os.path.join(str(tmpdir),
+                            "Test dag_step0.gv")
+    with open(str(dot_file)) as dfile:
+        dot = dfile.read()
+        assert ('[label="b (w=0)", color="black", shape="ellipse", '
+                'style="filled", fillcolor="grey"]') in dot
+        assert ('[label="/ (w=8)", color="red", shape="box", '
+                'height="0.58", style="filled", fillcolor="green"]') in dot
+        assert ('[label="* (w=1)", color="red", shape="box", '
+                'height="0.51", style="filled", fillcolor="green"]') in dot
+    # The first step in the schedule is a division so that should
+    # now have been done and therefore be filled with grey
+    dot_file = os.path.join(str(tmpdir),
+                            "Test dag_step1.gv")
+    with open(str(dot_file)) as dfile:
+        dot = dfile.read()
+        assert ('[label="/ (w=8)", color="red", shape="box", height="0.58", '
+                'style="filled", fillcolor="grey"]') in dot
+    # After the final step in the schedule all nodes should have been
+    # processed and therefore none should be filled with green
+    dot_file = os.path.join(str(tmpdir),
+                            "Test dag_step3.gv")
+    with open(str(dot_file)) as dfile:
+        dot = dfile.read()
+        assert 'fillcolor="green"' not in dot

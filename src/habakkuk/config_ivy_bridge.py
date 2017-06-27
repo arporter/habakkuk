@@ -81,3 +81,55 @@ FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS", "ACOS", "**", "MAX", "MIN", "EXP",
 # Whether this microarchitecture supports the Fused Multiply Add op
 # TODO check on this before we attempt to generate FMAs.
 SUPPORTS_FMA = False
+
+# Whether this microarchitecture supports overlapping multiplication
+# operations with (independent) division operations. If True then
+# the cost (as a function of the number of overlapped multiplications)
+# is obtained by calling div_overlap_mul_cost()
+SUPPORTS_DIV_MUL_OVERLAP = True
+
+# The Ivy Bridge Re-Order Buffer can hold 168 entries (where an entry
+# is a single micro-op). See p.122 of Fog's microarchitecture document.
+
+# The maximum number of each op type that may be overlapped with a
+# single division op.
+MAX_DIV_OVERLAP = {"*": 7, "+": 7}
+
+
+def div_overlap_mul_cost(overlaps):
+    '''Returns the cost of a division operation as a function of the
+    number of (independent) multiplications or addition/subtractions
+    with which it is overlapped.  overlaps is a dictionary with keys
+    "*" and "+". Corresponding entries are the number of those ops
+    that may be overlapped with a division.
+
+    The values returned by this routine were determined by experiment. See
+    https://bitbucket.org/apeg/dl_microbench for details of the code used
+    to perform the measurements.
+
+    '''
+    mul_cost = 0
+    pm_cost = 0
+    # Cost when overlapping multiplications with division
+    if overlaps["*"] > 0:
+        if overlaps["*"] < 7:
+            mul_cost = OPERATORS["/"]["cost"]
+        elif overlaps["*"] < 12:
+            mul_cost = OPERATORS["/"]["cost"] + 5
+        else:
+            mul_cost = OPERATORS["/"]["cost"] + 5 + \
+                       (overlaps["*"] - 11)*OPERATORS["*"]["cost"]
+    # Cost when overlapping addition/subtraction with division
+    num_pm = overlaps["+"]
+    if num_pm > 0:
+        if num_pm < 7:
+            pm_cost = OPERATORS["/"]["cost"]
+        else:  # TODO need data for cases where have >9 addition ops
+            pm_cost = OPERATORS["/"]["cost"] + 2
+    # Since the * and / are on a different port to the + and - we assume
+    # they don't interact and the cost of this step is just the greater
+    # of the two...
+    if pm_cost > mul_cost:
+        return pm_cost
+    else:
+        return mul_cost

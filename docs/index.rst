@@ -14,6 +14,7 @@ Contents:
   introduction
   getting_going
   using
+  cpu_configuration
 
 Indices and tables
 ==================

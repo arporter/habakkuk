@@ -7,10 +7,7 @@ from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
 from habakkuk.config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
-    FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
-
-# Maximum length of schedule we expect to handle.
-MAX_SCHEDULE_LENGTH = 500
+    FORTRAN_INTRINSICS, CPU_EXECUTION_PORTS
 
 
 def is_subexpression(expr):
@@ -142,68 +139,6 @@ def ready_ops_from_list(nodes):
     return op_list
 
 
-def schedule_cost(nsteps, schedule):
-    ''' Calculate the cost (in cycles) of the supplied schedule '''
-
-    print "Schedule contains {0} steps:".format(nsteps)
-
-    # Create header string for print-out of schedule
-    print "    {0:^30s}".format("Execution Port")
-    header_str = "    "
-    for port in range(NUM_EXECUTION_PORTS):
-        header_str += " {0:^4n}".format(port)
-    print header_str
-
-    cost = 0
-    for step in range(0, nsteps):
-
-        sched_str = "{0:3s}".format(str(step))
-        max_cost = 0
-
-        # Find the most expensive operation on any port at this step of
-        # the schedule
-        for port in range(NUM_EXECUTION_PORTS):
-
-            sched_str += " {0:4s}".format(schedule[port][step])
-
-            port_cost = 0
-
-            # If there is an operation on this port at this step of
-            # the schedule then calculate its cost...
-            if schedule[port][step]:
-                operator = str(schedule[port][step])
-                port_cost = OPERATORS[operator]["cost"]
-
-                if False:
-                    # Account for operation latency - assume we have to
-                    # pay it and then subsequently set it to zero if we don't
-                    latency = OPERATORS[operator]["latency"]
-
-                    # If this isn't the first step in the schedule *and* the
-                    # port executed an operation in the previous step then
-                    # check what type it was
-                    if step > 0 and schedule[port][step-1]:
-                        previous_op = str(schedule[port][step-1])
-                        if OPERATORS[previous_op] == \
-                           OPERATORS[operator]:
-                            # This operation is the same as the previous
-                            # one on this port so assume pipelined
-                            latency = 0
-                        elif (OPERATORS[operator] in ["+", "-"] and
-                              OPERATORS[previous_op] in ["+", "-"]):
-                            # Assume '+' and '-' are treated as the same
-                            # and thus we pay no latency
-                            latency = 0
-                    port_cost += latency
-
-            if port_cost > max_cost:
-                max_cost = port_cost
-        sched_str += " (cost = {0})".format(max_cost)
-        cost += max_cost
-        print sched_str
-    return cost
-
-
 def flop_count(nodes):
     '''The number of *floating point* operations in the supplied list of
     nodes. This is NOT the same as the number of cycles. '''
@@ -288,6 +223,8 @@ class DirectedAcyclicGraph(object):
         # Counter for duplicate sub-expressions (for naming the node
         # used to store the result)
         self._sub_exp_count = 0
+        # Holds the Schedule for this DAG
+        self._schedule = None
 
     @property
     def name(self):
@@ -1127,7 +1064,7 @@ class DirectedAcyclicGraph(object):
         # Performance estimate using whole graph. This is a lower bound
         # since it ignores all Instruction-Level Parallelism apart from
         # FMAs (if the DAG contains any)...
-        if not total_cycles > 0:
+        if total_cycles <= 0:
             print "  DAG contains no FLOPs so skipping performance estimate."
             return
 
@@ -1180,12 +1117,10 @@ class DirectedAcyclicGraph(object):
         # Construct a schedule for the execution of the nodes in the DAG,
         # allowing for the microarchitecture of the chosen CPU
         # TODO currently this is picked up from config_ivy_bridge.py
-        nsteps, schedule = self.generate_schedule()
-
-        cost = schedule_cost(nsteps, schedule)
+        cost = self.schedule().cost
         print "  Estimate using computed schedule:"
         print "    Cost of schedule as a whole = {0} cycles".format(cost)
-        if nsteps:
+        if self._schedule.nsteps:
             sched_flops_per_hz = float(total_flops)/float(cost)
             print ("    FLOPS from schedule (ignoring memory accesses) = "
                    "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
@@ -1260,74 +1195,6 @@ class DirectedAcyclicGraph(object):
             for node in onode.producers:
                 node.walk(ancestor_list=node_list)
 
-    def generate_schedule(self, sched_to_dot=False):
-        '''Create a schedule mapping operations to hardware
-
-        Creates a schedule describing how the nodes/operations in the DAG
-        map onto the available hardware (execution ports on an Intel CPU)
-
-        Keyword arguments:
-        sched_to_dot - Whether or not to output each step in the schedule to
-                       a separate dot file to enable visualisation.
-        '''
-
-        # Flag all input nodes as being ready
-        input_nodes = self.input_nodes()
-        for node in input_nodes:
-            node.mark_ready()
-
-        # Output this initial graph
-        if sched_to_dot:
-            self.to_dot(name=self._name+"_step0.gv")
-
-        # Construct a schedule
-        step = 0
-
-        # We have one slot per execution port at each step in the schedule.
-        # Each port then has its own schedule (list) with each entry being the
-        # DAGNode representing the operation to be performed or None
-        # if a slot is empty (nop).
-        slot = []
-        for port in range(NUM_EXECUTION_PORTS):
-            slot.append([None])
-
-        # Generate a list of all operations that have their dependencies
-        # satisfied and are thus ready to go
-        available_ops = self.operations_ready()
-
-        while available_ops:
-
-            # Attempt to schedule each operation
-            for operation in available_ops:
-                port = CPU_EXECUTION_PORTS[operation.node_type]
-                if not slot[port][step]:
-                    # Put this operation into next slot on appropriate port
-                    slot[port][step] = operation
-                    # Mark the operation as done (executed) and update
-                    # any consumers
-                    operation.mark_ready()
-
-            for port in range(NUM_EXECUTION_PORTS):
-                # Prepare the next slot in the schedule on this port
-                slot[port].append(None)
-
-            if sched_to_dot:
-                self.to_dot(name=self._name+"_step{0}.gv".format(step+1))
-
-            # Update our list of operations that are now ready to be
-            # executed
-            available_ops = self.operations_ready()
-
-            # Move on to the next step in the schedule that we are
-            # constructing
-            step += 1
-
-            if step > MAX_SCHEDULE_LENGTH:
-                raise DAGError(
-                    "Unexpectedly long schedule ({0} steps) - this is "
-                    "probably a bug.".format(step))
-        return step, slot
-
     def operations_ready(self):
         ''' Create a list of all operations in the DAG that are ready to
         be executed (all producers are 'ready') '''
@@ -1372,3 +1239,14 @@ class DirectedAcyclicGraph(object):
                 unique_available_ops.append(opnode)
 
         return unique_available_ops
+
+    def schedule(self, to_dot=False):
+        ''' Compute, store and return the execution schedule for this DAG '''
+        if not self._schedule:
+            # For reproducible results we first calculate the critical
+            # path.
+            if not self._critical_path:
+                self.calc_critical_path()
+            from habakkuk.schedule import Schedule
+            self._schedule = Schedule(self, to_dot)
+        return self._schedule
