@@ -104,6 +104,12 @@ class Schedule(object):
         from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, OPERATORS, \
             SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, \
             NUM_EXECUTION_PORTS
+
+        # Allow for out-of-order execution and overlapping of
+        # operations. e.g. on Ivy Bridge, operations on different
+        # execution ports can be overlapped *and* multiplications may
+        # be overlapped with a division, even though they execute on
+        # the same port.
         if SUPPORTS_DIV_MUL_OVERLAP:
             div_port = CPU_EXECUTION_PORTS["/"]
             add_port = CPU_EXECUTION_PORTS["+"]
@@ -137,26 +143,23 @@ class Schedule(object):
                                     # overlap this operation with it
                                     self._overlap_ops(flop, idx, step, port)
 
-        # Create header string for print-out of schedule
-        print "Computed schedule:"
-        print "    {0:^30s}".format("Execution Port")
-        header_str = "    "
-        for port in range(NUM_EXECUTION_PORTS):
-            header_str += " {0:^4n}".format(port)
-        print header_str
+        # Now we compute the cost of the schedule by looking for the most
+        # expensive operation at each step. We also construct a textual
+        # representation of the schedule for output.
 
         cost = 0  # Total cost of this schedule (cycles)
         step_count = 0  # Counter for non-empty steps in schedule
+        sched_str = ""
         for step in range(0, self._nsteps):
 
-            sched_str = ""
             max_cost = 0
+            sched_line = ""
 
             # Find the most expensive operation on any port at this step of
             # the schedule
             for port in range(NUM_EXECUTION_PORTS):
 
-                sched_str += " {0:4s}".format(self._slots[port][step])
+                sched_line += " {0:4s}".format(self._slots[port][step])
                 port_cost = 0
 
                 # If there is an operation on this port at this step of
@@ -202,10 +205,20 @@ class Schedule(object):
                 # operation (some stages may not because of the overlapping
                 # of ops)
                 step_count += 1
-                sched_str = "{0:3s}".format(str(step_count)) + sched_str + \
-                            " (cost = {0})".format(max_cost)
+                sched_str += "{0:3s}".format(str(step_count)) + sched_line + \
+                             " (cost = {0})\n".format(max_cost)
                 cost += max_cost
-                print sched_str
+
+        # Create header string for print-out of schedule
+        print "Schedule contains {0} steps:".format(step_count)
+        print "    {0:^30s}".format("Execution Port")
+        header_str = "    "
+        for port in range(NUM_EXECUTION_PORTS):
+            header_str += " {0:^4n}".format(port)
+        print header_str
+        # Print the schedule itself
+        print sched_str
+
         return cost
 
     def _overlap_ops(self, flop, step_div, step, port):
