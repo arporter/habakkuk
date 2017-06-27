@@ -101,8 +101,8 @@ class Schedule(object):
 
         :return: The estimated cost (in cycles) of the schedule '''
 
-        from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, OPERATORS, \
-            SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, \
+        from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, \
+            OPERATORS, SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, \
             NUM_EXECUTION_PORTS
 
         # Allow for out-of-order execution and overlapping of
@@ -181,9 +181,9 @@ class Schedule(object):
                         # we don't
                         latency = OPERATORS[operator]["latency"]
 
-                        # If this isn't the first step in the schedule *and* the
-                        # port executed an operation in the previous step then
-                        # check what type it was
+                        # If this isn't the first step in the schedule *and*
+                        # the port executed an operation in the previous step
+                        # then check what type it was
                         if step > 0 and self._slots[port][step-1]:
                             previous_op = str(self._slots[port][step-1])
                             if OPERATORS[previous_op] == \

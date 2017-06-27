@@ -1195,7 +1195,6 @@ class DirectedAcyclicGraph(object):
             for node in onode.producers:
                 node.walk(ancestor_list=node_list)
 
-
     def operations_ready(self):
         ''' Create a list of all operations in the DAG that are ready to
         be executed (all producers are 'ready') '''

@@ -95,6 +95,7 @@ SUPPORTS_DIV_MUL_OVERLAP = True
 # single division op.
 MAX_DIV_OVERLAP = {"*": 7, "+": 7}
 
+
 def div_overlap_mul_cost(overlaps):
     '''Returns the cost of a division operation as a function of the
     number of (independent) multiplications or addition/subtractions
@@ -123,7 +124,7 @@ def div_overlap_mul_cost(overlaps):
     if num_pm > 0:
         if num_pm < 7:
             pm_cost = OPERATORS["/"]["cost"]
-        else: # TODO need data for cases where have >9 addition ops
+        else:  # TODO need data for cases where have >9 addition ops
             pm_cost = OPERATORS["/"]["cost"] + 2
     # Since the * and / are on a different port to the + and - we assume
     # they don't interact and the cost of this step is just the greater
