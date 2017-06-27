@@ -88,20 +88,25 @@ SUPPORTS_FMA = False
 # is obtained by calling div_overlap_mul_cost()
 SUPPORTS_DIV_MUL_OVERLAP = True
 
+# The Ivy Bridge Re-Order Buffer can hold 168 entries (where an entry
+# is a single micro-op). See p.122 of Fog's microarchitecture document.
+
 # The maximum number of each op type that may be overlapped with a
-# single division op
-MAX_DIV_OVERLAP = {"*": 11, "+": 7}
+# single division op.
+MAX_DIV_OVERLAP = {"*": 7, "+": 7}
 
 def div_overlap_mul_cost(overlaps):
-    ''' Returns the cost of a division operation as a function of the
-    number of (independent) multiplications with which it is overlapped.
-    overlaps is a dictionary with keys "*" and "+". Corresponding
-    entries are the number of those ops that may be overlapped with a
-    division.
+    '''Returns the cost of a division operation as a function of the
+    number of (independent) multiplications or addition/subtractions
+    with which it is overlapped.  overlaps is a dictionary with keys
+    "*" and "+". Corresponding entries are the number of those ops
+    that may be overlapped with a division.
 
     The values returned by this routine were determined by experiment. See
     https://bitbucket.org/apeg/dl_microbench for details of the code used
-    to perform the measurements. '''
+    to perform the measurements.
+
+    '''
     mul_cost = 0
     pm_cost = 0
     # Cost when overlapping multiplications with division

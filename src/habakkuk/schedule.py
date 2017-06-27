@@ -27,6 +27,15 @@ class Schedule(object):
         for node in input_nodes:
             node.mark_ready()
 
+        # Use a dictionary to store how many multiplications can be
+        # overlapped with each division. The division FLOP is the key
+        # and the associated entry is itself a dictionary with keys
+        # "*" and "+". The values associated with each of those
+        # entries is the number of those operations that have been
+        # overlapped with the division. If no entry exists for a given
+        # division OP then no operations have been overlapped with it.
+        self._overlaps = {}
+
         # Output this initial graph
         if to_dot:
             dag.to_dot(name=dag._name+"_step0.gv")
@@ -92,15 +101,9 @@ class Schedule(object):
 
         :return: The estimated cost (in cycles) of the schedule '''
 
-        # Use a dictionary to store how many multiplications can be
-        # overlapped with each division. The division FLOP is the
-        # key and the number of multiplications the associated entry.
-        # This dictionary is left empty if the microarchitecture does not
-        # support overlapping of multiplications with divisions.
-        overlaps = {}
         from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, OPERATORS, \
             SUPPORTS_DIV_MUL_OVERLAP, div_overlap_mul_cost, \
-            NUM_EXECUTION_PORTS, MAX_DIV_OVERLAP
+            NUM_EXECUTION_PORTS
         if SUPPORTS_DIV_MUL_OVERLAP:
             div_port = CPU_EXECUTION_PORTS["/"]
             add_port = CPU_EXECUTION_PORTS["+"]
@@ -115,58 +118,38 @@ class Schedule(object):
                     for step in range(idx-1, -1, -1):
                         for port in [div_port, add_port]:
                             op = self._slots[port][step]
-                            op_str = str(op)
-                            if op_str == "-":
-                                # Treat subtraction as addition
-                                op_str = "+"
-                            if str(op) in ["*", "+"]:
+                            if str(op) in ["*", "+", "-"]:
                                 if op not in div_producers:
                                     # This op is independent of the division
                                     # and may therefore be overlapped with it
-                                    if flop not in overlaps:
-                                        overlaps[flop] = {"*": 0, "+": 0}
-                                    if overlaps[flop][op_str] < MAX_DIV_OVERLAP[op_str]:
-                                        overlaps[flop][op_str] += 1
-                                        # Remove it from this slot in the
-                                        # schedule
-                                        self._slots[port][step] = None
+                                    self._overlap_ops(flop, idx, step, port)
 
                     # Same again but this time work forwards from the division
                     for step in range(idx+1, self.nsteps):
                         for port in [div_port, add_port]:
                             op = self._slots[port][step]
-                            op_str = str(op)
-                            if op_str == "-":
-                                # Treat subtraction as addition
-                                op_str = "+"
-                            if op_str in ["*", "+"]:
+                            if str(op) in ["*", "+", "-"]:
                                 # Get the nodes that this op is
                                 # dependent upon
                                 ancestors = op.walk()
                                 if flop not in ancestors:
                                     # The division isn't one of them so we can
                                     # overlap this operation with it
-                                    if flop not in overlaps:
-                                        overlaps[flop] = {"*": 0, "+": 0}
-                                    if overlaps[flop][op_str] < MAX_DIV_OVERLAP[op_str]:
-                                        overlaps[flop][op_str] += 1
-                                        # Remove it from this slot in the
-                                        # schedule
-                                        self._slots[port][step] = None
-
-        print "Schedule contains {0} steps:".format(self._nsteps)
+                                    self._overlap_ops(flop, idx, step, port)
 
         # Create header string for print-out of schedule
+        print "Computed schedule:"
         print "    {0:^30s}".format("Execution Port")
         header_str = "    "
         for port in range(NUM_EXECUTION_PORTS):
             header_str += " {0:^4n}".format(port)
         print header_str
 
-        cost = 0
+        cost = 0  # Total cost of this schedule (cycles)
+        step_count = 0  # Counter for non-empty steps in schedule
         for step in range(0, self._nsteps):
 
-            sched_str = "{0:3s}".format(str(step))
+            sched_str = ""
             max_cost = 0
 
             # Find the most expensive operation on any port at this step of
@@ -174,7 +157,6 @@ class Schedule(object):
             for port in range(NUM_EXECUTION_PORTS):
 
                 sched_str += " {0:4s}".format(self._slots[port][step])
-
                 port_cost = 0
 
                 # If there is an operation on this port at this step of
@@ -182,17 +164,18 @@ class Schedule(object):
                 if self._slots[port][step]:
                     flop = self._slots[port][step]
                     operator = str(flop)
-                    if operator == "/" and flop in overlaps:
+                    if operator == "/" and flop in self._overlaps:
                         # If the operation is a division *and* we've overlapped
                         # some multiplications with it then we must look-up
                         # the cost
-                        port_cost = div_overlap_mul_cost(overlaps[flop])
+                        port_cost = div_overlap_mul_cost(self._overlaps[flop])
                     else:
                         port_cost = OPERATORS[operator]["cost"]
 
                     if False:
                         # Account for operation latency - assume we have to
-                        # pay it and then subsequently set it to zero if we don't
+                        # pay it and then subsequently set it to zero if
+                        # we don't
                         latency = OPERATORS[operator]["latency"]
 
                         # If this isn't the first step in the schedule *and* the
@@ -214,7 +197,50 @@ class Schedule(object):
 
                 if port_cost > max_cost:
                     max_cost = port_cost
-            sched_str += " (cost = {0})".format(max_cost)
-            cost += max_cost
-            print sched_str
+            if max_cost:
+                # Only output this stage in the schedule if it contains an
+                # operation (some stages may not because of the overlapping
+                # of ops)
+                step_count += 1
+                sched_str = "{0:3s}".format(str(step_count)) + sched_str + \
+                            " (cost = {0})".format(max_cost)
+                cost += max_cost
+                print sched_str
         return cost
+
+    def _overlap_ops(self, flop, step_div, step, port):
+        ''' Overlap the operation on port port at step step with the division
+        operation flop which occurs at step_div in the schedule
+
+        :param flop: The division operation with which to overlap
+        :param step_div: The step in the Schedule at which this divsion occurs
+        :param step: the step in the Schedule at which the operation to be
+                     overlapped occurs
+        :param port: the port on the CPU on which the operation to be
+                     overlapped is executed
+        :type flop: DAGNode
+        :type step_div: integer
+        :type step: integer
+        :type port: integer '''
+        from habakkuk.config_ivy_bridge import CPU_EXECUTION_PORTS, \
+            MAX_DIV_OVERLAP
+        op = self._slots[port][step]
+        op_str = str(op)
+        if op_str == "-":
+            # Treat subtraction as addition when considering overlap
+            op_str = "+"
+        if flop not in self._overlaps:
+            # We've not overlapped anything with flop before so set-up
+            # the dictionary entries
+            self._overlaps[flop] = {"*": 0, "+": 0}
+        if self._overlaps[flop][op_str] < MAX_DIV_OVERLAP[op_str]:
+            self._overlaps[flop][op_str] += 1
+            # If this is an addition/subtraction then move it to the
+            # same step as the division with which it is overlapped
+            # (purely for display purposes)
+            if op_str == "+":
+                self._slots[CPU_EXECUTION_PORTS["+"]][step_div] = \
+                    self._slots[port][step]
+            # Remove it from this slot in the
+            # schedule
+            self._slots[port][step] = None
