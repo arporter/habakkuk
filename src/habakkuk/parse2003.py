@@ -185,15 +185,18 @@ class Variable(object):
         elif isinstance(node, Fortran2003.Data_Ref):
             # Reference to a component of a derived type. This component
             # may itself be an array reference.
+            # For e.g. "a_type%b_type" node.items will contain two entries,
+            # the first for "a_type" and the second for "b_type".
             # TODO handle/account for Array-Of-Structs type data structures
-            # Skip over the name of the derived type since that may also
-            # be an array reference.
-            array_refs = walk_ast(node.items[1:], [Fortran2003.Array_Section,
-                                                   Fortran2003.Part_Ref])
-            if array_refs:
-                self._process_array_ref(array_refs[0], mapping,
-                                        prefix=str(node.items[0])+"%")
+            if type(node.items[-1]) in [Fortran2003.Array_Section,
+                                        Fortran2003.Part_Ref]:
+                # Treat everything apart from the final array access as
+                # being part of the name of the array being accessed.
+                base_name = "%".join([str(item) for item in node.items[0:-1]])
+                self._process_array_ref(node.items[-1], mapping,
+                                        prefix=base_name)
             else:
+                # Not an array reference
                 name = str(node).replace(" ", "")
                 self._orig_name = name[:]
                 self._full_orig_name = self._orig_name
@@ -208,10 +211,10 @@ class Variable(object):
             # This node might be an array access or a function call
             self._process_array_ref(node, mapping)
 
-        elif (isinstance(node, Fortran2003.Real_Literal_Constant) or
-              isinstance(node, Fortran2003.Int_Literal_Constant) or
-              isinstance(node, Fortran2003.Char_Literal_Constant) or
-              isinstance(node, Fortran2003.Logical_Literal_Constant)):
+        elif type(node) in [Fortran2003.Real_Literal_Constant,
+                            Fortran2003.Int_Literal_Constant,
+                            Fortran2003.Char_Literal_Constant,
+                            Fortran2003.Logical_Literal_Constant]:
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
@@ -245,11 +248,14 @@ class Variable(object):
         return self._is_array_ref
 
     def _process_array_ref(self, node, mapping=None, prefix=None):
-        ''' Handles the parsing of various forms of array reference and
-        identifies expressions that are actually function calls '''
+        ''' Handles the parsing of various forms of array reference and,
+        where possible, identifies expressions that are actually function
+        calls '''
         from fparser import Fortran2003
         if prefix:
             prefix_str = prefix
+            if not prefix_str.endswith("%"):
+                prefix_str += "%"
         else:
             prefix_str = ""
         self._full_orig_name = prefix_str + str(node).replace(" ", "")
