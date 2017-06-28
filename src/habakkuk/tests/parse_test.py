@@ -119,6 +119,21 @@ def test_load_array_section():
     assert "a(:)" in lhs_var.full_name
 
 
+def test_load_dtype_array():
+    ''' Check that we recognise an array access when the
+    array is a component of a derived type '''
+    from habakkuk.parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt(
+        "ssha%data(ji,jj) = sshn_t%data(ji,jj) + "
+        "rdt / sshn_t%grid%area_t(ji,jj)")
+    mapping = {}
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert  "ssha%data(ji,jj)" == lhs_var.full_name
+    print dir(lhs_var)
+    assert lhs_var.is_array_ref == True
+
+
 def test_load_unrecognised_type():
     ''' Check that Variable.load() raises the expected exception when we
     don't recognise the type of the node that is supplied '''
