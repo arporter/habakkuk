@@ -168,6 +168,35 @@ def test_load_dtype_dtype_array():
     assert lhs_var.is_array_ref == True
 
 
+def test_load_dtype_with_map():
+    ''' Check that we get a Variable with the correct name when a
+    mapping is provided alongside a derived-type access '''
+    from habakkuk.parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt(
+        "sshn_t(jt)%grid%area_t = a_value(jt)")
+    # The key in the name mapping is the fully-indexed expression while
+    # the associated entry is the base-name (everything except the index
+    # expression).
+    mapping = {"sshn_t(jt)%grid%area_t":
+               "sshn_t(jt)%grid%area_t'"}
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert lhs_var.full_name == "sshn_t(jt)%grid%area_t'"
+
+
+def test_arr_slice_arg_fn_call():
+    ''' Check that the use of an array-slice in what might otherwise be an
+    array reference results instead in the identification of a function
+    call '''
+    from habakkuk.parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt(
+        "sshn_t(jt)%grid%area_t = my_fn(a_value(:))")
+    rhs_var = Variable()
+    mapping = {}
+    rhs_var.load(assign.items[-1], mapping=mapping)
+    assert rhs_var.is_array_ref == False
+
+
 def test_load_unrecognised_type():
     ''' Check that Variable.load() raises the expected exception when we
     don't recognise the type of the node that is supplied '''
