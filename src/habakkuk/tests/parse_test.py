@@ -159,6 +159,14 @@ def test_load_dtype_dtype_array():
     assert lhs_var.name == "sshn_t(jt)%grid%area_t"
     assert lhs_var.is_array_ref == True
 
+    assign = Fortran2003.Assignment_Stmt(
+        "sshn_t(jt)%grid(jg)%area_t(ji,jj) = a_value(jt)")
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert lhs_var.full_name == "sshn_t(jt)%grid(jg)%area_t(ji,jj)"
+    assert lhs_var.name == "sshn_t(jt)%grid(jg)%area_t"
+    assert lhs_var.is_array_ref == True
+
 
 def test_load_unrecognised_type():
     ''' Check that Variable.load() raises the expected exception when we
