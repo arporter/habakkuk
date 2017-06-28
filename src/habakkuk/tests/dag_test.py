@@ -908,7 +908,9 @@ def test_repeat_assign_derived_type_array():
          "sd(jf)%nrec_a(1) = itmp"])
     node_names = [node.name for node in dag._nodes.itervalues()]
     dag.verify_acyclic()
-    assert "sd(jf)%nrec_a(1)'" in node_names
+    assert "sd(jf)%nrec_a(1)" in node_names
+    assert "sd(jf)%nrec_a'(1)" in node_names
+    assert "sd(jf)%nrec_a''(1)" in node_names
 
 
 def test_propagate_ints():
