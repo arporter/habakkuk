@@ -119,18 +119,44 @@ def test_load_array_section():
     assert "a(:)" in lhs_var.full_name
 
 
-def test_load_dtype_array():
+def test_load_dtype_compt_array():
     ''' Check that we recognise an array access when the
     array is a component of a derived type '''
     from habakkuk.parse2003 import Variable
-    assign = Fortran2003.Assignment_Stmt(
-        "ssha%data(ji,jj) = sshn_t%data(ji,jj) + "
-        "rdt / sshn_t%grid%area_t(ji,jj)")
+    assign = Fortran2003.Assignment_Stmt("ssha%data(ji,jj) = a_value")
     mapping = {}
     lhs_var = Variable()
     lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
-    assert  "ssha%data(ji,jj)" == lhs_var.full_name
-    print dir(lhs_var)
+    assert lhs_var.full_name == "ssha%data(ji,jj)"
+    assert lhs_var.name == "ssha%data"
+    assert lhs_var.is_array_ref == True
+
+
+def test_load_dtype_array_cmpt_array():
+    ''' Check that we recognise an array access when the
+    array is a component of a derived type which itself is held in
+    an array '''
+    from habakkuk.parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt("ssha(jt)%data(ji,jj) = a_value")
+    mapping = {}
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert lhs_var.full_name == "ssha(jt)%data(ji,jj)"
+    assert lhs_var.name == "ssha(jt)%data"
+    assert lhs_var.is_array_ref == True
+
+
+def test_load_dtype_dtype_array():
+    ''' Check that we recognise an array access when the array is a
+    component of a component of a derived type '''
+    from habakkuk.parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt(
+        "sshn_t(jt)%grid%area_t(ji,jj) = a_value(jt)")
+    mapping = {}
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert lhs_var.full_name == "sshn_t(jt)%grid%area_t(ji,jj)"
+    assert lhs_var.name == "sshn_t(jt)%grid%area_t"
     assert lhs_var.is_array_ref == True
 
 
