@@ -183,108 +183,38 @@ class Variable(object):
             self._is_array_ref = False
 
         elif isinstance(node, Fortran2003.Data_Ref):
-            # Reference to a component of a derived type
-            name = str(node).replace(" ", "")
-            self._orig_name = name[:]
-            self._full_orig_name = self._orig_name
-            if mapping and name in mapping:
-                self._name = mapping[name]
+            # Reference to a component of a derived type. This component
+            # may itself be an array reference.
+            # For e.g. "a_type%b_type" node.items will contain two entries,
+            # the first for "a_type" and the second for "b_type".
+            # TODO handle/account for Array-Of-Structs type data structures
+            if type(node.items[-1]) in [Fortran2003.Array_Section,
+                                        Fortran2003.Part_Ref]:
+                # Treat everything apart from the final array access as
+                # being part of the name of the array being accessed.
+                base_name = "%".join([str(item) for item in node.items[0:-1]])
+                self._process_array_ref(node.items[-1], mapping,
+                                        prefix=base_name)
             else:
-                self._name = name
-            self._is_array_ref = False
+                # Not an array reference
+                name = str(node).replace(" ", "")
+                self._orig_name = name[:]
+                self._full_orig_name = self._orig_name
+                if mapping and name in mapping:
+                    self._name = mapping[name]
+                else:
+                    self._name = name
+                self._is_array_ref = False
 
         elif (isinstance(node, Fortran2003.Part_Ref) or
               isinstance(node, Fortran2003.Array_Section)):
             # This node might be an array access or a function call
-            self._name = str(node.items[0])
-            self._orig_name = self._name
-            self._full_orig_name = str(node).replace(" ", "")
-            self._is_array_ref = True
-            array_index_vars = []
+            self._process_array_ref(node, mapping)
 
-            if isinstance(node, Fortran2003.Array_Section):
-                # This node is an array section which means that it has
-                # one index specified using ':'
-                self._index_exprns = str(node.items[1])
-            elif isinstance(node.items[1], Fortran2003.Array_Section):
-                # An Array reference cannot itself contain an array
-                # section so this must be a function call
-                self._is_array_ref = False
-            elif isinstance(node.items[1], Fortran2003.Section_Subscript_List):
-                # Obtain the expression for each index of the array ref
-                for item in node.items[1].items:
-                    self._index_exprns.append(str(item).replace(" ", ""))
-
-                # This recurses down and finds the names of all of
-                # the *variables* in the array-index expression
-                # (i.e. ignoring whether they are "+1" etc.)
-                array_index_vars = walk_ast(node.items[1].items,
-                                            [Fortran2003.Name])
-            elif (isinstance(node.items[1], Fortran2003.Name) or
-                  isinstance(node.items[1],
-                             Fortran2003.Int_Literal_Constant) or
-                  isinstance(node.items[1], Fortran2003.Data_Ref)):
-                # There's only a single array index/argument
-                self._index_exprns.append(str(node.items[1]).replace(" ", ""))
-                array_index_vars = [node.items[1]]
-            elif isinstance(node.items[1], Fortran2003.Level_2_Expr):
-                # Array index expression itself contains an array access - i.e.
-                # this is an indirect access.
-                self._index_exprns.append(
-                    ''.join([str(item).replace(" ", "")
-                             for item in node.items[1].items]))
-                # TODO currently if we get an array access of the form
-                # a(map(i)) then we will store 'map' and 'i' as the
-                # array-index variables. This needs to be extended to
-                # properly support indirect array accesses.
-                array_index_vars = walk_ast(node.items[1].items,
-                                            [Fortran2003.Name])
-            elif isinstance(node.items[1], Fortran2003.Part_Ref):
-                # Array index expression is itself an array access
-                # TODO don't flatten the array expression into a string
-                # so that we can handle loop-unrolling for such cases
-                self._index_exprns.append(str(node.items[1]).replace(" ", ""))
-                array_index_vars = self._index_exprns[-1]
-            elif isinstance(node.items[1], Fortran2003.Add_Operand):
-                # Array index expression is something like "2*i"
-                array_index_vars = walk_ast(node.items[1].items,
-                                            [Fortran2003.Name])
-            elif isinstance(node.items[1], Fortran2003.Parenthesis):
-                array_index_vars = walk_ast(node.items[1].items,
-                                            [Fortran2003.Name])
-            else:
-                raise ParseError(
-                    "Unrecognised array-index expression (type={0}): {1}".
-                    format(type(node.items[1]), str(node)))
-
-            # Now that we've captured the array-index expressions we can
-            # apply the naming map to them
-            for var in array_index_vars:
-                if isinstance(var, str):
-                    name = var
-                else:
-                    name = var.string
-                if mapping and name in mapping:
-                    self._index_vars.append(mapping[name])
-                    # Replace any references to this variable in the index
-                    # expressions with the new name
-                    for idx, exprn in enumerate(self._index_exprns):
-                        self._index_exprns[idx] = exprn.replace(name,
-                                                                mapping[name])
-                else:
-                    # This variable name is not in our name map so we
-                    # use it as it is
-                    self._index_vars.append(name)
-            # Finally, having ensured that we're naming the index variables
-            # correctly, we can apply the naming map to the full array
-            # reference
-            if mapping and self.indexed_name in mapping:
-                self._name = mapping[self.indexed_name]
-
-        elif (isinstance(node, Fortran2003.Real_Literal_Constant) or
-              isinstance(node, Fortran2003.Int_Literal_Constant) or
-              isinstance(node, Fortran2003.Char_Literal_Constant) or
-              isinstance(node, Fortran2003.Logical_Literal_Constant)):
+        elif type(node) in [Fortran2003.Real_Literal_Constant,
+                            Fortran2003.Int_Literal_Constant,
+                            Fortran2003.Char_Literal_Constant,
+                            Fortran2003.Logical_Literal_Constant]:
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
@@ -316,3 +246,99 @@ class Variable(object):
     def is_array_ref(self):
         ''' Returns True if this Variable is an array access '''
         return self._is_array_ref
+
+    def _process_array_ref(self, node, mapping=None, prefix=None):
+        ''' Handles the parsing of various forms of array reference and,
+        where possible, identifies expressions that are actually function
+        calls '''
+        from fparser import Fortran2003
+        if prefix:
+            prefix_str = prefix
+            if not prefix_str.endswith("%"):
+                prefix_str += "%"
+        else:
+            prefix_str = ""
+        self._full_orig_name = prefix_str + str(node).replace(" ", "")
+        self._name = prefix_str + str(node.items[0])
+        self._orig_name = self._name
+        self._is_array_ref = True
+        array_index_vars = []
+
+        if isinstance(node, Fortran2003.Array_Section):
+            # This node is an array section which means that it has
+            # one index specified using ':'
+            self._index_exprns = str(node.items[1])
+        elif isinstance(node.items[1], Fortran2003.Array_Section):
+            # An Array reference cannot itself contain an array
+            # section so this must be a function call
+            self._is_array_ref = False
+        elif isinstance(node.items[1], Fortran2003.Section_Subscript_List):
+            # Obtain the expression for each index of the array ref
+            for item in node.items[1].items:
+                self._index_exprns.append(str(item).replace(" ", ""))
+
+            # This recurses down and finds the names of all of
+            # the *variables* in the array-index expression
+            # (i.e. ignoring whether they are "+1" etc.)
+            array_index_vars = walk_ast(node.items[1].items,
+                                        [Fortran2003.Name])
+        elif (isinstance(node.items[1], Fortran2003.Name) or
+              isinstance(node.items[1],
+                         Fortran2003.Int_Literal_Constant) or
+              isinstance(node.items[1], Fortran2003.Data_Ref)):
+            # There's only a single array index/argument
+            self._index_exprns.append(str(node.items[1]).replace(" ", ""))
+            array_index_vars = [node.items[1]]
+        elif isinstance(node.items[1], Fortran2003.Level_2_Expr):
+            # Array index expression itself contains an array access - i.e.
+            # this is an indirect access.
+            self._index_exprns.append(
+                ''.join([str(item).replace(" ", "")
+                         for item in node.items[1].items]))
+            # TODO currently if we get an array access of the form
+            # a(map(i)) then we will store 'map' and 'i' as the
+            # array-index variables. This needs to be extended to
+            # properly support indirect array accesses.
+            array_index_vars = walk_ast(node.items[1].items,
+                                        [Fortran2003.Name])
+        elif isinstance(node.items[1], Fortran2003.Part_Ref):
+            # Array index expression is itself an array access
+            # TODO don't flatten the array expression into a string
+            # so that we can handle loop-unrolling for such cases
+            self._index_exprns.append(str(node.items[1]).replace(" ", ""))
+            array_index_vars = self._index_exprns[-1]
+        elif isinstance(node.items[1], Fortran2003.Add_Operand):
+            # Array index expression is something like "2*i"
+            array_index_vars = walk_ast(node.items[1].items,
+                                        [Fortran2003.Name])
+        elif isinstance(node.items[1], Fortran2003.Parenthesis):
+            array_index_vars = walk_ast(node.items[1].items,
+                                        [Fortran2003.Name])
+        else:
+            raise ParseError(
+                "Unrecognised array-index expression (type={0}): {1}".
+                format(type(node.items[1]), str(node)))
+
+        # Now that we've captured the array-index expressions we can
+        # apply the naming map to them
+        for var in array_index_vars:
+            if isinstance(var, str):
+                name = var
+            else:
+                name = var.string
+            if mapping and name in mapping:
+                self._index_vars.append(mapping[name])
+                # Replace any references to this variable in the index
+                # expressions with the new name
+                for idx, exprn in enumerate(self._index_exprns):
+                    self._index_exprns[idx] = exprn.replace(name,
+                                                            mapping[name])
+            else:
+                # This variable name is not in our name map so we
+                # use it as it is
+                self._index_vars.append(name)
+        # Finally, having ensured that we're naming the index variables
+        # correctly, we can apply the naming map to the full array
+        # reference
+        if mapping and self.indexed_name in mapping:
+            self._name = mapping[self.indexed_name]

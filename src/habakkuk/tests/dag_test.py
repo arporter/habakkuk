@@ -1,13 +1,52 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
 ''' This module tests the DAG generator using pytest '''
+
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
 
 import os
 import pytest
 from test_utilities import dag_from_strings, Options
 from habakkuk import make_dag
 from habakkuk.dag_node import DAGError
-from fparser import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph
+from fparser import Fortran2003
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -105,7 +144,7 @@ def test_dag_get_node_with_name():
     assert dnode.name == "my_node"
 
 
-def test_dag_get_node_with_name_and_mapping():
+def test_dag_get_node_with_name_and_mapping():  # pylint: disable=invalid-name
     ''' Check that we get a valid node when calling get_node() with a
     name and a mapping specified '''
     dag = DirectedAcyclicGraph("Test dag")
@@ -378,7 +417,7 @@ def test_repeated_assign_array(tmpdir, capsys):
     assert node2 in graph
 
 
-def test_repeated_assign_1darray_slice(tmpdir):
+def test_repeated_assign_1darray_slice(tmpdir):  # pylint: disable=invalid-name
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
     os.chdir(str(tmpdir.mkdir("tmp")))
@@ -392,7 +431,7 @@ def test_repeated_assign_1darray_slice(tmpdir):
     assert "label=\"aprod'(:)\", color=\"blue\"" in graph
 
 
-def test_repeated_assign_1darray_slice_from_string():
+def test_repeated_assign_1darr_slice_string():  # pylint: disable=invalid-name
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to and we generate the dag from strings. '''
     dag = dag_from_strings(["a(:) = 2.0 * a(:)"])
@@ -401,7 +440,7 @@ def test_repeated_assign_1darray_slice_from_string():
     assert "a(:)" in node_names
 
 
-def test_repeated_assign_2darray_slice(tmpdir):
+def test_repeated_assign_2darr_slice(tmpdir):  # pylint: disable=invalid-name
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to. '''
     os.chdir(str(tmpdir.mkdir("tmp")))
@@ -438,7 +477,7 @@ def test_write_back_array(tmpdir, capsys):
     assert graph.count("aprod") == 3
 
 
-def test_repeated_assign_diff_elements(tmpdir):
+def test_repeated_assign_diff_elements(tmpdir):  # pylint: disable=invalid-name
     ''' Test that we get correctly-named nodes when different elements of
     the same array are accessed in a code fragment '''
     os.chdir(str(tmpdir.mkdir("tmp")))
@@ -479,13 +518,14 @@ def test_node_display(capsys):
     node.display()
     result, _ = capsys.readouterr()
     print result
+    # For clarity, we escape the '\' character in the string below...
     expected = (
-        "\- aprod\n"
-        "  \- *\n"
-        "    \- *\n"
-        "      \- var1\n"
-        "      \- var2\n"
-        "    \- var3\n")
+        "\\- aprod\n"
+        "  \\- *\n"
+        "    \\- *\n"
+        "      \\- var1\n"
+        "      \\- var2\n"
+        "    \\- var3\n")
     assert expected in result
 
 
@@ -672,7 +712,7 @@ def test_prune_duplicate_array_refs():
     assert "sub_exp2" not in node_names
 
 
-def test_rm_scalar_tmps_array_accesses():
+def test_rm_scalar_tmps_array_accesses():  # pylint: disable=invalid-name
     ''' Check that we can successfully remove scalar temporaries when
     we have array accesses '''
     dag = dag_from_strings(
@@ -788,7 +828,7 @@ def test_adj_ref_same_cache_line():
     assert dag.cache_lines() == 2
 
 
-def test_index_product_same_cache_line():
+def test_index_product_same_cache_line():  # pylint: disable=invalid-name
     ''' Check that two accesses to adjacent locations in memory are counted
     as a single cache-line, even when a product is involved '''
     dag = dag_from_strings(
@@ -797,14 +837,14 @@ def test_index_product_same_cache_line():
     assert dag.cache_lines() == 2
 
 
-def test_indirect_1darray_access_difft_cache_lines():
+def test_indirect_1darr_acc_diff_cachelines():  # pylint: disable=invalid-name
     ''' Check that we correctly identify two indirect array accesses as
     (probably) belonging to two different cache lines '''
     dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
     assert dag.cache_lines() == 3
 
 
-def test_indirect_2darray_access_difft_cache_lines():
+def test_indirect_2darr_acc_difft_cachelines():  # pylint: disable=invalid-name
     ''' Check that we correctly identify 3 indirect array accesses as
     (probably) belonging to different cache lines '''
     dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
@@ -812,7 +852,7 @@ def test_indirect_2darray_access_difft_cache_lines():
     assert dag.cache_lines() == 4
 
 
-def test_indirect_2darray_access_same_cache_lines():
+def test_indirect_2darr_acc_same_cachelines():  # pylint: disable=invalid-name
     ''' Check that we identify two indirect array accesses that differ only
     by a constant (in the first index) as (probably) belonging to the same
     cache line '''
@@ -821,17 +861,16 @@ def test_indirect_2darray_access_same_cache_lines():
     assert dag.cache_lines() == 4
 
 
-def test_array_ref_contains_array_ref():
-    ''' Check that we correctly identify a Part_Ref that itself
-    contains an array slice as being a function call rather than
-    an array reference '''
+def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
+    ''' Check that we correctly identify an array reference that uses
+    another array ref as index is identified as an array reference '''
     dag = dag_from_strings(["aprod = my_array(x(1,2))"])
     for node in dag._nodes.itervalues():
         if "my_array" in node.name:
             assert node.node_type == "array_ref"
 
 
-def test_fn_call_contains_array_slice():
+def test_fn_call_contains_array_slice():  # pylint: disable=invalid-name
     ''' Check that we correctly identify a Part_Ref that itself
     contains an array slice as being a function call rather than
     an array reference '''
@@ -899,7 +938,7 @@ def test_parentheses_in_function(tmpdir, capsys):
     assert "4 multiplication operators." in result
 
 
-def test_repeat_assign_derived_type_array():
+def test_repeat_assign_derived_type_array():  # pylint: disable=invalid-name
     ''' Test for assignment to an array element in a derived type '''
     dag = dag_from_strings(
         ["itmp = sd(jf)%nrec_a(1)",
@@ -908,7 +947,9 @@ def test_repeat_assign_derived_type_array():
          "sd(jf)%nrec_a(1) = itmp"])
     node_names = [node.name for node in dag._nodes.itervalues()]
     dag.verify_acyclic()
-    assert "sd(jf)%nrec_a(1)'" in node_names
+    assert "sd(jf)%nrec_a(1)" in node_names
+    assert "sd(jf)%nrec_a'(1)" in node_names
+    assert "sd(jf)%nrec_a''(1)" in node_names
 
 
 def test_propagate_ints():
