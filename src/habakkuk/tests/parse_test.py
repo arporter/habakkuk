@@ -158,6 +158,20 @@ def test_load_array_section():
     assert "a(:)" in lhs_var.full_name
 
 
+@pytest.mark.xfail(reason="Fail to store array-index expression if enclosed"
+                   "in parentheses: #38")
+def test_load_array_parenthesis():
+    ''' Check that we create the correct type of Variable if an
+    array access has an index expression within parentheses '''
+    from habakkuk.parse2003 import Variable
+    assign = Fortran2003.Assignment_Stmt("a((i+j)) = 2.0*b(i)")
+    mapping = {}
+    lhs_var = Variable()
+    lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+    assert lhs_var.is_array_ref is True
+    assert "a(i+j)" in lhs_var.full_name
+
+
 def test_load_dtype_compt_array():
     ''' Check that we recognise an array access when the
     array is a component of a derived type '''
