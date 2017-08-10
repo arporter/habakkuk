@@ -110,7 +110,6 @@ class Variable(object):
         variable - i.e.  including any array indexing '''
         return self._full_orig_name
 
-    # TODO decide on a name for this routine!
     @property
     def indexed_name(self):
         ''' Returns a string containing the original base name but with
@@ -258,9 +257,6 @@ class Variable(object):
                 prefix_str += "%"
         else:
             prefix_str = ""
-        self._full_orig_name = prefix_str + str(node).replace(" ", "")
-        self._name = prefix_str + str(node.items[0])
-        self._orig_name = self._name
         self._is_array_ref = True
         array_index_vars = []
 
@@ -312,12 +308,23 @@ class Variable(object):
             array_index_vars = walk_ast(node.items[1].items,
                                         [Fortran2003.Name])
         elif isinstance(node.items[1], Fortran2003.Parenthesis):
-            array_index_vars = walk_ast(node.items[1].items,
-                                        [Fortran2003.Name])
+            # Array index expression is enclosed in parentheses - recurse
+            # down to store the actual expression and get the names of
+            # the variables involved.
+            array_index_vars = self._process_array_ref(node.items[1],
+                                                       mapping=mapping,
+                                                       prefix=prefix)
         else:
             raise ParseError(
                 "Unrecognised array-index expression (type={0}): {1}".
                 format(type(node.items[1]), str(node)))
+
+        # Set-up the name of this node once we've finished identifying
+        # the variables in any sub-expressions (and thus finished
+        # recursively calling this routine)
+        self._full_orig_name = prefix_str + str(node).replace(" ", "")
+        self._name = prefix_str + str(node.items[0])
+        self._orig_name = self._name
 
         # Now that we've captured the array-index expressions we can
         # apply the naming map to them
@@ -342,3 +349,7 @@ class Variable(object):
         # reference
         if mapping and self.indexed_name in mapping:
             self._name = mapping[self.indexed_name]
+
+        # Return the list of variables involved in the array-index
+        # expression in case we've been called recursively
+        return array_index_vars

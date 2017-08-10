@@ -158,8 +158,6 @@ def test_load_array_section():
     assert "a(:)" in lhs_var.full_name
 
 
-@pytest.mark.xfail(reason="Fail to store array-index expression if enclosed"
-                   "in parentheses: #38")
 def test_load_array_parenthesis():
     ''' Check that we create the correct type of Variable if an
     array access has an index expression within parentheses '''
