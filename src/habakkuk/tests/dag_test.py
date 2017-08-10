@@ -828,6 +828,17 @@ def test_adj_ref_same_cache_line():
     assert dag.cache_lines() == 2
 
 
+def test_write_read_same_cache_line():
+    ''' Check that a write followed by a read of the same array element is
+    only counted as a single reference '''
+    dag = dag_from_strings(
+        ["ze3wu = 2.0*pgzui(ji,jj)",
+         "pgzui(ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu)",
+         "pgx(ji,jj) = pgzui(ji,jj) + 1.0"])
+    dag.to_dot()
+    assert dag.cache_lines() == 3
+
+
 def test_index_product_same_cache_line():  # pylint: disable=invalid-name
     ''' Check that two accesses to adjacent locations in memory are counted
     as a single cache-line, even when a product is involved '''
@@ -862,7 +873,7 @@ def test_indirect_2darr_acc_same_cachelines():  # pylint: disable=invalid-name
 
 
 def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
-    ''' Check that we correctly identify an array reference that uses
+    ''' Check that an array reference that uses
     another array ref as index is identified as an array reference '''
     dag = dag_from_strings(["aprod = my_array(x(1,2))"])
     for node in dag._nodes.itervalues():
