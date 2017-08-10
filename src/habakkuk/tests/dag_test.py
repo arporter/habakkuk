@@ -834,6 +834,7 @@ def test_write_read_same_cache_line():
     dag = dag_from_strings(
         ["ze3wu = 2.0*pgzui(ji,jj)",
          "pgzui(ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu)",
+         "pgzui(ji,jj) = pgzui(ji,jj) * pgzui(ji,jj)",
          "pgx(ji,jj) = pgzui(ji,jj) + 1.0"])
     dag.to_dot()
     assert dag.cache_lines() == 3
