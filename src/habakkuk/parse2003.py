@@ -110,7 +110,6 @@ class Variable(object):
         variable - i.e.  including any array indexing '''
         return self._full_orig_name
 
-    # TODO decide on a name for this routine!
     @property
     def indexed_name(self):
         ''' Returns a string containing the original base name but with
