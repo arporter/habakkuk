@@ -158,6 +158,35 @@ def flop_count(nodes):
     return count
 
 
+def non_contig_access_count(array_refs):
+    ''' Counts the number of non-contiguous array access in the supplied
+    list. array_refs is a list of lists of DAGNodes. Each list of DAGNodes
+    describes the array-index expressions for a particular array access. '''
+    # Take a copy of the list of accesses so we don't modify the
+    # original
+    match_list = array_refs[:]
+    # Loop over all pairs of accesses and check whether
+    # they differ by only a constant. If they do then we
+    # delete the second of the pair as it is covered by the
+    # first access. Once we've finished doing this, the
+    # number of accesses remaing is the number of distinct
+    # cache-lines.
+    deleted_item = True
+    while deleted_item:
+        deleted_item = False
+        for idx, match1 in enumerate(match_list[:-1]):
+            for idx2, match2 in enumerate(match_list[idx+1:]):
+                if (match1 and match2) and \
+                   differ_by_constant(match1[0], match2[0]):
+                    # Delete the second item
+                    del match_list[idx2]
+                    deleted_item = True
+                    break
+            if deleted_item:
+                break
+    return len(match_list)
+
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -479,22 +508,30 @@ class DirectedAcyclicGraph(object):
                 # TODO include integer array refs in cache-line count
                 continue
 
-            if node.variable.name not in array_refs:
-                array_refs[node.variable.name] = []
+            # We want to count distinct array accesses without worrying
+            # about whether these are reads or writes. Therefore we remove
+            # any "'" chars from the variable name (each time an existing
+            # variable is written to we create a new node and append a
+            # "'" to its name)
+            array_name = node.variable.name.replace("'", "")
+            if array_name not in array_refs:
+                array_refs[array_name] = []
             # For each access to a given array we add a list of the
             # index-expressions...
             # array_index_nodes can contain None, e.g. if the corresponding
             # array index expression is ':'
-            array_refs[node.variable.name].append(node.array_index_nodes)
+            array_refs[array_name].append(node.array_index_nodes)
 
         # Loop over each array that has been accessed and examine the ways in
         # which it is accessed
         cline_count = 0
         for array in array_refs:
+
             if len(array_refs[array]) == 1:
                 # There's only one access to an array with this name
                 cline_count += 1
                 continue
+
             # We need to find the number of unique array accesses
             # We can construct a string representation of each index expression
             # for all indices > 1.
@@ -513,6 +550,13 @@ class DirectedAcyclicGraph(object):
                     access_hash.append(index_str)
                     index_exprns.add(index_str)
 
+                # If we only have one unique index expression then all of the
+                # accesses are the same and thus we only have one cache-line
+                # access
+                if len(index_exprns) == 1:
+                    cline_count += 1
+                    continue
+
                 # Now check the array accesses that we've found to match in
                 # all bar the first dimension
                 for index_str in index_exprns:
@@ -522,34 +566,13 @@ class DirectedAcyclicGraph(object):
                     for idx, access in enumerate(array_refs[array]):
                         if access_hash[idx] == index_str:
                             match_list.append(access)
-                    # We potentially have as many non-contiguous accesses
-                    # as we have items in the list
-                    count = len(match_list)
-                    # Loop over all pairs of such accesses. For every match
-                    # we reduce the number of non-contiguous accesses
-                    # by one...
-                    for idx, match1 in enumerate(match_list[:-1]):
-                        for match2 in match_list[idx+1:]:
-                            if differ_by_constant(match1[0], match2[0]):
-                                count -= 1
-                    cline_count += count
+                    # Count how many non-contiguous array accesses we
+                    # have in this list
+                    cline_count += non_contig_access_count(match_list)
             else:
-                # This is an array of rank 1 (1D). We potentially need
-                # as many cache lines as there are array accesses
-                count = len(array_refs[array])
-                # Compare each access to this array. For every one that
-                # is the same +/- a constant, we reduce the number of
-                # cache lines required by 1.
-                for idx, access1 in enumerate(array_refs[array][:-1]):
-                    for access2 in array_refs[array][idx+1:]:
-                        # If a full slice of an array is accessed (e.g.
-                        # my_array(:) then we don't have a node
-                        # describing the index expression.
-                        # TODO I think we should have such a node
-                        if (access1 and access2) and \
-                           differ_by_constant(access1[0], access2[0]):
-                            count -= 1
-                cline_count += count
+                # This is an array of rank 1 (1D). We need as many
+                # cache lines as there are non-contiguous array accesses
+                cline_count += non_contig_access_count(array_refs[array])
         return cline_count
 
     def calc_costs(self):
