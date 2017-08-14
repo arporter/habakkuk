@@ -178,7 +178,6 @@ def non_contig_access_count(array_refs):
             for idx2, match2 in enumerate(match_list[idx+1:]):
                 if (match1 and match2) and \
                    differ_by_constant(match1[0], match2[0]):
-                    print "Deleting {0} and {1}".format(match1[0], match2[0])
                     # Delete the second item
                     del match_list[idx2]
                     deleted_item = True
@@ -532,7 +531,7 @@ class DirectedAcyclicGraph(object):
                 # There's only one access to an array with this name
                 cline_count += 1
                 continue
-                    
+
             # We need to find the number of unique array accesses
             # We can construct a string representation of each index expression
             # for all indices > 1.
