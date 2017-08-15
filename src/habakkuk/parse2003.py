@@ -305,6 +305,7 @@ class Variable(object):
             array_index_vars = self._index_exprns[-1]
         elif isinstance(node.items[1], Fortran2003.Add_Operand):
             # Array index expression is something like "2*i"
+            self._index_exprns.append(str(node.items[1]).replace(" ", ""))
             array_index_vars = walk_ast(node.items[1].items,
                                         [Fortran2003.Name])
         elif isinstance(node.items[1], Fortran2003.Parenthesis):
