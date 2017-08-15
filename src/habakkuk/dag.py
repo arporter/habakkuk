@@ -165,24 +165,28 @@ def non_contig_access_count(array_refs):
     # Take a copy of the list of accesses so we don't modify the
     # original
     match_list = array_refs[:]
-    # Loop over all pairs of accesses and check whether
-    # they differ by only a constant. If they do then we
-    # delete the second of the pair as it is covered by the
-    # first access. Once we've finished doing this, the
-    # number of accesses remaing is the number of distinct
-    # cache-lines.
+    # Loop over all pairs of accesses and check whether they differ by
+    # only a constant. If they do then we delete the second of the
+    # pair as we assume it is covered by the cache line fetched for
+    # the first access.  Once we've finished doing this, the number of
+    # accesses remaing is the number of distinct cache-lines that must be
+    # fetched.
     deleted_item = True
     while deleted_item:
         deleted_item = False
         for idx, match1 in enumerate(match_list[:-1]):
-            for idx2, match2 in enumerate(match_list[idx+1:]):
-                if (match1 and match2) and \
-                   differ_by_constant(match1[0], match2[0]):
+            if not match1:
+                continue
+            for match2 in match_list[idx+1:]:
+                # We check that match1 and match2 are not None because they
+                # will be if the corresponding index expression is ":"
+                if match2 and differ_by_constant(match1[0], match2[0]):
                     # Delete the second item
-                    del match_list[idx2]
+                    match_list.remove(match2)
                     deleted_item = True
-                    break
             if deleted_item:
+                # We have deleted at least one item from the list so
+                # we need to break-out and go again with the new list
                 break
     return len(match_list)
 
@@ -511,8 +515,8 @@ class DirectedAcyclicGraph(object):
             # We want to count distinct array accesses without worrying
             # about whether these are reads or writes. Therefore we remove
             # any "'" chars from the variable name (each time an existing
-            # variable is written to we create a new node and append a
-            # "'" to its name)
+            # variable is written to we will have created a new node and
+            # appended a "'" to its name)
             array_name = node.variable.name.replace("'", "")
             if array_name not in array_refs:
                 array_refs[array_name] = []
@@ -573,6 +577,7 @@ class DirectedAcyclicGraph(object):
                 # This is an array of rank 1 (1D). We need as many
                 # cache lines as there are non-contiguous array accesses
                 cline_count += non_contig_access_count(array_refs[array])
+
         return cline_count
 
     def calc_costs(self):
