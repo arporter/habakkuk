@@ -141,6 +141,10 @@ class Variable(object):
             # This is a very simplistic piece of code intended to
             # process array index expressions of the form
             # ji+1-1+1. It ignores anything other than '+1' and '-1'.
+            if "*" in tok or "(" in tok or "/" in tok:
+                # Don't attempt to simplify anything containing other
+                # arithmetic operations or array look-ups
+                continue
             num_plus = tok.count("+1")
             num_minus = tok.count("-1")
             if num_plus > 0 or num_minus > 0:
