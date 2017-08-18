@@ -152,6 +152,51 @@ def test_differ_by_const():
     assert not differ_by_constant(node1, node2)
 
 
+def test_prune_constants():
+    ''' Check that dag.prune_constants() works correctly '''
+    import copy
+    from habakkuk.dag import prune_array_index_constants
+    dag = dag_from_strings(["b((1+map(i+1))+j, i) = 1.0",
+                            "b((1+map(i))+j, i) = 1.0",
+                            "b(1+2*(ji+2), i) = 1.0",
+                            "b(1+(map(i)+j)+1, i) = 1.0"])
+    node1 = dag._nodes["b(1+(map(i)+j)+1,i)"].producers[0]
+    node2 = dag._nodes["b((1+map(i))+j,i)"].producers[0]
+    # prune_constants() modifies the original tree so we take
+    # copies to play with (just as differ_by_constant() does)
+    new1 = copy.deepcopy(node1)
+    new2 = copy.deepcopy(node2)
+    # Sanity check that the initial tree is what we expect
+    constant_nodes = new1.walk(node_type="constant")
+    assert len(constant_nodes) == 2
+    root1 = prune_array_index_constants(new1)
+    root2 = prune_array_index_constants(new2)
+    assert root1.node_type == "+"
+    constant_nodes = root1.walk(node_type="constant")
+    assert not constant_nodes
+    assert root2.node_type == "+"
+    constant_nodes = root2.walk(node_type="constant")
+    assert not constant_nodes
+
+    # Check that we do not prune a constant when it is itself inside
+    # an array reference (i.e. we have an indirect memory access)
+    node3 = dag._nodes["b((1+map(i+1))+j,i)"].producers[0]
+    new3 = copy.deepcopy(node3)
+    root3 = prune_array_index_constants(new3)
+    constant_nodes = root3.walk(node_type="constant")
+    assert len(constant_nodes) == 1
+    map_ref = root3.walk(node_type="array_ref")
+    assert map_ref[0].name == "map(i+1)"
+
+    # Check that we don't prune a constant if it is not +/-
+    node4 = dag._nodes["b(1+2*(ji+2),i)"].producers[0]
+    new4 = copy.deepcopy(node4)
+    root4 = prune_array_index_constants(new4)
+    constant_nodes = root4.walk(node_type="constant")
+    assert len(constant_nodes) == 2
+    assert root4.node_type == "*"
+
+
 def test_dag_get_node_err():
     ''' Check that we raise expected error when calling get_node() without
     a name or a variable '''
@@ -926,6 +971,13 @@ def test_indirect_2darr_acc_same_cachelines():  # pylint: disable=invalid-name
     node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
     assert differ_by_constant(node1, node2)
     assert dag.cache_lines() == 4
+
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b((1+map(i))+j, i) + b(1+(map(i)+j)+1, i)"])
+    node1 = dag._nodes["b(1+(map(i)+j)+1,i)"].producers[0]
+    node2 = dag._nodes["b((1+map(i))+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
+    assert dag.cache_lines() == 3
 
 
 def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
