@@ -920,6 +920,13 @@ def test_indirect_2darr_acc_same_cachelines():  # pylint: disable=invalid-name
     assert differ_by_constant(node1, node2)
     assert dag.cache_lines() == 4
 
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i) + b(1+map(i)+j+1, i)"])
+    node1 = dag._nodes["b(1+map(i)+j+1,i)"].producers[0]
+    node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
+    assert dag.cache_lines() == 4
+
 
 def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
     ''' Check that an array reference that uses
