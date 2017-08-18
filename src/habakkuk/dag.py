@@ -60,10 +60,14 @@ def subgraph_matches(node1, node2):
     return matches
 
 
-def prune_constants(node):
+def prune_array_index_constants(node):
     ''' Prune sub-graphs representing "+/- constant" from the tree with
-    node at its root. Returns the (potentially) new root node of the
-    expression. '''
+    node at its root. Takes the root node of an array-index expression as
+    argument and returns the (potentially) new root node of the
+    expression. Since we are dealing with array-index expressions, any
+    array references we encounter are not modified. i.e. if we have the
+    expression "ji+1+map(ji+1)" then this routine will produce
+    "ji+map(ji+1)". '''
 
     if node.node_type not in ["+", "-"]:
         return node
@@ -82,7 +86,7 @@ def prune_constants(node):
         # root node unchanged because we've not changed the tree at this
         # level.
         for child in node._producers:
-            prune_constants(child)
+            prune_array_index_constants(child)
         return node
     else:
         # One of the children was a Constant so we have
@@ -104,10 +108,9 @@ def prune_constants(node):
         # Finally, delete 'node'
         del node
         # Recurse on down the tree to find any other constants
-        prune_constants(non_constant_node)
         # Since we've deleted 'node', we return the non-constant node
         # as the new root of the tree
-        return non_constant_node
+        return prune_array_index_constants(non_constant_node)
 
 
 def differ_by_constant(node1, node2):
@@ -144,8 +147,8 @@ def differ_by_constant(node1, node2):
     node1_copy = copy.deepcopy(node1)
     node2_copy = copy.deepcopy(node2)
     # Pruning may change the root node of the tree
-    new_root1 = prune_constants(node1_copy)
-    new_root2 = prune_constants(node2_copy)
+    new_root1 = prune_array_index_constants(node1_copy)
+    new_root2 = prune_array_index_constants(node2_copy)
     return subgraph_matches(new_root1, new_root2)
 
 
