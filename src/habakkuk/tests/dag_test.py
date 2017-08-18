@@ -127,8 +127,6 @@ def test_critical_path_length():
     assert "aprod(i+1)" in node_names
 
 
-@pytest.mark.xfail(reason="Bugs in handling sub-expressions within "
-                   "array-index expressions, #40")
 def test_differ_by_const():
     ''' Check that differ_by_constant() works correctly for expressions
     involving array accesses '''
@@ -149,11 +147,8 @@ def test_differ_by_const():
     assert differ_by_constant(node1, node2)
 
     dag = dag_from_strings(["var(map(i+1)) = 2.0", "var(map(i)+1) = 3.0"])
-    print dag._nodes
-    dag.to_dot()
-    node1 = dag._nodes["map(i+1)"]
+    node1 = dag._nodes["var(map(i+1))"].producers[0]
     node2 = dag._nodes["var(map(i)+1)"].producers[0]
-    print str(node1), str(node2)
     assert not differ_by_constant(node1, node2)
 
 
@@ -886,13 +881,15 @@ def test_indirect_1darr_acc_diff_cachelines():  # pylint: disable=invalid-name
     assert dag.cache_lines() == 3
 
 
-@pytest.mark.xfail(reason="Bugs in handling sub-expressions within "
-                   "array-index expressions, #40")
 def test_indirect_1darr_write_read():  # pylint: disable=invalid-name
     ''' Check that we correctly identify two indirect array accesses as
     (probably) belonging to two different cache lines and that we don't
     double-count accesses due to writing/reading from the same location '''
+    from habakkuk.dag import differ_by_constant
     dag = dag_from_strings(["b(map(i)+j) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
+    node1 = dag._nodes["b(map(i)+j)"].producers[0]
+    node2 = dag._nodes["b(map(i+1)+j)"].producers[0]
+    assert not differ_by_constant(node1, node2)
     assert dag.cache_lines() == 2
 
 
@@ -908,8 +905,19 @@ def test_indirect_2darr_acc_same_cachelines():  # pylint: disable=invalid-name
     ''' Check that we identify two indirect array accesses that differ only
     by a constant (in the first index) as (probably) belonging to the same
     cache line '''
+    from habakkuk.dag import differ_by_constant
     dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
                             "b(map(i+1)+j, i) + b(map(i)+j+1, i)"])
+    node1 = dag._nodes["b(map(i)+j+1,i)"].producers[0]
+    node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
+    assert dag.cache_lines() == 4
+
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i) + b(1+map(i)+j, i)"])
+    node1 = dag._nodes["b(1+map(i)+j,i)"].producers[0]
+    node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
     assert dag.cache_lines() == 4
 
 
@@ -917,6 +925,14 @@ def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
     ''' Check that an array reference that uses
     another array ref as index is identified as an array reference '''
     dag = dag_from_strings(["aprod = my_array(x(1,2))"])
+    for node in dag._nodes.itervalues():
+        if "my_array" in node.name:
+            assert node.node_type == "array_ref"
+    dag = dag_from_strings(["aprod = my_array(x(i,j))"])
+    for node in dag._nodes.itervalues():
+        if "my_array" in node.name:
+            assert node.node_type == "array_ref"
+    dag = dag_from_strings(["aprod = my_array(x(i,j)+1)"])
     for node in dag._nodes.itervalues():
         if "my_array" in node.name:
             assert node.node_type == "array_ref"
