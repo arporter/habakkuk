@@ -115,7 +115,8 @@ def prune_array_index_constants(node):
 
 def differ_by_constant(node1, node2):
     ''' Returns True if the two expressions represented by node1 and node2
-    differ only by a numerical constant. '''
+    are identical or differ only by the addition/subtraction of a numerical
+    constant. '''
 
     # Are the two expressions identical?
     if subgraph_matches(node1, node2):

@@ -135,6 +135,11 @@ def test_differ_by_const():
     node1 = dag._nodes["var(i)"].producers[0]
     node2 = dag._nodes["var(i+1)"].producers[0]
     assert differ_by_constant(node1, node2)
+    
+    dag = dag_from_strings(["var(i) = 2.0", "var(j) = 3.0"])
+    node1 = dag._nodes["var(i)"].producers[0]
+    node2 = dag._nodes["var(j)"].producers[0]
+    assert not differ_by_constant(node1, node2)
 
     dag = dag_from_strings(["var(i) = 2.0", "var(i*2) = 3.0"])
     node1 = dag._nodes["var(i)"].producers[0]
