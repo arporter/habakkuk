@@ -135,7 +135,7 @@ def test_differ_by_const():
     node1 = dag._nodes["var(i)"].producers[0]
     node2 = dag._nodes["var(i+1)"].producers[0]
     assert differ_by_constant(node1, node2)
-    
+
     dag = dag_from_strings(["var(i) = 2.0", "var(j) = 3.0"])
     node1 = dag._nodes["var(i)"].producers[0]
     node2 = dag._nodes["var(j)"].producers[0]
@@ -993,13 +993,11 @@ def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
         if "my_array" in node.name:
             assert node.node_type == "array_ref"
     dag = dag_from_strings(["aprod = my_array(x(i,j))"])
-    for node in dag._nodes.itervalues():
-        if "my_array" in node.name:
-            assert node.node_type == "array_ref"
+    node = dag._nodes["my_array(x(i,j))"]
+    assert node.node_type == "array_ref"
     dag = dag_from_strings(["aprod = my_array(x(i,j)+1)"])
-    for node in dag._nodes.itervalues():
-        if "my_array" in node.name:
-            assert node.node_type == "array_ref"
+    node = dag._nodes["my_array(x(i,j)+1)"]
+    assert node.node_type == "array_ref"
 
 
 def test_fn_call_contains_array_slice():  # pylint: disable=invalid-name
