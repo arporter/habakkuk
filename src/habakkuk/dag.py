@@ -70,12 +70,14 @@ def prune_array_index_constants(node):
     "ji+map(ji+1)". '''
 
     if node.node_type not in ["+", "-"]:
+        # If the root node (which is the operator if there is one) is not
+        # +/- then we can't prune any constants
         return node
 
     # Check to see whether any of the children of this node are Constants
     constant_node = None
     non_constant_node = None
-    for child in node._producers:
+    for child in node.producers:
         if child.node_type == "constant":
             constant_node = child
         else:
@@ -85,7 +87,7 @@ def prune_array_index_constants(node):
         # No constants at this level so recurse down. We can return the
         # root node unchanged because we've not changed the tree at this
         # level.
-        for child in node._producers:
+        for child in node.producers:
             prune_array_index_constants(child)
         return node
     else:
