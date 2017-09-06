@@ -141,6 +141,10 @@ class Variable(object):
             # This is a very simplistic piece of code intended to
             # process array index expressions of the form
             # ji+1-1+1. It ignores anything other than '+1' and '-1'.
+            if "*" in tok or "(" in tok or "/" in tok:
+                # Don't attempt to simplify anything containing other
+                # arithmetic operations or array look-ups
+                continue
             num_plus = tok.count("+1")
             num_minus = tok.count("-1")
             if num_plus > 0 or num_minus > 0:
@@ -305,6 +309,7 @@ class Variable(object):
             array_index_vars = self._index_exprns[-1]
         elif isinstance(node.items[1], Fortran2003.Add_Operand):
             # Array index expression is something like "2*i"
+            self._index_exprns.append(str(node.items[1]).replace(" ", ""))
             array_index_vars = walk_ast(node.items[1].items,
                                         [Fortran2003.Name])
         elif isinstance(node.items[1], Fortran2003.Parenthesis):

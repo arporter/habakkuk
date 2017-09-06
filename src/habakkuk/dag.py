@@ -60,9 +60,65 @@ def subgraph_matches(node1, node2):
     return matches
 
 
+def prune_array_index_constants(node):
+    ''' Prune sub-graphs representing "+/- constant" from the tree with
+    node at its root. Takes the root node of an array-index expression as
+    argument and returns the (potentially) new root node of the
+    expression. Since we are dealing with array-index expressions, any
+    array references we encounter are not modified. i.e. if we have the
+    expression "ji+1+map(ji+1)" then this routine will produce
+    "ji+map(ji+1)". '''
+
+    if node.node_type not in ["+", "-"]:
+        # If the root node (which is the operator if there is one) is not
+        # +/- then we can't prune any constants
+        return node
+
+    # Check to see whether any of the children of this node are Constants
+    constant_node = None
+    non_constant_node = None
+    for child in node.producers:
+        if child.node_type == "constant":
+            constant_node = child
+        else:
+            non_constant_node = child
+
+    if not constant_node:
+        # No constants at this level so recurse down. We can return the
+        # root node unchanged because we've not changed the tree at this
+        # level.
+        for child in node.producers:
+            prune_array_index_constants(child)
+        return node
+    else:
+        # One of the children was a Constant so we have
+        # "something +/- constant" so we can remove the
+        # "+/- constant" bit: we replace the '+/-' node in the tree with
+        #  the "something" node
+        non_constant_node.rm_consumer(node)
+        constant_node.rm_consumer(node)
+        if not constant_node.has_consumer:
+            # This constant node is not used by any other nodes so we
+            # can delete it altogether
+            del constant_node
+        # Make all the nodes that used to depend on 'node' now depend on
+        # the 'non constant' node
+        for consumer in node.consumers:
+            consumer.rm_producer(node)
+            consumer.add_producer(non_constant_node)
+            non_constant_node.add_consumer(consumer)
+        # Finally, delete 'node'
+        del node
+        # Recurse on down the tree to find any other constants
+        # Since we've deleted 'node', we return the non-constant node
+        # as the new root of the tree
+        return prune_array_index_constants(non_constant_node)
+
+
 def differ_by_constant(node1, node2):
     ''' Returns True if the two expressions represented by node1 and node2
-    differ only by a numerical constant. '''
+    are identical or differ only by the addition/subtraction of a numerical
+    constant. '''
 
     # Are the two expressions identical?
     if subgraph_matches(node1, node2):
@@ -86,46 +142,17 @@ def differ_by_constant(node1, node2):
     if not (node1_is_pm or node2_is_pm):
         return False
 
-    if node1_is_pm and node2_is_pm:
-        #  node1=="+" and node2=="-" (e.g. "ji + 1" and "ji - 1")
-        #    Both sets of producers must contain a Constant and the producer
-        #    that is not a Constant must be the same for both nodes
-        found = False
-        for node in node1.producers:
-            if node.node_type == "constant":
-                found = True
-            else:
-                non_constant1 = node
-        if not found:
-            return False
-        found = False
-        for node in node2.producers:
-            if node.node_type == "constant":
-                found = True
-            else:
-                non_constant2 = node
-        if not found:
-            return False
-
-    else:
-        #  node{1,2}=="+-" and node{2,1}==var (e.g. "ji + 1" and "ji")
-        #    The node that is an operator must have one producer that is a
-        #    Constant and the other producer must match the other node.
-        if node1_is_pm:
-            producers = node1.producers
-            non_constant1 = node2
-        else:
-            producers = node2.producers
-            non_constant1 = node1
-        found = False
-        for node in producers:
-            if node.node_type == "constant":
-                found = True
-            else:
-                non_constant2 = node
-        if not found:
-            return False
-    return subgraph_matches(non_constant1, non_constant2)
+    # All simple checks have passed. We now process the trees representing
+    # each expression and remove any "+/- constant" branches. The resulting
+    # trees are then compared.
+    import copy
+    # Since we will modify the trees we must take copies before pruning
+    node1_copy = copy.deepcopy(node1)
+    node2_copy = copy.deepcopy(node2)
+    # Pruning may change the root node of the tree
+    new_root1 = prune_array_index_constants(node1_copy)
+    new_root2 = prune_array_index_constants(node2_copy)
+    return subgraph_matches(new_root1, new_root2)
 
 
 def ready_ops_from_list(nodes):
@@ -165,24 +192,28 @@ def non_contig_access_count(array_refs):
     # Take a copy of the list of accesses so we don't modify the
     # original
     match_list = array_refs[:]
-    # Loop over all pairs of accesses and check whether
-    # they differ by only a constant. If they do then we
-    # delete the second of the pair as it is covered by the
-    # first access. Once we've finished doing this, the
-    # number of accesses remaing is the number of distinct
-    # cache-lines.
+    # Loop over all pairs of accesses and check whether they differ by
+    # only a constant. If they do then we delete the second of the
+    # pair as we assume it is covered by the cache line fetched for
+    # the first access.  Once we've finished doing this, the number of
+    # accesses remaing is the number of distinct cache-lines that must be
+    # fetched.
     deleted_item = True
     while deleted_item:
         deleted_item = False
         for idx, match1 in enumerate(match_list[:-1]):
-            for idx2, match2 in enumerate(match_list[idx+1:]):
-                if (match1 and match2) and \
-                   differ_by_constant(match1[0], match2[0]):
+            if not match1:
+                continue
+            for match2 in match_list[idx+1:]:
+                # We check that match1 and match2 are not None because they
+                # will be if the corresponding index expression is ":"
+                if match2 and differ_by_constant(match1[0], match2[0]):
                     # Delete the second item
-                    del match_list[idx2]
+                    match_list.remove(match2)
                     deleted_item = True
-                    break
             if deleted_item:
+                # We have deleted at least one item from the list so
+                # we need to break-out and go again with the new list
                 break
     return len(match_list)
 
@@ -511,8 +542,8 @@ class DirectedAcyclicGraph(object):
             # We want to count distinct array accesses without worrying
             # about whether these are reads or writes. Therefore we remove
             # any "'" chars from the variable name (each time an existing
-            # variable is written to we create a new node and append a
-            # "'" to its name)
+            # variable is written to we will have created a new node and
+            # appended a "'" to its name)
             array_name = node.variable.name.replace("'", "")
             if array_name not in array_refs:
                 array_refs[array_name] = []
@@ -573,6 +604,7 @@ class DirectedAcyclicGraph(object):
                 # This is an array of rank 1 (1D). We need as many
                 # cache lines as there are non-contiguous array accesses
                 cline_count += non_contig_access_count(array_refs[array])
+
         return cline_count
 
     def calc_costs(self):

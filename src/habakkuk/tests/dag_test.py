@@ -127,8 +127,6 @@ def test_critical_path_length():
     assert "aprod(i+1)" in node_names
 
 
-@pytest.mark.xfail(reason="Bugs in handling sub-expressions within "
-                   "array-index expressions, #40")
 def test_differ_by_const():
     ''' Check that differ_by_constant() works correctly for expressions
     involving array accesses '''
@@ -137,6 +135,11 @@ def test_differ_by_const():
     node1 = dag._nodes["var(i)"].producers[0]
     node2 = dag._nodes["var(i+1)"].producers[0]
     assert differ_by_constant(node1, node2)
+
+    dag = dag_from_strings(["var(i) = 2.0", "var(j) = 3.0"])
+    node1 = dag._nodes["var(i)"].producers[0]
+    node2 = dag._nodes["var(j)"].producers[0]
+    assert not differ_by_constant(node1, node2)
 
     dag = dag_from_strings(["var(i) = 2.0", "var(i*2) = 3.0"])
     node1 = dag._nodes["var(i)"].producers[0]
@@ -149,12 +152,54 @@ def test_differ_by_const():
     assert differ_by_constant(node1, node2)
 
     dag = dag_from_strings(["var(map(i+1)) = 2.0", "var(map(i)+1) = 3.0"])
-    print dag._nodes
-    dag.to_dot()
-    node1 = dag._nodes["map(i+1)"]
+    node1 = dag._nodes["var(map(i+1))"].producers[0]
     node2 = dag._nodes["var(map(i)+1)"].producers[0]
-    print str(node1), str(node2)
     assert not differ_by_constant(node1, node2)
+
+
+def test_prune_constants():
+    ''' Check that dag.prune_constants() works correctly '''
+    import copy
+    from habakkuk.dag import prune_array_index_constants
+    dag = dag_from_strings(["b((1+map(i+1))+j, i) = 1.0",
+                            "b((1+map(i))+j, i) = 1.0",
+                            "b(1+2*(ji+2), i) = 1.0",
+                            "b(1+(map(i)+j)+1, i) = 1.0"])
+    node1 = dag._nodes["b(1+(map(i)+j)+1,i)"].producers[0]
+    node2 = dag._nodes["b((1+map(i))+j,i)"].producers[0]
+    # prune_constants() modifies the original tree so we take
+    # copies to play with (just as differ_by_constant() does)
+    new1 = copy.deepcopy(node1)
+    new2 = copy.deepcopy(node2)
+    # Sanity check that the initial tree is what we expect
+    constant_nodes = new1.walk(node_type="constant")
+    assert len(constant_nodes) == 2
+    root1 = prune_array_index_constants(new1)
+    root2 = prune_array_index_constants(new2)
+    assert root1.node_type == "+"
+    constant_nodes = root1.walk(node_type="constant")
+    assert not constant_nodes
+    assert root2.node_type == "+"
+    constant_nodes = root2.walk(node_type="constant")
+    assert not constant_nodes
+
+    # Check that we do not prune a constant when it is itself inside
+    # an array reference (i.e. we have an indirect memory access)
+    node3 = dag._nodes["b((1+map(i+1))+j,i)"].producers[0]
+    new3 = copy.deepcopy(node3)
+    root3 = prune_array_index_constants(new3)
+    constant_nodes = root3.walk(node_type="constant")
+    assert len(constant_nodes) == 1
+    map_ref = root3.walk(node_type="array_ref")
+    assert map_ref[0].name == "map(i+1)"
+
+    # Check that we don't prune a constant if it is not +/-
+    node4 = dag._nodes["b(1+2*(ji+2),i)"].producers[0]
+    new4 = copy.deepcopy(node4)
+    root4 = prune_array_index_constants(new4)
+    constant_nodes = root4.walk(node_type="constant")
+    assert len(constant_nodes) == 2
+    assert root4.node_type == "*"
 
 
 def test_dag_get_node_err():
@@ -886,13 +931,15 @@ def test_indirect_1darr_acc_diff_cachelines():  # pylint: disable=invalid-name
     assert dag.cache_lines() == 3
 
 
-@pytest.mark.xfail(reason="Bugs in handling sub-expressions within "
-                   "array-index expressions, #40")
 def test_indirect_1darr_write_read():  # pylint: disable=invalid-name
     ''' Check that we correctly identify two indirect array accesses as
     (probably) belonging to two different cache lines and that we don't
     double-count accesses due to writing/reading from the same location '''
+    from habakkuk.dag import differ_by_constant
     dag = dag_from_strings(["b(map(i)+j) = 2.0 * b(map(i)+j) * b(map(i+1)+j)"])
+    node1 = dag._nodes["b(map(i)+j)"].producers[0]
+    node2 = dag._nodes["b(map(i+1)+j)"].producers[0]
+    assert not differ_by_constant(node1, node2)
     assert dag.cache_lines() == 2
 
 
@@ -908,9 +955,34 @@ def test_indirect_2darr_acc_same_cachelines():  # pylint: disable=invalid-name
     ''' Check that we identify two indirect array accesses that differ only
     by a constant (in the first index) as (probably) belonging to the same
     cache line '''
+    from habakkuk.dag import differ_by_constant
     dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
                             "b(map(i+1)+j, i) + b(map(i)+j+1, i)"])
+    node1 = dag._nodes["b(map(i)+j+1,i)"].producers[0]
+    node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
     assert dag.cache_lines() == 4
+
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i) + b(1+map(i)+j, i)"])
+    node1 = dag._nodes["b(1+map(i)+j,i)"].producers[0]
+    node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
+    assert dag.cache_lines() == 4
+
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b(map(i+1)+j, i) + b(1+map(i)+j+1, i)"])
+    node1 = dag._nodes["b(1+map(i)+j+1,i)"].producers[0]
+    node2 = dag._nodes["b(map(i)+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
+    assert dag.cache_lines() == 4
+
+    dag = dag_from_strings(["a(i) = b(map(i)+j,k) * b(map(i)+j, i) * "
+                            "b((1+map(i))+j, i) + b(1+(map(i)+j)+1, i)"])
+    node1 = dag._nodes["b(1+(map(i)+j)+1,i)"].producers[0]
+    node2 = dag._nodes["b((1+map(i))+j,i)"].producers[0]
+    assert differ_by_constant(node1, node2)
+    assert dag.cache_lines() == 3
 
 
 def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
@@ -920,6 +992,12 @@ def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
     for node in dag._nodes.itervalues():
         if "my_array" in node.name:
             assert node.node_type == "array_ref"
+    dag = dag_from_strings(["aprod = my_array(x(i,j))"])
+    node = dag._nodes["my_array(x(i,j))"]
+    assert node.node_type == "array_ref"
+    dag = dag_from_strings(["aprod = my_array(x(i,j)+1)"])
+    node = dag._nodes["my_array(x(i,j)+1)"]
+    assert node.node_type == "array_ref"
 
 
 def test_fn_call_contains_array_slice():  # pylint: disable=invalid-name
