@@ -4,6 +4,7 @@ python:
 # command to install dependencies
 before_install:
   - pip install coveralls
+  - pip install codecov
 install:
   - "pip install ."
 script:
@@ -11,6 +12,7 @@ script:
   - coverage report -m
 after_success:
   - coveralls
+  - codecov --token=661f771e-2823-4a07-85ad-4db4516ba4f3
 # Configure travis to deploy to the pypi server when a new
 # version is tagged on master
 deploy:
