@@ -61,7 +61,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 def dag_of_files(options, args):
     ''' Parses the files listed in args and generates a DAG for all of
     the subroutines/inner loops that it finds '''
-    from fparser.api import Fortran2003
+    from fparser import Fortran2003
     from fparser.readfortran import FortranFileReader
     from fparser.Fortran2003 import Main_Program, Program_Stmt, \
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
