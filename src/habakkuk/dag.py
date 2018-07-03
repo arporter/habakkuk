@@ -1,8 +1,44 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2016-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
 ''' This module provides support for the construction of a Directed
     Acyclic Graph. '''
 
-from fparser import Fortran2003
+from __future__ import absolute_import, print_function
+
+from fparser.two import Fortran2003
 from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
 # the type of CPU to be changed
@@ -1075,7 +1111,7 @@ class DirectedAcyclicGraph(object):
             self._critical_path.to_dot(outfile)
 
         outfile.write("}\n")
-        print "Wrote DAG to {0}".format(outfile.name)
+        print("Wrote DAG to {0}".format(outfile.name))
         outfile.close()
 
     def report(self):
@@ -1089,25 +1125,25 @@ class DirectedAcyclicGraph(object):
         num_cache_ref = self.cache_lines()
         total_cycles = self.total_cost()
         total_flops = flop_count(self._nodes)
-        print "Stats for DAG {0}:".format(self._name)
-        print "  {0} addition operators.".format(op_count["+"])
-        print "  {0} subtraction operators.".format(op_count["-"])
-        print "  {0} multiplication operators.".format(op_count["*"])
-        print "  {0} division operators.".format(op_count["/"])
+        print("Stats for DAG {0}:".format(self._name))
+        print("  {0} addition operators.".format(op_count["+"]))
+        print("  {0} subtraction operators.".format(op_count["-"]))
+        print("  {0} multiplication operators.".format(op_count["*"]))
+        print("  {0} division operators.".format(op_count["/"]))
         if "FMA" in op_count:
-            print "  {0} fused multiply-adds.".format(op_count["FMA"])
-        print "  {0} FLOPs in total.".format(total_flops)
-        print "  {0} array references.".format(num_ref)
-        print "  {0} distinct cache-line references.".\
-            format(num_cache_ref)
+            print("  {0} fused multiply-adds.".format(op_count["FMA"]))
+        print("  {0} FLOPs in total.".format(total_flops))
+        print("  {0} array references.".format(num_ref))
+        print("  {0} distinct cache-line references.".
+              format(num_cache_ref))
 
         if num_cache_ref > 0:
             flop_per_byte = total_flops / (num_cache_ref*8.0)
             # This is naive because all FLOPs are not equal - a division
             # costs ~10-40x as much as an addition.
-            print "  Naive FLOPs/byte = {:.3f}".format(flop_per_byte)
+            print("  Naive FLOPs/byte = {:.3f}".format(flop_per_byte))
         else:
-            print "  Did not find any array/memory references"
+            print("  Did not find any array/memory references")
 
         # Execution of the DAG requires that num_cache_ref cache lines
         # be fetched from (somewhere in) the memory
@@ -1120,19 +1156,19 @@ class DirectedAcyclicGraph(object):
         # since it ignores all Instruction-Level Parallelism apart from
         # FMAs (if the DAG contains any)...
         if total_cycles <= 0:
-            print "  DAG contains no FLOPs so skipping performance estimate."
+            print("  DAG contains no FLOPs so skipping performance estimate.")
             return
 
         min_flops_per_hz = float(total_flops)/float(total_cycles)
-        print "  Whole DAG in serial:"
-        print "    Sum of cost of all nodes = {0} (cycles)".\
-            format(total_cycles)
-        print "    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
-            format(total_flops, total_cycles, min_flops_per_hz)
+        print("  Whole DAG in serial:")
+        print("    Sum of cost of all nodes = {0} (cycles)".
+              format(total_cycles))
+        print("    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".
+            format(total_flops, total_cycles, min_flops_per_hz))
         if num_cache_ref:
             min_mem_bw = float(mem_traffic_bytes) / float(total_cycles)
-            print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
-                   "bytes/s".format(min_mem_bw))
+            print("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                  "bytes/s".format(min_mem_bw))
 
         # Performance estimate using critical path - this is an upper
         # bound (assumes all other parts of the graph can somehow be
@@ -1142,14 +1178,14 @@ class DirectedAcyclicGraph(object):
         if self._critical_path:
             ncycles = self._critical_path.cycles()
         else:
-            print "No FLOPS found so have no critical path"
+            print("No FLOPS found so have no critical path")
             ncycles = 0
             max_mem_bw = 0
             max_flops_per_hz = 0
 
         if ncycles > 0:
-            print "  Everything in parallel to Critical path:"
-            print ("    Critical path contains {0} nodes, {1} FLOPs and "
+            print("  Everything in parallel to Critical path:")
+            print("    Critical path contains {0} nodes, {1} FLOPs and "
                    "is {2} cycles long".format(
                        len(self._critical_path),
                        flop_count(self._critical_path.nodes),
@@ -1160,30 +1196,30 @@ class DirectedAcyclicGraph(object):
             # path.cycles()*1/CLOCK_SPEED (s).
             # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
             max_flops_per_hz = float(total_flops)/float(ncycles)
-            print ("    FLOPS (ignoring memory accesses) = "
-                   "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
+            print("    FLOPS (ignoring memory accesses) = "
+                  "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
 
         if num_cache_ref and ncycles:
             # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
             max_mem_bw = float(mem_traffic_bytes) / float(ncycles)
-            print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
-                   "bytes/s".format(max_mem_bw))
+            print("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                  "bytes/s".format(max_mem_bw))
 
         # Construct a schedule for the execution of the nodes in the DAG,
         # allowing for the microarchitecture of the chosen CPU
         # TODO currently this is picked up from config_ivy_bridge.py
         cost = self.schedule().cost
-        print "  Estimate using computed schedule:"
-        print "    Cost of schedule as a whole = {0} cycles".format(cost)
+        print("  Estimate using computed schedule:")
+        print("    Cost of schedule as a whole = {0} cycles".format(cost))
         if self._schedule.nsteps:
             sched_flops_per_hz = float(total_flops)/float(cost)
-            print ("    FLOPS from schedule (ignoring memory accesses) = "
-                   "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
+            print("    FLOPS from schedule (ignoring memory accesses) = "
+                  "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
             if num_cache_ref:
                 # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
                 sched_mem_bw = float(mem_traffic_bytes) / float(cost)
-                print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
-                       "bytes/s".format(sched_mem_bw))
+                print("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                      "bytes/s".format(sched_mem_bw))
         else:
             sched_flops_per_hz = 0
 
@@ -1217,30 +1253,30 @@ class DirectedAcyclicGraph(object):
         else:
             perfect_sched_mem_bw = 0
 
-        print "  Estimate using perfect schedule:"
-        print ("    Cost if all ops on different execution ports are "
-               "perfectly overlapped = {0} cycles".format(net_cost))
+        print("  Estimate using perfect schedule:")
+        print("    Cost if all ops on different execution ports are "
+              "perfectly overlapped = {0} cycles".format(net_cost))
 
         # Print out example performance figures using the clock speed
         # in EXAMPLE_CLOCK_GHZ
-        print ("  e.g. at {0} GHz, these different estimates give (GFLOPS): ".
-               format(EXAMPLE_CLOCK_GHZ))
-        print (
+        print("  e.g. at {0} GHz, these different estimates give (GFLOPS): ".
+              format(EXAMPLE_CLOCK_GHZ))
+        print(
             "  No ILP  |  Computed Schedule  |  Perfect Schedule | "
             "Critical path")
-        print ("  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       "
-               "|   {3:5.2f}".
-               format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                      sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                      perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                      max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
+        print("  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       "
+              "|   {3:5.2f}".
+              format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                     sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                     perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                     max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
         if num_cache_ref:
-            print (" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
-                   "GB/s".format(
-                       min_mem_bw*EXAMPLE_CLOCK_GHZ,
-                       sched_mem_bw*EXAMPLE_CLOCK_GHZ,
-                       perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
-                       max_mem_bw*EXAMPLE_CLOCK_GHZ))
+            print(" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
+                  "GB/s".format(
+                      min_mem_bw*EXAMPLE_CLOCK_GHZ,
+                      sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                      perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                      max_mem_bw*EXAMPLE_CLOCK_GHZ))
 
     def verify_acyclic(self):
         ''' Check that the graph is acyclic. If it isn't then something

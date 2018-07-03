@@ -1,18 +1,52 @@
 #!/usr/bin/env python
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2016-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
 ''' A python script to parse a Fortran source file and produce a DAG
     for each subroutine it contains. '''
 
+from __future__ import absolute_import, print_function
+
 from habakkuk.dag import DirectedAcyclicGraph
 from habakkuk.parse2003 import walk_ast
-
-from fparser.script_options import set_f2003_options
 
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
-    from fparser.Fortran2003 import Assignment_Stmt
+    from fparser.two.Fortran2003 import Assignment_Stmt
 
     # Create a new DAG object
     digraph = DirectedAcyclicGraph(name)
@@ -37,8 +71,8 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     if not assignments:
         # If this subroutine has no assignment statements
         # then we skip it
-        print "Code {0} contains no assignment statements - skipping".\
-            format(name)
+        print("Code {0} contains no assignment statements - skipping".
+              format(name))
         return None
 
     if loop:
@@ -61,9 +95,9 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 def dag_of_files(options, args):
     ''' Parses the files listed in args and generates a DAG for all of
     the subroutines/inner loops that it finds '''
-    from fparser import Fortran2003
-    from fparser.readfortran import FortranFileReader
-    from fparser.Fortran2003 import Main_Program, Program_Stmt, \
+    from fparser.two import Fortran2003
+    from fparser.common.readfortran import FortranFileReader
+    from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
         Name
@@ -76,7 +110,7 @@ def dag_of_files(options, args):
     show_weights = options.show_weights
 
     for filename in args:
-        print "Habakkuk processing file '{0}'".format(filename)
+        print("Habakkuk processing file '{0}'".format(filename))
         reader = FortranFileReader(filename)
         if options.mode != 'auto':
             reader.set_mode_from_str(options.mode)
@@ -188,29 +222,42 @@ def dag_of_files(options, args):
                             digraph.to_dot()
                             digraph.report()
                         else:
-                            print "No opportunities to fuse multiply-adds"
+                            print("No opportunities to fuse multiply-adds")
 
         except Fortran2003.NoMatchError:
             # TODO log this error
-            print "Parsing '{0}' (starting at {1}) failed at {2}. "\
-                "Is the file valid Fortran?".\
-                format(filename, reader.fifo_item[0], reader.fifo_item[-1])
+            print("Parsing '{0}' (starting at {1}) failed at {2}. "
+                  "Is the file valid Fortran?".
+                  format(filename, reader.fifo_item[0], reader.fifo_item[-1]))
             # Carry on to next file
             continue
 
 
 def runner(argv):
-    ''' The top-level routine that runs Habakkuk. Parses the command-line
-    arguments passed in to this routine. '''
+    '''
+    The top-level routine that runs Habakkuk. Parses the command-line
+    arguments passed in to this routine.
+
+    :param list argv: List of command-line arguments.
+    '''
     import os
     # TODO swap to using argparse since optparse is deprecated
     # This requires fparser be updated first (see #26)
-    from optparse import OptionParser
+    from optparse import OptionParser, OptionGroup
     # from argparse import ArgumentParser
     # parser = ArgumentParser(description=
     #                         "Estimate performance of Fortran code")
     parser = OptionParser()
-    set_f2003_options(parser)
+    parser.set_usage("%prog [options] <Fortran file(s)>")
+
+    group = OptionGroup(parser, 'Fortran code options',
+                        description='Specify information about Fortran codes.')
+    group.add_option('--mode',
+                      default='auto',
+                      choices=['auto', 'free', 'fix', 'f77', 'pyf'],
+                      help='Specify Fortran code mode. Default: %default.')
+    parser.add_option_group(group)
+
     parser.add_option("--no-prune",
                       help="Do not attempt to prune duplicate operations "
                       "from the graph",
