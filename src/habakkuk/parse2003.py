@@ -1,5 +1,42 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2016-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
+
 ''' Module containing classes related to parsing Fortran code using
     the f2003 parser '''
+
+from __future__ import absolute_import, print_function
 
 
 def walk_ast(children, my_types, indent=0, debug=False):
@@ -9,7 +46,7 @@ def walk_ast(children, my_types, indent=0, debug=False):
     local_list = []
     for child in children:
         if debug:
-            print indent*"  " + "child type = ", type(child)
+            print(indent*"  " + "child type = ", type(child))
         if type(child) in my_types:
             local_list.append(child)
 
@@ -21,6 +58,8 @@ def walk_ast(children, my_types, indent=0, debug=False):
             local_list += walk_ast(child.content, my_types, indent+1, debug)
         elif hasattr(child, "items"):
             local_list += walk_ast(child.items, my_types, indent+1, debug)
+        elif isinstance(child, tuple):
+            local_list += walk_ast(list(child), my_types, indent+1, debug)
 
     return local_list
 
@@ -53,7 +92,7 @@ class Loop(object):
     def load(self, parsed_loop):
         ''' Takes the supplied loop object produced by the f2003 parser
         and extracts relevant information from it to populate this object '''
-        from fparser.Fortran2003 import Nonlabel_Do_Stmt, Name
+        from fparser.two.Fortran2003 import Nonlabel_Do_Stmt, Name
         for node in parsed_loop.content:
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk_ast(node.items, [Name])
@@ -170,7 +209,7 @@ class Variable(object):
         output of the f2003 parser. If lhs is True then this variable
         appears on the LHS of an assignment and thus represents a new
         entity in a DAG. '''
-        from fparser import Fortran2003
+        from fparser.two import Fortran2003
 
         _is_constant = False
 
@@ -254,7 +293,7 @@ class Variable(object):
         ''' Handles the parsing of various forms of array reference and,
         where possible, identifies expressions that are actually function
         calls '''
-        from fparser import Fortran2003
+        from fparser.two import Fortran2003
         if prefix:
             prefix_str = prefix
             if not prefix_str.endswith("%"):
