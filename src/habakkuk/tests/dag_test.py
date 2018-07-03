@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 # change the internal state of objects we disable pylint's warning
 # about such accesses
 # pylint: disable=protected-access
+from __future__ import absolute_import, print_function
 
 import os
 import pytest
@@ -46,7 +47,7 @@ from test_utilities import dag_from_strings, Options
 from habakkuk import make_dag
 from habakkuk.dag_node import DAGError
 from habakkuk.dag import DirectedAcyclicGraph
-from fparser import Fortran2003
+from fparser.two import Fortran2003
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -394,7 +395,7 @@ def test_basic_scalar_dag(tmpdir, capsys):
     make_dag.dag_of_files(Options(),
                           [os.path.join(BASE_PATH, "triple_product.f90")])
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Wrote DAG to test_triple_product.gv" in result
     assert "2 multiplication operators." in result
     assert "2 FLOPs in total." in result
@@ -413,7 +414,7 @@ def test_basic_fma(tmpdir, capsys):
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "fma_test.f90")])
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Ivybridge architecture does not have FMA" in result
 
 
@@ -428,7 +429,7 @@ def test_array_readwrite_no_fma(tmpdir, capsys):
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "shallow_loop11.f90")])
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "6 addition operators." in result
     assert "3 subtraction operators." in result
     assert "6 multiplication operators." in result
@@ -449,7 +450,7 @@ def test_array_readwrite_with_fma(tmpdir, capsys):
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "shallow_loop11.f90")])
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "6 addition operators." in result
     assert "3 subtraction operators." in result
     assert "6 multiplication operators." in result
@@ -469,7 +470,7 @@ def test_array_assign(tmpdir, capsys):
                           [os.path.join(BASE_PATH,
                                         "first_line_array_assign.f90")])
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Stats for DAG" in result
 
 
@@ -484,8 +485,8 @@ def test_repeated_assign_array(tmpdir, capsys):
     fout = open('test_repeated_assign1.gv', 'r')
     graph = fout.read()
     fout.close()
-    print graph
-    print result
+    print(graph)
+    print(result)
     node1 = "label=\"aprod(i,j)\", color=\"blue\""
     node2 = "label=\"aprod'(i,j)\", color=\"blue\""
     assert node1 in graph
@@ -501,7 +502,7 @@ def test_repeated_assign_1darray_slice(tmpdir):  # pylint: disable=invalid-name
                                         "repeated_array_assign.f90")])
     with open('test_repeated_assign4.gv', 'r') as fout:
         graph = fout.read()
-    print graph
+    print(graph)
     assert "label=\"aprod(:)\", color=\"blue\"" in graph
     assert "label=\"aprod'(:)\", color=\"blue\"" in graph
 
@@ -524,7 +525,7 @@ def test_repeated_assign_2darr_slice(tmpdir):  # pylint: disable=invalid-name
                                         "repeated_array_assign.f90")])
     with open('test_repeated_assign3.gv', 'r') as fout:
         graph = fout.read()
-    print graph
+    print(graph)
     assert "label=\"aprod(:,j)\", color=\"blue\"" in graph
     assert "label=\"aprod'(:,j)\", color=\"blue\"" in graph
 
@@ -541,8 +542,8 @@ def test_write_back_array(tmpdir, capsys):
     fout = open('test_repeated_assign2.gv', 'r')
     graph = fout.read()
     fout.close()
-    print graph
-    print result
+    print(graph)
+    print(result)
     node1 = "label=\"aprod(i,j)\", color=\"blue\""
     node2 = "label=\"aprod'(i,j)\", color=\"blue\""
     node3 = "label=\"aprod''(i,j)\", color=\"blue\""
@@ -562,7 +563,7 @@ def test_repeated_assign_diff_elements(tmpdir):  # pylint: disable=invalid-name
                       "repeated_array_assign_diff_elements.f90")])
     with open('test_repeated_assign_diff_elems.gv', 'r') as fout:
         graph = fout.read()
-    print graph
+    print(graph)
     assert "label=\"aprod(i,j)\", color=\"blue\"" in graph
     assert "label=\"aprod(i+1,j)\", color=\"blue\"" in graph
     assert "label=\"aprod'(i,j)\", color=\"blue\"" in graph
@@ -578,7 +579,7 @@ def test_repeated_assign_index():
          "ptsd(ji,jj,ik,jp_tem) = (1.-zl) * ptsd(ji,jj,ik,jp_tem) + "
          "zl * ptsd(ji,jj,ik+1,jp_tem)"])
     node_names = [node.name for node in dag._nodes.itervalues()]
-    print node_names
+    print(node_names)
     assert "ptsd'(ji,jj,ik',jp_tem)" in node_names
     assert "ptsd(ji,jj,ik',jp_tem)" in node_names
 
@@ -592,7 +593,7 @@ def test_node_display(capsys):
     assert node.name == "aprod"
     node.display()
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     # For clarity, we escape the '\' character in the string below...
     expected = (
         "\\- aprod\n"
@@ -665,7 +666,7 @@ def test_node_type_setter():
     anode = dag._nodes["aprod"]
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
-    print str(err)
+    print(str(err))
     assert ("node_type must be one of ['REAL', 'COUNT', 'COS', 'LOG', 'MIN', "
             "'SUM', 'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', "
             "'IACHAR', 'TAN', 'PRESENT', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', "
@@ -737,7 +738,7 @@ def test_node_dot_colours(tmpdir):
     dot_file = os.path.join(os.getcwd(), "dot_test.gv")
     with open(dot_file, 'r') as graph_file:
         graph = graph_file.read()
-    print graph
+    print(graph)
     assert "label=\"SIN (w=0)\", color=\"gold\"" in graph
     assert "label=\"var1 (w=0)\", color=\"black\"" in graph
     assert "label=\"* (w=0)\", color=\"red\", shape=\"box\"" in graph
@@ -810,7 +811,7 @@ def test_no_flops(capsys):
                             "bprod = var2"])
     dag.report()
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "DAG contains no FLOPs so skipping performance estimate" in result
 
 
@@ -826,7 +827,7 @@ def test_mult_operand(tmpdir):
     assert os.path.isfile(out_file)
     with open(out_file, 'r') as fout:
         graph = fout.read()
-    print graph
+    print(graph)
     # Check that we have power operation in the graph as an intrinsic
     assert "label=\"**\", color=\"gold\", shape=\"ellipse\"" in graph
 
@@ -1062,7 +1063,7 @@ def test_parentheses_in_function(tmpdir, capsys):
     make_dag.dag_of_files(options,
                           [os.path.join(BASE_PATH, "fn_parentheses.f90")])
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Stats for DAG fspott:" in result
     assert "9 FLOPs in total." in result
     assert "4 multiplication operators." in result

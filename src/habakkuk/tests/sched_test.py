@@ -4,7 +4,7 @@
 
 import os
 import pytest
-from fparser import Fortran2003
+from fparser.two import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph, DAGError
 from test_utilities import Options, dag_from_strings
 

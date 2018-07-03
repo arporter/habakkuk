@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,10 @@
 # change the internal state of objects we disable pylint's warning
 # about such accesses
 # pylint: disable=protected-access
-
+from __future__ import absolute_import, print_function
 import os
 import pytest
-from fparser import Fortran2003
+from fparser.two import Fortran2003
 from test_utilities import dag_from_strings
 from habakkuk.parse2003 import ParseError
 
@@ -53,7 +53,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 def test_walk_debug(capsys):
     ''' Test the walk method with debug=True '''
-    from fparser.readfortran import FortranFileReader
+    from fparser.common.readfortran import FortranFileReader
     from habakkuk.parse2003 import walk_ast
     reader = FortranFileReader(os.path.join(BASE_PATH,
                                             "time_step_mod_simple.f90"))
@@ -61,7 +61,7 @@ def test_walk_debug(capsys):
     names = walk_ast(program.content, [Fortran2003.Name], debug=True)
     result, _ = capsys.readouterr()
     assert (
-        "child type =  <class 'fparser.Fortran2003.Module'>"
+        "child type =  <class 'fparser.two.Fortran2003.Module'>"
         in result)
     assert isinstance(names[0], Fortran2003.Name)
     assert str(names[0]) == "time_step_mod"
@@ -71,7 +71,7 @@ def test_variable_str():
     ''' Test the __str__ method of Variable '''
     dag = dag_from_strings(["a(i) = 2.0 * b(i) * c"])
     anode = dag._nodes["a(i)"]
-    print anode
+    print(anode)
     assert hasattr(anode, "variable")
     assert str(anode.variable) == "a(i)"
 
@@ -119,7 +119,7 @@ def test_indirect_array_access1():
     array access) '''
     dag = dag_from_strings(["a(i) = 2.0 * b(map(i))"])
     node_names = [node.name for node in dag._nodes.itervalues()]
-    print node_names
+    print(node_names)
     assert "b(map(i))" in node_names
     assert "map(i)" in node_names
 
@@ -130,7 +130,7 @@ def test_indirect_array_access2():
     array access within a larger expression) '''
     dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j)"])
     node_names = [node.name for node in dag._nodes.itervalues()]
-    print node_names
+    print(node_names)
     assert "b(map(i)+j)" in node_names
     assert "map(i)" in node_names
 

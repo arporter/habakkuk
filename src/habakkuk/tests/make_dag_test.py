@@ -1,6 +1,41 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
 ''' Contains pytest tests for make_dag.py '''
 
+from __future__ import print_function, absolute_import
 import os
 import pytest
 from test_utilities import Options
@@ -13,12 +48,12 @@ BASE_PATH = os.path.join(PWD, "test_files")
 def test_dag_of_code_block_items():
     ''' Test the dag_of_code_block() function when the supplied
     parent node has only items and not content '''
-    from fparser import Fortran2003
+    from fparser.two import Fortran2003
     from habakkuk.make_dag import dag_of_code_block
     assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
     dag = dag_of_code_block(assign, "Test dag")
     node_names = [node.name for node in dag._nodes.itervalues()]
-    print node_names
+    print(node_names)
     assert len(dag._nodes) == 4
     assert "a(:)" in node_names
     assert "b(:)" in node_names
@@ -67,7 +102,7 @@ def test_basic_loop_unroll(tmpdir):
         loop_graph = fout.read()
     # TODO need to find some way of testing the connectivity of the nodes,
     # not just their existence
-    print loop_graph
+    print(loop_graph)
     assert "label=\"2.0\", color=\"green\"" in loop_graph
     assert "label=\"i\", color=\"black\"" in loop_graph
     assert "label=\"i'\", color=\"black\"" in loop_graph
@@ -149,8 +184,8 @@ def test_main_routine_invalid_fortran(capsys):
     args = [os.path.join(PWD, "make_dag_test.py")]
     runner(args)
     result, _ = capsys.readouterr()
-    print result
-    assert "failed at line #2" in result
+    print(result)
+    assert "failed at line #1" in result
     assert "Is the file valid Fortran?" in result
 
 
@@ -162,7 +197,7 @@ def test_array_deref_count(tmpdir, capsys):
     args = [os.path.join(PWD, "test_files/gather.f90")]
     runner(args)
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "4 array references" in result
     assert "4 distinct cache-line references" in result
 
@@ -175,7 +210,7 @@ def test_multiple_array_accesses(tmpdir, capsys):
     args = [os.path.join(PWD, "test_files/zpshde_loop6.f90")]
     runner(args)
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "14 addition operators" in result
     assert "38 FLOPs in total"
     assert "33 distinct cache-line references" in result
