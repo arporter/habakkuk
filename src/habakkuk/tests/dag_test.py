@@ -691,7 +691,7 @@ def test_node_is_op():
     assert op_node.is_operator
 
 
-def test_node_walk_too_deep():
+def test_node_walk_too_deep(monkeypatch):
     ''' Check that the walk() method aborts correctly if the recursion
     depth is too great '''
     from habakkuk import dag_node
@@ -701,12 +701,28 @@ def test_node_walk_too_deep():
                             "bprod = var1 * var2 / aprod",
                             "cprod = var1 * var2 + bprod"])
     cnode = dag._nodes["cprod"]
-    old_recursion_depth = dag_node.MAX_RECURSION_DEPTH
-    dag_node.MAX_RECURSION_DEPTH = 2
+    monkeypatch.setattr(dag_node, "MAX_RECURSION_DEPTH", 2)
     with pytest.raises(DAGError) as err:
         cnode.walk()
-    dag_node.MAX_RECURSION_DEPTH = old_recursion_depth
     assert "Max recursion depth (2) exceeded when walking tree" in str(err)
+
+
+def test_walk_cyclic_dep():
+    ''' Check that the walk() method aborts correctly if it detects a
+    cyclic dependency. '''
+    from habakkuk import dag_node
+    dag = dag_from_strings(["xprod = 1.0",
+                            "var1 = 2.0",
+                            "aprod = var1 * var2 * xprod",
+                            "bprod = var1 * var2 / aprod",
+                            "cprod = var1 * var2 + bprod"])
+    anode = dag._nodes["aprod"]
+    cnode = dag._nodes["cprod"]
+    with pytest.raises(DAGError) as err:
+        # Erroneously claim that anode is an ancestor of cnode
+        cnode.walk(ancestor_list=[anode])
+    assert ("Cyclic dependency: node '/' has node 'aprod' as both a "
+            "producer and an ancestor" in str(err))
 
 
 def test_node_weight_intrinsic():
