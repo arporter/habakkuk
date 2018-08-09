@@ -133,7 +133,7 @@ class Schedule(object):
             # the schedule
             for port in range(NUM_EXECUTION_PORTS):
 
-                sched_line += " {0:4s}".format(self._slots[port][step])
+                sched_line += " {0:4s}".format(str(self._slots[port][step]))
                 port_cost = 0
 
                 # If there is an operation on this port at this step of
@@ -184,14 +184,14 @@ class Schedule(object):
                 cost += max_cost
 
         # Create header string for print-out of schedule
-        print "Schedule contains {0} steps:".format(step_count)
-        print "    {0:^30s}".format("Execution Port")
+        print("Schedule contains {0} steps:".format(step_count))
+        print("    {0:^30s}".format("Execution Port"))
         sched_line = "    "
         for port in range(NUM_EXECUTION_PORTS):
             sched_line += " {0:^4n}".format(port)
-        print sched_line
+        print(sched_line)
         # Print the schedule itself
-        print sched_str
+        print(sched_str)
 
         return cost
 
