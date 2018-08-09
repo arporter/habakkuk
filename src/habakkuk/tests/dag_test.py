@@ -41,14 +41,14 @@
 # pylint: disable=protected-access
 from __future__ import absolute_import, print_function
 
-from six import itervalues
 import os
+from six import itervalues
 import pytest
-from test_utilities import dag_from_strings, Options
+from fparser.two import Fortran2003
 from habakkuk import make_dag
 from habakkuk.dag_node import DAGError
 from habakkuk.dag import DirectedAcyclicGraph
-from fparser.two import Fortran2003
+from test_utilities import dag_from_strings, Options
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -694,14 +694,13 @@ def test_node_is_op():
 def test_node_walk_too_deep(monkeypatch):
     ''' Check that the walk() method aborts correctly if the recursion
     depth is too great '''
-    from habakkuk import dag_node
     dag = dag_from_strings(["xprod = 1.0",
                             "var1 = 2.0",
                             "aprod = var1 * var2 * xprod",
                             "bprod = var1 * var2 / aprod",
                             "cprod = var1 * var2 + bprod"])
     cnode = dag._nodes["cprod"]
-    monkeypatch.setattr(dag_node, "MAX_RECURSION_DEPTH", 2)
+    monkeypatch.setattr("habakkuk.dag_node.MAX_RECURSION_DEPTH", 2)
     with pytest.raises(DAGError) as err:
         cnode.walk()
     assert "Max recursion depth (2) exceeded when walking tree" in str(err)
@@ -710,7 +709,6 @@ def test_node_walk_too_deep(monkeypatch):
 def test_walk_cyclic_dep():
     ''' Check that the walk() method aborts correctly if it detects a
     cyclic dependency. '''
-    from habakkuk import dag_node
     dag = dag_from_strings(["xprod = 1.0",
                             "var1 = 2.0",
                             "aprod = var1 * var2 * xprod",

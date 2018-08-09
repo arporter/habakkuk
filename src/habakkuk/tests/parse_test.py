@@ -40,8 +40,8 @@
 # about such accesses
 # pylint: disable=protected-access
 from __future__ import absolute_import, print_function
-from six import itervalues
 import os
+from six import itervalues
 import pytest
 from fparser.two import Fortran2003
 from test_utilities import dag_from_strings

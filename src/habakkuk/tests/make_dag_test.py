@@ -35,9 +35,14 @@
 
 ''' Contains pytest tests for make_dag.py '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 from __future__ import print_function, absolute_import
-from six import itervalues
 import os
+from six import itervalues
 import pytest
 from test_utilities import Options
 from habakkuk import make_dag
