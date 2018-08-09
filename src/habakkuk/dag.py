@@ -38,6 +38,7 @@
 
 from __future__ import absolute_import, print_function
 
+from six import itervalues
 from fparser.two import Fortran2003
 from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
@@ -207,7 +208,7 @@ def flop_count(nodes):
     nodes. This is NOT the same as the number of cycles. '''
     count = 0
     if isinstance(nodes, dict):
-        node_list = nodes.itervalues()
+        node_list = itervalues(nodes)
     elif isinstance(nodes, list):
         node_list = nodes
     else:
@@ -502,7 +503,7 @@ class DirectedAcyclicGraph(object):
         that is dependent upon them - i.e. a consumer.
         These are outputs of the DAG. '''
         node_list = []
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if not node.has_consumer:
                 node_list.append(node)
         return node_list
@@ -511,7 +512,7 @@ class DirectedAcyclicGraph(object):
         ''' Returns a list of all nodes that do not have any producers
         (dependencies). These are inputs to the DAG. '''
         node_list = []
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if not node.has_producer:
                 node_list.append(node)
         return node_list
@@ -653,7 +654,7 @@ class DirectedAcyclicGraph(object):
         ''' Calculate the total cost of the graph by summing up the cost of
         each node '''
         cost = 0
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             cost += node.weight
         return cost
 
@@ -941,7 +942,7 @@ class DirectedAcyclicGraph(object):
         one consumer and one producer. '''
         dead_nodes = []
         # _nodes is a dictionary - we want the values, not the keys
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if node.node_type not in OPERATORS:
                 if len(node.producers) == 1 and \
                    len(node.consumers) == 1:
@@ -968,7 +969,7 @@ class DirectedAcyclicGraph(object):
     def nodes_with_multiple_consumers(self):
         ''' Returns a list of the nodes that have > 1 consumer '''
         multiple_consumers = []
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if len(node.consumers) > 1 and not node.is_integer:
                 multiple_consumers.append(node)
         return multiple_consumers
@@ -978,7 +979,7 @@ class DirectedAcyclicGraph(object):
         nodes are integer is propagated as far as possible '''
         while True:
             dag_updated = False
-            for node in self._nodes.itervalues():
+            for node in itervalues(self._nodes):
                 if node.is_integer:
                     # This node is integer. Look at the node(s) that consume
                     # it. If they are not already marked as being integer
@@ -1229,7 +1230,7 @@ class DirectedAcyclicGraph(object):
         # to do). Use a dictionary to hold the cost for each port in
         # case the port numbers aren't contiguous.
         port_cost = {}
-        for port in CPU_EXECUTION_PORTS.itervalues():
+        for port in itervalues(CPU_EXECUTION_PORTS):
             # Zero the cost for each port
             port_cost[str(port)] = 0
         # We've previously counted the number of each type of operation.
@@ -1321,7 +1322,7 @@ class DirectedAcyclicGraph(object):
                         break
 
         # Finally, broaden the search out to the whole tree...
-        available_ops.extend(ready_ops_from_list(self._nodes.itervalues()))
+        available_ops.extend(ready_ops_from_list(itervalues(self._nodes)))
 
         # Remove duplicates from the list while preserving their order
         unique_available_ops = []

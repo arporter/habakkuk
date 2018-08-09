@@ -36,6 +36,7 @@
 ''' Contains pytest tests for make_dag.py '''
 
 from __future__ import print_function, absolute_import
+from six import itervalues
 import os
 import pytest
 from test_utilities import Options
@@ -52,7 +53,7 @@ def test_dag_of_code_block_items():
     from habakkuk.make_dag import dag_of_code_block
     assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
     dag = dag_of_code_block(assign, "Test dag")
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     print(node_names)
     assert len(dag._nodes) == 4
     assert "a(:)" in node_names
