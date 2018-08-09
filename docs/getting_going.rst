@@ -11,9 +11,10 @@ project itself is hosted on github
 Dependencies
 ------------
 
-Habakkuk is written in python and so needs python to be installed on
-the target machine. It requires the fparser and numpy packages.
-In order to run the test suite you will require py.test.
+Habakkuk is written in Python and so needs Python (either 2.7 or 3.6+)
+to be installed on the target machine. It also requires the (Python)
+fparser and six packages.  In order to run the test suite you will
+require py.test.
 
 Installation
 ------------
@@ -58,13 +59,36 @@ specify the prefix for the install path like so:
 Running
 -------
 
+Habakkuk is run from the command line. The `-h`/`--help` flag will
+produce a list of the various available options::
+
+  $ habakkuk -h
+  
+  Usage: habakkuk [options] <Fortran file(s)>
+
+  Options:
+    -h, --help            show this help message and exit
+    --no-prune            Do not attempt to prune duplicate operations from the
+                          graph
+    --no-fma              Do not attempt to generate fused multiply-add
+                          operations
+    --rm-scalar-tmps      Remove scalar temporaries from the DAG
+    --show-weights        Display node weights in the DAG
+    --unroll=UNROLL_FACTOR
+                          No. of times to unroll a loop. (Applied to every loop
+                          that is encountered.)
+
+    Fortran code options:
+      Specify information about Fortran codes.
+
+      --mode=MODE         Specify Fortran code mode. Default: auto.
+
 Habakkuk analyses Fortran source files, provided as arguments on the
-command line, e.g.:
-::
+command line, e.g.::
+
    $ habakkuk my_fortran_file1.f90 my_fortran_file2.F90
 
-If all is well, you should see output similar to the following:
-::
+If all is well, you should see output similar to the following::
    
    $ habakkuk tra_adv.F90 
    Habakkuk processing file 'tra_adv.F90'
@@ -109,7 +133,7 @@ The Habakkuk source contains a test-suite written to use py.test. In
 order to run it you will need to obtain the Habakkuk source - either
 by downloading a tarball of one of the
 [releases](https://github.com/arporter/habakkuk/releases) or by
-cloning the git repository. Assuming you have habakkuk and py.test
+cloning the git repository. Assuming you have Habakkuk and py.test
 installed you can then do:
 ::
     $ cd habakkuk/src/habakkuk/tests
