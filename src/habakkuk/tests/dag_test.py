@@ -668,10 +668,10 @@ def test_node_type_setter():
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
     print(str(err))
-    assert ("node_type must be one of ['REAL', 'COUNT', 'COS', 'LOG', 'MIN', "
-            "'SUM', 'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', "
-            "'IACHAR', 'TAN', 'PRESENT', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', "
-            "'ACOS', 'INT', 'MAX', 'SQRT', 'DBLE', 'MOD', 'constant', "
+    assert ("node_type must be one of ['*', '**', '+', '-', '/', 'ABS', "
+            "'ACOS', 'ATAN', 'COS', 'COUNT', 'DBLE', 'EXP', 'IACHAR', 'INT', "
+            "'LOG', 'MAX', 'MIN', 'MOD', 'NINT', 'PRESENT', 'REAL', 'SIGN', "
+            "'SIN', 'SQRT', 'SUM', 'TAN', 'TANH', 'TRIM', 'constant', "
             "'array_ref', 'call'] but got 'not-a-type'" in str(err))
 
 
