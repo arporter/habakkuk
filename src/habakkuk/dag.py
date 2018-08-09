@@ -49,10 +49,10 @@ from habakkuk.config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
-    return (isinstance(expr, Fortran2003.Add_Operand) or
-            isinstance(expr, Fortran2003.Level_2_Expr) or
-            isinstance(expr, Fortran2003.Level_2_Unary_Expr) or
-            isinstance(expr, Fortran2003.Parenthesis))
+    return isinstance(expr, (Fortran2003.Add_Operand,
+                             Fortran2003.Level_2_Expr,
+                             Fortran2003.Level_2_Unary_Expr,
+                             Fortran2003.Parenthesis))
 
 
 def is_intrinsic_fn(obj):
@@ -547,8 +547,7 @@ class DirectedAcyclicGraph(object):
                 if node.variable:
                     unique_names.add(node.variable.full_orig_name)
             return len(unique_names)
-        else:
-            return len(node_list)
+        return len(node_list)
 
     def cache_lines(self):
         ''' Count the number of cache lines accessed by the graph. This
@@ -706,10 +705,10 @@ class DirectedAcyclicGraph(object):
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif (isinstance(child, Fortran2003.Real_Literal_Constant) or
-                  isinstance(child, Fortran2003.Int_Literal_Constant) or
-                  isinstance(child, Fortran2003.Char_Literal_Constant) or
-                  isinstance(child, Fortran2003.Logical_Literal_Constant)):
+            elif isinstance(child, (Fortran2003.Real_Literal_Constant,
+                                    Fortran2003.Int_Literal_Constant,
+                                    Fortran2003.Char_Literal_Constant,
+                                    Fortran2003.Logical_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
@@ -795,7 +794,7 @@ class DirectedAcyclicGraph(object):
                             arg_list = child.items[1].items
                         else:
                             arg_list = child.items[1:]
-                        for idx, item in enumerate(arg_list):
+                        for arg_idx, item in enumerate(arg_list):
 
                             child_nodes = self.make_dag(array_node, [item],
                                                         mapping,
@@ -808,7 +807,7 @@ class DirectedAcyclicGraph(object):
                             # the existing array_index_nodes list
                             if len(array_node.array_index_nodes) < \
                                len(arg_list):
-                                if idx > 0:
+                                if arg_idx > 0:
                                     # Just store a string representation
                                     # for any index expression other than
                                     # the first
@@ -855,8 +854,8 @@ class DirectedAcyclicGraph(object):
                 # We've got a ':' as part of an array index expression -
                 # don't generate a node for this.
                 pass
-            elif (isinstance(child, Fortran2003.And_Operand) or
-                  isinstance(child, Fortran2003.Or_Operand)):
+            elif isinstance(child, (Fortran2003.And_Operand,
+                                    Fortran2003.Or_Operand)):
                 # We have an expression that is something like
                 # .NOT. sdjf % ln_clim
                 # and can just carry-on down to the children
@@ -882,8 +881,8 @@ class DirectedAcyclicGraph(object):
                 tmp_node = self.get_node(parent, name=str(child.items[0]))
                 node_list.append(tmp_node)
                 node_list += self.make_dag(tmp_node, child.items[2:], mapping)
-            elif (isinstance(child, Fortran2003.Level_3_Expr) or
-                  isinstance(child, Fortran2003.Level_4_Expr)):
+            elif isinstance(child, (Fortran2003.Level_3_Expr,
+                                    Fortran2003.Level_4_Expr)):
                 # Have an expression that is something like
                 # TRIM(ssnd(ji) % clname) // '_cat' // cli2. Carry on
                 # down to the children
@@ -1024,7 +1023,7 @@ class DirectedAcyclicGraph(object):
 
             # Update list of nodes with > 1 consumer
             multiple_consumers = self.nodes_with_multiple_consumers()
-            if len(multiple_consumers) == 0:
+            if not multiple_consumers:
                 break
 
             # Each node with > 1 consumer represents a possible duplication
@@ -1165,7 +1164,7 @@ class DirectedAcyclicGraph(object):
         print("    Sum of cost of all nodes = {0} (cycles)".
               format(total_cycles))
         print("    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".
-            format(total_flops, total_cycles, min_flops_per_hz))
+              format(total_flops, total_cycles, min_flops_per_hz))
         if num_cache_ref:
             min_mem_bw = float(mem_traffic_bytes) / float(total_cycles)
             print("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
@@ -1187,10 +1186,10 @@ class DirectedAcyclicGraph(object):
         if ncycles > 0:
             print("  Everything in parallel to Critical path:")
             print("    Critical path contains {0} nodes, {1} FLOPs and "
-                   "is {2} cycles long".format(
-                       len(self._critical_path),
-                       flop_count(self._critical_path.nodes),
-                       ncycles))
+                  "is {2} cycles long".format(
+                      len(self._critical_path),
+                      flop_count(self._critical_path.nodes),
+                      ncycles))
             # Graph contains total_flops and will execute in at
             # least path.cycles() CPU cycles. A cycle has duration
             # 1/CLOCK_SPEED (s) so kernel will take at least
