@@ -110,10 +110,7 @@ class DAGNode(object):
         # executed). Used when generating a schedule for the DAG.
         # Since we're not interested in integer operations we mark
         # this node as ready if it represents an integer quantity.
-        if self._integer:
-            self._ready = True
-        else:
-            self._ready = False
+        self._ready = bool(self._integer)
         # If this node represents an array access then this list contains
         # a list of parent nodes, one for each array index expression
         self.array_index_nodes = []
@@ -179,7 +176,7 @@ class DAGNode(object):
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''
         prefix = indent*INDENT_STR
-        print(prefix+"\- "+self.name)
+        print(prefix+r"\- "+self.name)
         for child in self._producers:
             child.display(indent=indent+1)
 
@@ -313,11 +310,9 @@ class DAGNode(object):
         ''' Returns the (exclusive) weight/cost of this node '''
         if not self._node_type or self._integer:
             return 0
-        else:
-            if self._node_type in OPERATORS:
-                return OPERATORS[self._node_type]["cost"]
-            else:
-                return 0
+        if self._node_type in OPERATORS:
+            return OPERATORS[self._node_type]["cost"]
+        return 0
 
     @property
     def incl_weight(self):
