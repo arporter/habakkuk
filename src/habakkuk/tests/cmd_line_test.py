@@ -57,7 +57,7 @@ def test_usage_message():
     (output, _) = subprocess.Popen([HABAKKUK_SCRIPT],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
-    assert "Usage: habakkuk [options] <Fortran file(s)>" in output
+    assert "Usage: habakkuk [options] <Fortran file(s)>" in str(output)
 
 
 def test_missing_file():
@@ -68,7 +68,7 @@ def test_missing_file():
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "The specified source file ('not_a_file.f90') cannot be found" in \
-        output
+        str(output)
     # and now when it is the second of two files that does not exist...
     (output, _) = subprocess.Popen([HABAKKUK_SCRIPT,
                                     os.path.join(BASE_PATH, "basic_loop.f90"),
@@ -76,27 +76,26 @@ def test_missing_file():
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT).communicate()
     assert "The specified source file ('not_a_file.f90') cannot be found" in \
-        output
+        str(output)
 
 
 def test_help_message():
     ''' Check that a help message is produced when the --help flag is
     supplied '''
-    (output, _) = subprocess.Popen([HABAKKUK_SCRIPT, '--help'],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT).communicate()
-    assert (
-        "Options:\n"
-        "  -h, --help            show this help message and exit\n"
-        "  --no-prune            Do not attempt to prune duplicate "
-        "operations from the\n"
-        "                        graph\n"
-        "  --no-fma              Do not attempt to generate fused "
-        "multiply-add\n"
-        "                        operations\n"
-        "  --rm-scalar-tmps      Remove scalar temporaries from the DAG\n"
-        "  --show-weights        Display node weights in the DAG\n"
-        "  --unroll=UNROLL_FACTOR\n"
-        "                        No. of times to unroll a loop. (Applied to "
-        "every loop\n"
-        "                        that is encountered.)") in output
+    (outbytes, _) = subprocess.Popen([HABAKKUK_SCRIPT, '--help'],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT).communicate()
+    output = outbytes.decode("utf-8")
+    expected = '''\
+Options:
+  -h, --help            show this help message and exit
+  --no-prune            Do not attempt to prune duplicate operations from the
+                        graph
+  --no-fma              Do not attempt to generate fused multiply-add
+                        operations
+  --rm-scalar-tmps      Remove scalar temporaries from the DAG
+  --show-weights        Display node weights in the DAG
+  --unroll=UNROLL_FACTOR
+                        No. of times to unroll a loop. (Applied to every loop
+                        that is encountered.)'''
+    assert expected in output
