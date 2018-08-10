@@ -1,11 +1,49 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing class holding information on a single node in
     a Directed Acyclic Graph '''
 
+from __future__ import print_function
 from habakkuk.config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 
-# Valid types for a node in the DAG
-VALID_NODE_TYPES = OPERATORS.keys() + ["constant", "array_ref", "call"]
+# Valid types for a node in the DAG. We sort them to ensure the same
+# ordering when using either Python 2 or 3 (this is only important
+# for the test suite).
+VALID_NODE_TYPES = sorted(list(OPERATORS.keys())) + \
+                   ["constant", "array_ref", "call"]
 
 INDENT_STR = "  "
 # At what depth to abort attempting to recursively walk down a graph
@@ -72,10 +110,7 @@ class DAGNode(object):
         # executed). Used when generating a schedule for the DAG.
         # Since we're not interested in integer operations we mark
         # this node as ready if it represents an integer quantity.
-        if self._integer:
-            self._ready = True
-        else:
-            self._ready = False
+        self._ready = bool(self._integer)
         # If this node represents an array access then this list contains
         # a list of parent nodes, one for each array index expression
         self.array_index_nodes = []
@@ -141,7 +176,7 @@ class DAGNode(object):
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''
         prefix = indent*INDENT_STR
-        print prefix+"\- "+self.name
+        print(prefix+r"\- "+self.name)
         for child in self._producers:
             child.display(indent=indent+1)
 
@@ -233,10 +268,10 @@ class DAGNode(object):
         nodes of type node_type (excluding this node). If no node type is
         supplied then return all descendents '''
         if depth > MAX_RECURSION_DEPTH:
-            print "Current node = ", str(self)
-            print "Producers:"
+            print("Current node = ", str(self))
+            print("Producers:")
             for idx, node in enumerate(self._producers):
-                print idx, str(node), type(node)
+                print(idx, str(node), type(node))
             raise DAGError(
                 "Max recursion depth ({0}) exceeded when walking tree".
                 format(MAX_RECURSION_DEPTH))
@@ -245,11 +280,11 @@ class DAGNode(object):
         if ancestor_list:
             for child in self._producers:
                 if child in ancestor_list:
-                    print "->".join(
+                    print("->".join(
                         ["{0}({1})".format(node.name, node.node_type)
-                         for node in ancestor_list])
+                         for node in ancestor_list]))
                     raise DAGError("Cyclic dependency: node '{0}' has node "
-                                   "'{1}'  as both a producer and an ancestor"
+                                   "'{1}' as both a producer and an ancestor"
                                    .format(str(self), str(child)))
                 else:
                     ancestor_list.append(child)
@@ -275,11 +310,9 @@ class DAGNode(object):
         ''' Returns the (exclusive) weight/cost of this node '''
         if not self._node_type or self._integer:
             return 0
-        else:
-            if self._node_type in OPERATORS:
-                return OPERATORS[self._node_type]["cost"]
-            else:
-                return 0
+        if self._node_type in OPERATORS:
+            return OPERATORS[self._node_type]["cost"]
+        return 0
 
     @property
     def incl_weight(self):

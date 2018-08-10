@@ -35,8 +35,14 @@
 
 ''' Contains pytest tests for make_dag.py '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 from __future__ import print_function, absolute_import
 import os
+from six import itervalues
 import pytest
 from test_utilities import Options
 from habakkuk import make_dag
@@ -52,7 +58,7 @@ def test_dag_of_code_block_items():
     from habakkuk.make_dag import dag_of_code_block
     assign = Fortran2003.Assignment_Stmt("a(:) = 2.0*b(:)")
     dag = dag_of_code_block(assign, "Test dag")
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     print(node_names)
     assert len(dag._nodes) == 4
     assert "a(:)" in node_names

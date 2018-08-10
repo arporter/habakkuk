@@ -1,8 +1,44 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
 ''' This module contains tests of the schedule-generation capabilities
     of Habakkuk. '''
 
+from __future__ import print_function
 import os
+from six import itervalues
 import pytest
 from fparser.two import Fortran2003
 from habakkuk.dag import DirectedAcyclicGraph, DAGError
@@ -52,7 +88,7 @@ def test_addition_schedule():
     dag.add_assignments([assign], mapping)
     node_names = []
     plus_node = None
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         node_names.append(node.name)
         if node.name == "+":
             plus_node = node
@@ -87,7 +123,7 @@ def test_exp_schedule():
     dag.add_assignments([assign], mapping)
     node_names = []
     pow_node = None
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         node_names.append(node.name)
         if node.name == "**":
             pow_node = node
@@ -114,7 +150,7 @@ def test_sin_schedule():
     dag.add_assignments([assign], mapping)
     node_names = []
     sin_node = None
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         node_names.append(node.name)
         if node.name == "SIN":
             sin_node = node
@@ -141,7 +177,7 @@ def test_sin_plus_schedule(capsys):
     dag.calc_critical_path()
     dag.report()
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Schedule contains 2 steps" in result
     assert "Cost of schedule as a whole = 50 cycles" in result
     assert (
@@ -162,7 +198,7 @@ def test_cos_product_schedule(capsys):
     dag.calc_critical_path()
     dag.report()
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Schedule contains 2 steps" in result
     assert "Cost of schedule as a whole = 50 cycles" in result
     assert (
@@ -183,7 +219,7 @@ def test_max_min_addition_schedule(capsys):
     dag.calc_critical_path()
     dag.report()
     result, _ = capsys.readouterr()
-    print result
+    print(result)
     assert "Schedule contains 4 steps" in result
     assert "Cost of schedule as a whole = 4 cycles" in result
     assert ("Critical path contains 5 nodes, 2 FLOPs and is 3 cycles long"

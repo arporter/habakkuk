@@ -41,6 +41,7 @@
 # pylint: disable=protected-access
 from __future__ import absolute_import, print_function
 import os
+from six import itervalues
 import pytest
 from fparser.two import Fortran2003
 from test_utilities import dag_from_strings
@@ -100,7 +101,7 @@ def test_var_load_lhs_mapping():
     appears on the LHS of an assignment when its name is already
     in the naming map '''
     dag = dag_from_strings(["a = 2.0 * b(i)", "a = a * b(i)"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert "a'" in node_names
 
 
@@ -109,7 +110,7 @@ def test_array_var_load_lhs_mapping():
     appears on the LHS of an assignment when its name is already
     in the naming map '''
     dag = dag_from_strings(["a(i) = 2.0 * b(i)", "a(i) = a(i) * b(i)"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert "a'(i)" in node_names
 
 
@@ -118,7 +119,7 @@ def test_indirect_array_access1():
     array reference (i.e. when an array-index expression is itself an
     array access) '''
     dag = dag_from_strings(["a(i) = 2.0 * b(map(i))"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     print(node_names)
     assert "b(map(i))" in node_names
     assert "map(i)" in node_names
@@ -129,7 +130,7 @@ def test_indirect_array_access2():
     array reference (i.e. when an array-index expression involves an
     array access within a larger expression) '''
     dag = dag_from_strings(["a(i) = 2.0 * b(map(i)+j)"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     print(node_names)
     assert "b(map(i)+j)" in node_names
     assert "map(i)" in node_names

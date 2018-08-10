@@ -42,12 +42,13 @@
 from __future__ import absolute_import, print_function
 
 import os
+from six import itervalues
 import pytest
-from test_utilities import dag_from_strings, Options
+from fparser.two import Fortran2003
 from habakkuk import make_dag
 from habakkuk.dag_node import DAGError
 from habakkuk.dag import DirectedAcyclicGraph
-from fparser.two import Fortran2003
+from test_utilities import dag_from_strings, Options
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -316,7 +317,7 @@ def test_intrinsic_call():
                             unique=True)
     dag.make_dag(tmp_node, assign.items[2:], mapping)
     node_names = []
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         node_names.append(node.name)
         if node.name == "SIN":
             assert node.node_type == "SIN"
@@ -335,7 +336,7 @@ def test_max_intrinsic_call():
                             unique=True)
     dag.make_dag(tmp_node, assign.items[2:], mapping)
     node_names = []
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         node_names.append(node.name)
         if node.name == "MAX":
             assert node.node_type == "MAX"
@@ -357,7 +358,7 @@ def test_min_intrinsic_call():
                             unique=True)
     dag.make_dag(tmp_node, assign.items[2:], mapping)
     node_names = []
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         node_names.append(node.name)
         if node.name == "MIN":
             assert node.node_type == "MIN"
@@ -373,7 +374,7 @@ def test_rm_scalar_tmps():
     ''' Test the code that removes nodes that represent scalar tempories
     from the DAG '''
     dag = dag_from_strings(["a = 2.0 * b", "c = 2.0 * a"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     # Check that the resulting dag has the right nodes
     assert node_names.count("a") == 1
     assert node_names.count("b") == 1
@@ -381,7 +382,7 @@ def test_rm_scalar_tmps():
     assert node_names.count("*") == 2
     # Now delete any scalar temporaries - this should remove node 'a'
     dag.rm_scalar_temporaries()
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert "a" not in node_names
     assert node_names.count("b") == 1
     assert node_names.count("c") == 1
@@ -511,7 +512,7 @@ def test_repeated_assign_1darr_slice_string():  # pylint: disable=invalid-name
     ''' Test that we get correctly-named nodes when it is an array slice
     that is repeatedly assigned to and we generate the dag from strings. '''
     dag = dag_from_strings(["a(:) = 2.0 * a(:)"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert "a'(:)" in node_names
     assert "a(:)" in node_names
 
@@ -578,7 +579,7 @@ def test_repeated_assign_index():
          "ik = mikt(ji,jj)",
          "ptsd(ji,jj,ik,jp_tem) = (1.-zl) * ptsd(ji,jj,ik,jp_tem) + "
          "zl * ptsd(ji,jj,ik+1,jp_tem)"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     print(node_names)
     assert "ptsd'(ji,jj,ik',jp_tem)" in node_names
     assert "ptsd(ji,jj,ik',jp_tem)" in node_names
@@ -650,7 +651,7 @@ def test_node_int_consumers():
     anode = dag._nodes["aprod(i)"]
     assert anode.has_producer
     assert not anode.has_consumer
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if node.name == "2.0":
             twonode = node
             break
@@ -667,10 +668,10 @@ def test_node_type_setter():
     with pytest.raises(DAGError) as err:
         anode.node_type = "not-a-type"
     print(str(err))
-    assert ("node_type must be one of ['REAL', 'COUNT', 'COS', 'LOG', 'MIN', "
-            "'SUM', 'EXP', 'SIN', 'NINT', 'TANH', '+', '*', '-', '/', "
-            "'IACHAR', 'TAN', 'PRESENT', 'TRIM', 'ATAN', 'SIGN', 'ABS', '**', "
-            "'ACOS', 'INT', 'MAX', 'SQRT', 'DBLE', 'MOD', 'constant', "
+    assert ("node_type must be one of ['*', '**', '+', '-', '/', 'ABS', "
+            "'ACOS', 'ATAN', 'COS', 'COUNT', 'DBLE', 'EXP', 'IACHAR', 'INT', "
+            "'LOG', 'MAX', 'MIN', 'MOD', 'NINT', 'PRESENT', 'REAL', 'SIGN', "
+            "'SIN', 'SQRT', 'SUM', 'TAN', 'TANH', 'TRIM', 'constant', "
             "'array_ref', 'call'] but got 'not-a-type'" in str(err))
 
 
@@ -682,7 +683,7 @@ def test_node_is_op():
     anode = dag._nodes["aprod"]
     assert not anode.is_operator
     op_node = None
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if node.name == "*":
             op_node = node
             break
@@ -690,22 +691,36 @@ def test_node_is_op():
     assert op_node.is_operator
 
 
-def test_node_walk_too_deep():
+def test_node_walk_too_deep(monkeypatch):
     ''' Check that the walk() method aborts correctly if the recursion
     depth is too great '''
-    from habakkuk import dag_node
     dag = dag_from_strings(["xprod = 1.0",
                             "var1 = 2.0",
                             "aprod = var1 * var2 * xprod",
                             "bprod = var1 * var2 / aprod",
                             "cprod = var1 * var2 + bprod"])
     cnode = dag._nodes["cprod"]
-    old_recursion_depth = dag_node.MAX_RECURSION_DEPTH
-    dag_node.MAX_RECURSION_DEPTH = 2
+    monkeypatch.setattr("habakkuk.dag_node.MAX_RECURSION_DEPTH", 2)
     with pytest.raises(DAGError) as err:
         cnode.walk()
-    dag_node.MAX_RECURSION_DEPTH = old_recursion_depth
     assert "Max recursion depth (2) exceeded when walking tree" in str(err)
+
+
+def test_walk_cyclic_dep():
+    ''' Check that the walk() method aborts correctly if it detects a
+    cyclic dependency. '''
+    dag = dag_from_strings(["xprod = 1.0",
+                            "var1 = 2.0",
+                            "aprod = var1 * var2 * xprod",
+                            "bprod = var1 * var2 / aprod",
+                            "cprod = var1 * var2 + bprod"])
+    anode = dag._nodes["aprod"]
+    cnode = dag._nodes["cprod"]
+    with pytest.raises(DAGError) as err:
+        # Erroneously claim that anode is an ancestor of cnode
+        cnode.walk(ancestor_list=[anode])
+    assert ("Cyclic dependency: node '/' has node 'aprod' as both a "
+            "producer and an ancestor" in str(err))
 
 
 def test_node_weight_intrinsic():
@@ -715,7 +730,7 @@ def test_node_weight_intrinsic():
                             "bprod = var1 * var2 / aprod",
                             "cprod = var1 * var2 + bprod"])
     sin_node = None
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if node.name.lower() == "sin":
             sin_node = node
             break
@@ -756,12 +771,12 @@ def test_prune_duplicates():
     dag = dag_from_strings(["aprod = var1 * var2 * var3",
                             "bprod = var1 * var2 / var3",
                             "cprod = var1 * var2 + var3"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert node_names.count("*") == 4
     assert node_names.count("/") == 1
     assert node_names.count("+") == 1
     dag.prune_duplicate_nodes()
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert node_names.count("*") == 2
     assert node_names.count("/") == 1
     assert node_names.count("+") == 1
@@ -777,10 +792,10 @@ def test_prune_duplicate_array_refs():
          "  ( un(ji-1,jj-1,jk) + un(ji-1,jj+1,jk) ) "
          "+ ( un(ji  ,jj-1,jk) + un(ji  ,jj+1,jk) ) * "
          "  ( un(ji  ,jj-1,jk) + un(ji  ,jj+1,jk) )"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert "un(ji-1,jj-1,jk)" in node_names
     dag.prune_duplicate_nodes()
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     # The pruning should have resulted in the introduction of just
     # two intermediate nodes
     assert "sub_exp0" in node_names
@@ -801,7 +816,7 @@ def test_rm_scalar_tmps_array_accesses():  # pylint: disable=invalid-name
          "pgzui  (ji,jj) = (gdep3w_0(ji+1,jj,iku) + ze3wu) - "
          "gdep3w_0(ji,jj,iku)"])
     dag.rm_scalar_temporaries()
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     assert "index" not in node_names
 
 
@@ -990,7 +1005,7 @@ def test_array_ref_contains_array_ref():  # pylint: disable=invalid-name
     ''' Check that an array reference that uses
     another array ref as index is identified as an array reference '''
     dag = dag_from_strings(["aprod = my_array(x(1,2))"])
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if "my_array" in node.name:
             assert node.node_type == "array_ref"
     dag = dag_from_strings(["aprod = my_array(x(i,j))"])
@@ -1006,7 +1021,7 @@ def test_fn_call_contains_array_slice():  # pylint: disable=invalid-name
     contains an array slice as being a function call rather than
     an array reference '''
     dag = dag_from_strings(["aprod = my_fn(x(:))", "bprod = an_array(:)"])
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if "my_fn" in node.name:
             assert node.node_type == "call"
         if "an_array" in node.name:
@@ -1018,7 +1033,7 @@ def test_part_ref_is_call():
     sections as a function call rather than an array reference '''
     dag = dag_from_strings(["area = glob_sum( e1e2t(:,:) * tmask(:,:,1))",
                             "bob = x(:) + y(1:3)"])
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if "glob_sum" in node.name:
             gsum_node = node
             break
@@ -1030,7 +1045,7 @@ def test_string_ref_is_call():
     ''' Check that a Part_Ref that contains a string is identified as a
     function call '''
     dag = dag_from_strings(["area = my_file('name')"])
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if "my_file" in node.name:
             file_node = node
             break
@@ -1046,7 +1061,7 @@ def test_assign_dtype_components():
                             "- sladatqc%rext(jobs,2)"])
     dag.verify_acyclic()
     count = 0
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if "sladatqc" in node.name:
             count += 1
     assert count == 4
@@ -1076,7 +1091,7 @@ def test_repeat_assign_derived_type_array():  # pylint: disable=invalid-name
          "sd(jf)%nrec_a(1) = sd(jf)%nreclast",
          "sd(jf)%nrec_b(1) = sd(jf)%nrec_a(1)",
          "sd(jf)%nrec_a(1) = itmp"])
-    node_names = [node.name for node in dag._nodes.itervalues()]
+    node_names = [node.name for node in itervalues(dag._nodes)]
     dag.verify_acyclic()
     assert "sd(jf)%nrec_a(1)" in node_names
     assert "sd(jf)%nrec_a'(1)" in node_names
@@ -1092,7 +1107,7 @@ def test_propagate_ints():
          "nbidta(ib1, igrd, ib_bdy1) =-ib_bdy1",
          "nbjdta(ib1, igrd, ib_bdy1) =-ib_bdy1"])
     sub_list = []
-    for node in dag._nodes.itervalues():
+    for node in itervalues(dag._nodes):
         if node.node_type == "-":
             sub_list.append(node)
             assert not node.is_integer

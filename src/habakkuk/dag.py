@@ -38,6 +38,7 @@
 
 from __future__ import absolute_import, print_function
 
+from six import itervalues
 from fparser.two import Fortran2003
 from habakkuk.dag_node import DAGNode, DAGError
 # TODO manange the import of these CPU-specific values in a way that permits
@@ -48,10 +49,10 @@ from habakkuk.config_ivy_bridge import OPERATORS, EXAMPLE_CLOCK_GHZ, \
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
-    return (isinstance(expr, Fortran2003.Add_Operand) or
-            isinstance(expr, Fortran2003.Level_2_Expr) or
-            isinstance(expr, Fortran2003.Level_2_Unary_Expr) or
-            isinstance(expr, Fortran2003.Parenthesis))
+    return isinstance(expr, (Fortran2003.Add_Operand,
+                             Fortran2003.Level_2_Expr,
+                             Fortran2003.Level_2_Unary_Expr,
+                             Fortran2003.Parenthesis))
 
 
 def is_intrinsic_fn(obj):
@@ -207,7 +208,7 @@ def flop_count(nodes):
     nodes. This is NOT the same as the number of cycles. '''
     count = 0
     if isinstance(nodes, dict):
-        node_list = nodes.itervalues()
+        node_list = itervalues(nodes)
     elif isinstance(nodes, list):
         node_list = nodes
     else:
@@ -502,7 +503,7 @@ class DirectedAcyclicGraph(object):
         that is dependent upon them - i.e. a consumer.
         These are outputs of the DAG. '''
         node_list = []
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if not node.has_consumer:
                 node_list.append(node)
         return node_list
@@ -511,7 +512,7 @@ class DirectedAcyclicGraph(object):
         ''' Returns a list of all nodes that do not have any producers
         (dependencies). These are inputs to the DAG. '''
         node_list = []
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if not node.has_producer:
                 node_list.append(node)
         return node_list
@@ -546,8 +547,7 @@ class DirectedAcyclicGraph(object):
                 if node.variable:
                     unique_names.add(node.variable.full_orig_name)
             return len(unique_names)
-        else:
-            return len(node_list)
+        return len(node_list)
 
     def cache_lines(self):
         ''' Count the number of cache lines accessed by the graph. This
@@ -653,7 +653,7 @@ class DirectedAcyclicGraph(object):
         ''' Calculate the total cost of the graph by summing up the cost of
         each node '''
         cost = 0
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             cost += node.weight
         return cost
 
@@ -705,10 +705,10 @@ class DirectedAcyclicGraph(object):
                 node_list.append(tmpnode)
                 if is_division and idx == 2:
                     parent.operands.append(tmpnode)
-            elif (isinstance(child, Fortran2003.Real_Literal_Constant) or
-                  isinstance(child, Fortran2003.Int_Literal_Constant) or
-                  isinstance(child, Fortran2003.Char_Literal_Constant) or
-                  isinstance(child, Fortran2003.Logical_Literal_Constant)):
+            elif isinstance(child, (Fortran2003.Real_Literal_Constant,
+                                    Fortran2003.Int_Literal_Constant,
+                                    Fortran2003.Char_Literal_Constant,
+                                    Fortran2003.Logical_Literal_Constant)):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
                 const_var.load(child, mapping)
@@ -794,7 +794,7 @@ class DirectedAcyclicGraph(object):
                             arg_list = child.items[1].items
                         else:
                             arg_list = child.items[1:]
-                        for idx, item in enumerate(arg_list):
+                        for arg_idx, item in enumerate(arg_list):
 
                             child_nodes = self.make_dag(array_node, [item],
                                                         mapping,
@@ -807,7 +807,7 @@ class DirectedAcyclicGraph(object):
                             # the existing array_index_nodes list
                             if len(array_node.array_index_nodes) < \
                                len(arg_list):
-                                if idx > 0:
+                                if arg_idx > 0:
                                     # Just store a string representation
                                     # for any index expression other than
                                     # the first
@@ -854,8 +854,8 @@ class DirectedAcyclicGraph(object):
                 # We've got a ':' as part of an array index expression -
                 # don't generate a node for this.
                 pass
-            elif (isinstance(child, Fortran2003.And_Operand) or
-                  isinstance(child, Fortran2003.Or_Operand)):
+            elif isinstance(child, (Fortran2003.And_Operand,
+                                    Fortran2003.Or_Operand)):
                 # We have an expression that is something like
                 # .NOT. sdjf % ln_clim
                 # and can just carry-on down to the children
@@ -881,8 +881,8 @@ class DirectedAcyclicGraph(object):
                 tmp_node = self.get_node(parent, name=str(child.items[0]))
                 node_list.append(tmp_node)
                 node_list += self.make_dag(tmp_node, child.items[2:], mapping)
-            elif (isinstance(child, Fortran2003.Level_3_Expr) or
-                  isinstance(child, Fortran2003.Level_4_Expr)):
+            elif isinstance(child, (Fortran2003.Level_3_Expr,
+                                    Fortran2003.Level_4_Expr)):
                 # Have an expression that is something like
                 # TRIM(ssnd(ji) % clname) // '_cat' // cli2. Carry on
                 # down to the children
@@ -941,7 +941,7 @@ class DirectedAcyclicGraph(object):
         one consumer and one producer. '''
         dead_nodes = []
         # _nodes is a dictionary - we want the values, not the keys
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if node.node_type not in OPERATORS:
                 if len(node.producers) == 1 and \
                    len(node.consumers) == 1:
@@ -968,7 +968,7 @@ class DirectedAcyclicGraph(object):
     def nodes_with_multiple_consumers(self):
         ''' Returns a list of the nodes that have > 1 consumer '''
         multiple_consumers = []
-        for node in self._nodes.itervalues():
+        for node in itervalues(self._nodes):
             if len(node.consumers) > 1 and not node.is_integer:
                 multiple_consumers.append(node)
         return multiple_consumers
@@ -978,7 +978,7 @@ class DirectedAcyclicGraph(object):
         nodes are integer is propagated as far as possible '''
         while True:
             dag_updated = False
-            for node in self._nodes.itervalues():
+            for node in itervalues(self._nodes):
                 if node.is_integer:
                     # This node is integer. Look at the node(s) that consume
                     # it. If they are not already marked as being integer
@@ -1023,7 +1023,7 @@ class DirectedAcyclicGraph(object):
 
             # Update list of nodes with > 1 consumer
             multiple_consumers = self.nodes_with_multiple_consumers()
-            if len(multiple_consumers) == 0:
+            if not multiple_consumers:
                 break
 
             # Each node with > 1 consumer represents a possible duplication
@@ -1164,7 +1164,7 @@ class DirectedAcyclicGraph(object):
         print("    Sum of cost of all nodes = {0} (cycles)".
               format(total_cycles))
         print("    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".
-            format(total_flops, total_cycles, min_flops_per_hz))
+              format(total_flops, total_cycles, min_flops_per_hz))
         if num_cache_ref:
             min_mem_bw = float(mem_traffic_bytes) / float(total_cycles)
             print("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
@@ -1186,10 +1186,10 @@ class DirectedAcyclicGraph(object):
         if ncycles > 0:
             print("  Everything in parallel to Critical path:")
             print("    Critical path contains {0} nodes, {1} FLOPs and "
-                   "is {2} cycles long".format(
-                       len(self._critical_path),
-                       flop_count(self._critical_path.nodes),
-                       ncycles))
+                  "is {2} cycles long".format(
+                      len(self._critical_path),
+                      flop_count(self._critical_path.nodes),
+                      ncycles))
             # Graph contains total_flops and will execute in at
             # least path.cycles() CPU cycles. A cycle has duration
             # 1/CLOCK_SPEED (s) so kernel will take at least
@@ -1229,7 +1229,7 @@ class DirectedAcyclicGraph(object):
         # to do). Use a dictionary to hold the cost for each port in
         # case the port numbers aren't contiguous.
         port_cost = {}
-        for port in CPU_EXECUTION_PORTS.itervalues():
+        for port in itervalues(CPU_EXECUTION_PORTS):
             # Zero the cost for each port
             port_cost[str(port)] = 0
         # We've previously counted the number of each type of operation.
@@ -1321,7 +1321,7 @@ class DirectedAcyclicGraph(object):
                         break
 
         # Finally, broaden the search out to the whole tree...
-        available_ops.extend(ready_ops_from_list(self._nodes.itervalues()))
+        available_ops.extend(ready_ops_from_list(itervalues(self._nodes)))
 
         # Remove duplicates from the list while preserving their order
         unique_available_ops = []
