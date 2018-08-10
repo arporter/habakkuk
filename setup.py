@@ -62,7 +62,7 @@ if __name__ == "__main__":
                      'Operating System :: Unix'],
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['six', 'fparser=0.0.7'],
+        install_requires=['six', 'fparser==0.0.7'],
         # We need the following line to ensure we get the fparser/log.config
         # file installed.
         include_package_data=True,
