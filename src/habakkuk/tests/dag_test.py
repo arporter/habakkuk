@@ -55,7 +55,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
-def test_is_intrinsic_err():
+def test_is_intrinsic_err(parser):
     ''' Check that the expected exception is raised if we pass an
     incorrect object to the is_intrinsic_fn() function '''
     from habakkuk.dag import is_intrinsic_fn

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2016-2018, Science and Technology Facilities Council.
+# Copyright (c) 2016-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 from __future__ import absolute_import, print_function
 
 from habakkuk.dag import DirectedAcyclicGraph
-from habakkuk.parse2003 import walk_ast
+from fparser.two.utils import walk_ast
 
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
@@ -95,6 +95,7 @@ def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
 def dag_of_files(options, args):
     ''' Parses the files listed in args and generates a DAG for all of
     the subroutines/inner loops that it finds '''
+    from fparser.two.utils import FortranSyntaxError
     from fparser.two import Fortran2003
     from fparser.common.readfortran import FortranFileReader
     from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
@@ -224,7 +225,7 @@ def dag_of_files(options, args):
                         else:
                             print("No opportunities to fuse multiply-adds")
 
-        except Fortran2003.NoMatchError:
+        except (Fortran2003.NoMatchError, FortranSyntaxError):
             # TODO log this error
             print("Parsing '{0}' (starting at {1}) failed at {2}. "
                   "Is the file valid Fortran?".
