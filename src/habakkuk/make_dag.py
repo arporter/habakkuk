@@ -96,6 +96,7 @@ def dag_of_files(options, args):
     ''' Parses the files listed in args and generates a DAG for all of
     the subroutines/inner loops that it finds '''
     from fparser.two.utils import FortranSyntaxError
+    from fparser.two.parser import ParserFactory
     from fparser.two import Fortran2003
     from fparser.common.readfortran import FortranFileReader
     from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
@@ -103,6 +104,9 @@ def dag_of_files(options, args):
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
         Name
     from habakkuk.parse2003 import Loop, get_child, ParseError
+
+    # Create our Fortran parser
+    parser = ParserFactory().create()
 
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
@@ -116,7 +120,7 @@ def dag_of_files(options, args):
         if options.mode != 'auto':
             reader.set_mode_from_str(options.mode)
         try:
-            program = Fortran2003.Program(reader)
+            program = parser(reader)
             # Find all the subroutines contained in the file
             routines = walk_ast(program.content, [Subroutine_Subprogram,
                                                   Function_Subprogram])
