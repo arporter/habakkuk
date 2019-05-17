@@ -42,7 +42,12 @@ from __future__ import absolute_import, print_function
 def walk_ast(children, my_types, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
     are listed under 'content'.  Returns a list of all nodes with the
-    specified type(s). '''
+    specified type(s).
+
+    TODO Ideally this would be replaced by fparser.two.utils.walk_ast() but
+    that version does not have support for the case where a child is itself
+    a tuple.
+    '''
     local_list = []
     for child in children:
         if debug:
@@ -59,6 +64,8 @@ def walk_ast(children, my_types, indent=0, debug=False):
         elif hasattr(child, "items"):
             local_list += walk_ast(child.items, my_types, indent+1, debug)
         elif isinstance(child, tuple):
+            # Children of a Loop_Control node (and maybe others?) can contain
+            # a tuple
             local_list += walk_ast(list(child), my_types, indent+1, debug)
 
     return local_list
@@ -248,15 +255,15 @@ class Variable(object):
                     self._name = name
                 self._is_array_ref = False
 
-        elif (isinstance(node, Fortran2003.Part_Ref) or
-              isinstance(node, Fortran2003.Array_Section)):
+        elif isinstance(node, (Fortran2003.Part_Ref,
+                               Fortran2003.Array_Section)):
             # This node might be an array access or a function call
             self._process_array_ref(node, mapping)
 
-        elif type(node) in [Fortran2003.Real_Literal_Constant,
-                            Fortran2003.Int_Literal_Constant,
-                            Fortran2003.Char_Literal_Constant,
-                            Fortran2003.Logical_Literal_Constant]:
+        elif isinstance(node, (Fortran2003.Real_Literal_Constant,
+                               Fortran2003.Int_Literal_Constant,
+                               Fortran2003.Char_Literal_Constant,
+                               Fortran2003.Logical_Literal_Constant)):
             self._name = str(node)
             self._orig_name = self._name
             self._is_array_ref = False
@@ -321,10 +328,9 @@ class Variable(object):
             # (i.e. ignoring whether they are "+1" etc.)
             array_index_vars = walk_ast(node.items[1].items,
                                         [Fortran2003.Name])
-        elif (isinstance(node.items[1], Fortran2003.Name) or
-              isinstance(node.items[1],
-                         Fortran2003.Int_Literal_Constant) or
-              isinstance(node.items[1], Fortran2003.Data_Ref)):
+        elif isinstance(node.items[1], (Fortran2003.Name,
+                                        Fortran2003.Int_Literal_Constant,
+                                        Fortran2003.Data_Ref)):
             # There's only a single array index/argument
             self._index_exprns.append(str(node.items[1]).replace(" ", ""))
             array_index_vars = [node.items[1]]
